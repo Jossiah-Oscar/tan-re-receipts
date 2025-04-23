@@ -39,7 +39,7 @@ export default function ReceiptSearch({ onSearch, onSearchStart }: ReceiptSearch
             if (instrumentType) params.append('instrumentType', instrumentType);
 
             // Make API call
-            const response = await fetch(`http://localhost:3001/api/receipts/search?${params.toString()}`);
+            const response = await fetch(`http://192.168.1.45:3001/api/receipts/search?${params.toString()}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }

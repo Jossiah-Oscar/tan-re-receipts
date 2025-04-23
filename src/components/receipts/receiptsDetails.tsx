@@ -36,7 +36,7 @@ export default function ReceiptDetail() {
         const fetchReceiptDetail = async () => {
             setLoading(true);
             try {
-                const response = await fetch(`http://localhost:3001/api/receipts/${receiptNumber}`);
+                const response = await fetch(`http://192.168.1.45:3001/api/receipts/${receiptNumber}`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -70,7 +70,7 @@ export default function ReceiptDetail() {
         if (!receipt) return;
 
         try {
-            const response = await fetch(`http://localhost:3001/api/receipts/${receipt.receiptNumber}/pdf`, {
+            const response = await fetch(`http://192.168.1.45:3001/api/receipts/${receipt.receiptNumber}/pdf`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/pdf',

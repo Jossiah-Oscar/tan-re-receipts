@@ -1,26 +1,14 @@
 'use client'
 
 import ReceiptSearch from "@/components/receipts/receiptSearch";
-import {
-    ActionIcon,
-    Alert,
-    Badge,
-    Card,
-    Container,
-    Grid,
-    Group,
-    Loader,
-    Paper,
-    rem,
-    Stack,
-    Table,
-    Text,
-    Title
-} from "@mantine/core";
+
+import {ActionIcon, Alert, Badge, Card, Container, Grid, Group, Loader, Paper, rem, Stack, Table, Text, Title} from "@mantine/core";
+
 import {IconAlertCircle, IconDotsVertical, IconEye, IconFileDownload} from "@tabler/icons-react";
 import {useEffect, useState} from "react";
 import {Receipt} from "@/types/receipts";
 import { useRouter } from "next/navigation"; // Change from react-router to Next.js
+
 
 export default function ReportPage() {
     const router = useRouter(); // Use Next.js router instead of useNavigate
@@ -48,7 +36,7 @@ export default function ReportPage() {
         const fetchReceipts = async () => {
             setLoading(true);
             try {
-                const response = await fetch('http://localhost:3001/api/receipts/recent');
+                const response = await fetch('http://192.168.1.45:3001/api/receipts/recent');
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -75,7 +63,7 @@ export default function ReportPage() {
     const downloadReceiptPdf = async (receiptNumber: number) => {
         try {
             // Using fetch API to get the PDF as a blob
-            const response = await fetch(`http://localhost:3001/api/receipts/${receiptNumber}/pdf`, {
+            const response = await fetch(`http://192.168.1.45:3001/api/receipts/${receiptNumber}/pdf`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/pdf',
@@ -109,6 +97,7 @@ export default function ReportPage() {
             // Handle the error appropriately in your UI
         }
     };
+
 
     return (
             <Stack>

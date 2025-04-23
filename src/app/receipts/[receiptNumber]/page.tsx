@@ -1,32 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react';
-import {
-    Grid,
-    Card,
-    Group,
-    Text,
-    Table,
-    rem,
-    ActionIcon,
-    Loader,
-    Alert,
-    Button,
-    TextInput,
-    Textarea,
-    Modal,
-    Box
-} from '@mantine/core';
-import {
-    IconArrowLeft,
-    IconPrinter,
-    IconFileDownload,
-    IconAlertCircle,
-    IconEdit,
-    IconCheck
-} from '@tabler/icons-react';
-import { useParams, useRouter } from 'next/navigation';
-import { Receipt } from "@/types/receipts";
+import { useState, useEffect, SetStateAction} from 'react';
+import {IconArrowLeft, IconPrinter, IconFileDownload, IconAlertCircle, IconEdit, IconCheck} from '@tabler/icons-react';
+import {useParams, useRouter} from 'next/navigation';
+import {Receipt} from "@/types/receipts";
+
+import {ActionIcon, Alert, Badge, Button, Card, Container, Grid, Group, Loader, Paper, rem, Stack, Table, Text, TextInput, Title, Modal, Textarea,} from "@mantine/core";
+
 
 export default function ReceiptDetail() {
     const params = useParams();
@@ -47,7 +27,7 @@ export default function ReceiptDetail() {
         const fetchReceiptDetail = async () => {
             setLoading(true);
             try {
-                const response = await fetch(`http://localhost:3001/api/receipts/${receiptNumber}`);
+                const response = await fetch(`http://192.168.1.45:3001/api/receipts/${receiptNumber}`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -115,7 +95,7 @@ export default function ReceiptDetail() {
             };
 
             // Send the modified receipt to generate a custom PDF
-            const response = await fetch(`http://localhost:3001/api/receipts/custom-pdf`, {
+            const response = await fetch(`http://192.168.1.45:3001/api/receipts/custom-pdf`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -144,8 +124,8 @@ export default function ReceiptDetail() {
 
     if (loading) {
         return (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
-                <Loader size="lg" />
+            <div style={{display: 'flex', justifyContent: 'center', padding: '3rem'}}>
+                <Loader size="lg"/>
             </div>
         );
     }
@@ -155,7 +135,7 @@ export default function ReceiptDetail() {
             <Alert
                 title="Error loading receipt details"
                 color="red"
-                icon={<IconAlertCircle />}
+                icon={<IconAlertCircle/>}
                 m="md"
             >
                 {error}
@@ -171,7 +151,7 @@ export default function ReceiptDetail() {
             <Alert
                 title="Receipt not found"
                 color="yellow"
-                icon={<IconAlertCircle />}
+                icon={<IconAlertCircle/>}
                 m="md"
             >
                 The receipt you're looking for could not be found.
@@ -185,7 +165,7 @@ export default function ReceiptDetail() {
     return (
         <>
             <Grid>
-                <Grid.Col span={{ base: 12, md: 12 }}>
+                <Grid.Col span={{base: 12, md: 12}}>
                     <Card shadow="sm" padding="lg" radius="md" withBorder>
                         <Group justify="space-between" mb="xl">
                             <Group>
@@ -195,21 +175,21 @@ export default function ReceiptDetail() {
                                     onClick={handleBack}
                                     size="lg"
                                 >
-                                    <IconArrowLeft style={{ width: rem(20), height: rem(20) }} />
+                                    <IconArrowLeft style={{width: rem(20), height: rem(20)}}/>
                                 </ActionIcon>
                                 <Text fw={600} size="lg">Receipt #{receipt.receiptNumber}</Text>
                             </Group>
                             <Group>
                                 <Button
                                     variant="light"
-                                    leftSection={<IconPrinter size={16} />}
+                                    leftSection={<IconPrinter size={16}/>}
                                     onClick={handlePrint}
                                 >
                                     Print
                                 </Button>
                                 <Button
                                     variant="light"
-                                    leftSection={<IconFileDownload size={16} />}
+                                    leftSection={<IconFileDownload size={16}/>}
                                     onClick={downloadReceiptPdf}
                                 >
                                     Export
@@ -220,9 +200,9 @@ export default function ReceiptDetail() {
                         <Table>
                             <Table.Tbody>
                                 <Table.Tr>
-                                    <Table.Td fw={500} style={{ width: '20%' }}>Receipt Number</Table.Td>
+                                    <Table.Td fw={500} style={{width: '20%'}}>Receipt Number</Table.Td>
                                     <Table.Td>{receipt.receiptNumber}</Table.Td>
-                                    <Table.Td fw={500} style={{ width: '20%' }}>Instrument Type</Table.Td>
+                                    <Table.Td fw={500} style={{width: '20%'}}>Instrument Type</Table.Td>
                                     <Table.Td>{receipt.instrumentType}</Table.Td>
                                 </Table.Tr>
                                 <Table.Tr>
@@ -238,7 +218,7 @@ export default function ReceiptDetail() {
                                             <Group>
                                                 <Textarea
                                                     value={referenceText}
-                                                    onChange={(e) => setReferenceText(e.target.value)}
+                                                    onChange={(e: { target: { value: SetStateAction<string>; }; }) => setReferenceText(e.target.value)}
                                                     autosize
                                                     minRows={2}
                                                     style={{ flexGrow: 1 }}
@@ -325,7 +305,7 @@ export default function ReceiptDetail() {
                     label="Your Initials"
                     placeholder="Enter your initials (e.g., JD)"
                     value={signature}
-                    onChange={(e) => setSignature(e.target.value)}
+                    onChange={(e: { target: { value: SetStateAction<string>; }; }) => setSignature(e.target.value)}
                     mb="md"
                 />
                 <Group justify="flex-end">
