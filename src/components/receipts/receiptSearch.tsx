@@ -11,7 +11,8 @@ import {
 } from '@mantine/core';
 import { IconSearch, IconFilter, IconCalendar } from '@tabler/icons-react';
 import { Receipt } from '@/types/receipts';
-import {DateInput, DatePicker, DatePickerInput} from "@mantine/dates";
+import {DateInput, DatePicker, DatePickerInput, DateTimePicker} from "@mantine/dates";
+import {API_BASE_URL} from "@/config/api";
 
 interface ReceiptSearchProps {
     onSearch: (results: Receipt[]) => void;
@@ -39,7 +40,7 @@ export default function ReceiptSearch({ onSearch, onSearchStart }: ReceiptSearch
             if (instrumentType) params.append('instrumentType', instrumentType);
 
             // Make API call
-            const response = await fetch(`http://192.168.1.45:3001/api/receipts/search?${params.toString()}`);
+            const response = await fetch(`${API_BASE_URL}/api/receipts/search?${params.toString()}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
@@ -118,6 +119,7 @@ export default function ReceiptSearch({ onSearch, onSearchStart }: ReceiptSearch
 
 
                         <DateInput
+                            valueFormat="DD MMM YYYY"
                             value={dateFrom}
                             onChange={setDateFrom}
                             label="From Date"
@@ -129,7 +131,7 @@ export default function ReceiptSearch({ onSearch, onSearchStart }: ReceiptSearch
 
                     <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
                         <DateInput
-                            valueFormat="YYYY MMM DD"
+                            valueFormat="DD MMM YYYY"
                             value={dateTo}
                             onChange={setDateTo}
                             label="To Date"

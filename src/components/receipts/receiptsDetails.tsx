@@ -21,6 +21,7 @@ import {
 } from '@tabler/icons-react';
 import { useParams, useRouter } from 'next/navigation'; // Changed from react-router-dom
 import { Receipt } from "@/types/receipts";
+import {API_BASE_URL} from "@/config/api";
 
 // This is a Next.js dynamic page component (app/receipts/[receiptNumber]/page.tsx)
 export default function ReceiptDetail() {
@@ -36,7 +37,7 @@ export default function ReceiptDetail() {
         const fetchReceiptDetail = async () => {
             setLoading(true);
             try {
-                const response = await fetch(`http://192.168.1.45:3001/api/receipts/${receiptNumber}`);
+                const response = await fetch(`${API_BASE_URL}/api/receipts/${receiptNumber}`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -70,7 +71,7 @@ export default function ReceiptDetail() {
         if (!receipt) return;
 
         try {
-            const response = await fetch(`http://192.168.1.45:3001/api/receipts/${receipt.receiptNumber}/pdf`, {
+            const response = await fetch(`${API_BASE_URL}/api/receipts/${receipt.receiptNumber}/pdf`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/pdf',

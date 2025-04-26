@@ -7,7 +7,8 @@ import {ActionIcon, Alert, Badge, Card, Container, Grid, Group, Loader, Paper, r
 import {IconAlertCircle, IconDotsVertical, IconEye, IconFileDownload} from "@tabler/icons-react";
 import {useEffect, useState} from "react";
 import {Receipt} from "@/types/receipts";
-import { useRouter } from "next/navigation"; // Change from react-router to Next.js
+import { useRouter } from "next/navigation";
+import {API_BASE_URL} from "@/config/api"; // Change from react-router to Next.js
 
 
 export default function ReportPage() {
@@ -36,7 +37,7 @@ export default function ReportPage() {
         const fetchReceipts = async () => {
             setLoading(true);
             try {
-                const response = await fetch('http://192.168.1.45:3001/api/receipts/recent');
+                const response = await fetch(`${API_BASE_URL}/api/receipts/recent`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -63,7 +64,7 @@ export default function ReportPage() {
     const downloadReceiptPdf = async (receiptNumber: number) => {
         try {
             // Using fetch API to get the PDF as a blob
-            const response = await fetch(`http://192.168.1.45:3001/api/receipts/${receiptNumber}/pdf`, {
+            const response = await fetch(`${API_BASE_URL}/api/receipts/${receiptNumber}/pdf`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/pdf',
@@ -100,6 +101,7 @@ export default function ReportPage() {
 
 
     return (
+        <Container size="md" py="xl">
             <Stack>
                 <Title order={2} mb="md">Receipt Management</Title>
 
@@ -178,17 +180,17 @@ export default function ReportPage() {
                                                             >
                                                                 <IconEye style={{ width: rem(16), height: rem(16) }} />
                                                             </ActionIcon>
-                                                            <ActionIcon
-                                                                variant="subtle"
-                                                                color="blue"
-                                                                onClick={() => downloadReceiptPdf(receipt.receiptNumber)}
-                                                                title="Download PDF"
-                                                            >
-                                                                <IconFileDownload style={{ width: rem(16), height: rem(16) }} />
-                                                            </ActionIcon>
-                                                            <ActionIcon variant="subtle" color="gray">
-                                                                <IconDotsVertical style={{ width: rem(16), height: rem(16) }} />
-                                                            </ActionIcon>
+                                                            {/*<ActionIcon*/}
+                                                            {/*    variant="subtle"*/}
+                                                            {/*    color="blue"*/}
+                                                            {/*    onClick={() => downloadReceiptPdf(receipt.receiptNumber)}*/}
+                                                            {/*    title="Download PDF"*/}
+                                                            {/*>*/}
+                                                            {/*    <IconFileDownload style={{ width: rem(16), height: rem(16) }} />*/}
+                                                            {/*</ActionIcon>*/}
+                                                            {/*<ActionIcon variant="subtle" color="gray">*/}
+                                                            {/*    <IconDotsVertical style={{ width: rem(16), height: rem(16) }} />*/}
+                                                            {/*</ActionIcon>*/}
                                                         </Group>
                                                     </Table.Td>
                                                 </Table.Tr>
@@ -208,5 +210,6 @@ export default function ReportPage() {
                 </Grid>
 
             </Stack>
+            </Container>
     );
 }

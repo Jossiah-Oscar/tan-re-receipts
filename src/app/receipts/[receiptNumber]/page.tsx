@@ -6,6 +6,7 @@ import {useParams, useRouter} from 'next/navigation';
 import {Receipt} from "@/types/receipts";
 
 import {ActionIcon, Alert, Badge, Button, Card, Container, Grid, Group, Loader, Paper, rem, Stack, Table, Text, TextInput, Title, Modal, Textarea,} from "@mantine/core";
+import {API_BASE_URL} from "@/config/api";
 
 
 export default function ReceiptDetail() {
@@ -27,7 +28,7 @@ export default function ReceiptDetail() {
         const fetchReceiptDetail = async () => {
             setLoading(true);
             try {
-                const response = await fetch(`http://192.168.1.45:3001/api/receipts/${receiptNumber}`);
+                const response = await fetch(`${API_BASE_URL}/api/receipts/${receiptNumber}`);
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -95,7 +96,7 @@ export default function ReceiptDetail() {
             };
 
             // Send the modified receipt to generate a custom PDF
-            const response = await fetch(`http://192.168.1.45:3001/api/receipts/custom-pdf`, {
+            const response = await fetch(`${API_BASE_URL}/api/receipts/custom-pdf`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
