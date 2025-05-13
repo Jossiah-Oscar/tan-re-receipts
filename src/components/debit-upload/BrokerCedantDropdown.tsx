@@ -19,9 +19,13 @@ export function BrokerCedantDropdown({value,
                                          onChange,
                                      }: BrokerCedantDropdownProps) {
     const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
+    const token = localStorage.getItem('jwt');
+
 
     useEffect(() => {
-        fetch(`http://192.168.1.45:3003/api/broker-cedants`)
+        fetch(`${API_BASE_URl_DOC}/api/broker-cedants`, {
+            headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`, },
+        })
             .then((res) => res.json())
             .then((data: Cedant[]) =>
                 setOptions(
