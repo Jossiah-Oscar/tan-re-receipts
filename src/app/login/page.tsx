@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { TextInput, PasswordInput, Button, Paper, Title, Container, Alert } from "@mantine/core";
+import {API_BASE_URl_DOC} from "@/config/api";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -16,7 +17,7 @@ export default function LoginPage() {
         setError(null);
         setLoading(true);
         try {
-            const res = await fetch("http://localhost:3003/auth/login", {
+            const res = await fetch(`${API_BASE_URl_DOC}/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password }),
