@@ -11,18 +11,22 @@ export function UploadForm({ onSuccess }: { onSuccess: () => void }) {
     const [documentType, setDocumentType] = useState<string | null>(null);
     const [fileName, setFileName] = useState('');
     const [files, setFiles] = useState<File[]>([]);
+    const [submitting, setSubmitting] = useState(false);
+
 
     const handleSubmit = async () => {
         if (!cedantCode) {
             alert('Please select a broker/cedant');
             return;
         }
-
+        setSubmitting(true);
         const formData = new FormData();
         formData.append('cedantCode', cedantCode);          // send the code
         formData.append('documentType', documentType || '');
         formData.append('fileName', fileName);
         files.forEach((file) => formData.append('files', file));
+        const token = localStorage.getItem('jwt');
+
 
         try {
             const response = await fetch(
@@ -30,6 +34,7 @@ export function UploadForm({ onSuccess }: { onSuccess: () => void }) {
                 {
                     method: 'POST',
                     body: formData,
+                    headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`, },
                 }
             );
             if (response.ok) {
@@ -40,6 +45,8 @@ export function UploadForm({ onSuccess }: { onSuccess: () => void }) {
         } catch (err) {
             console.error(err);
             alert('Error uploading documents');
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -81,7 +88,14 @@ export function UploadForm({ onSuccess }: { onSuccess: () => void }) {
                 />
 
                 <Group justify="right" mt="lg">
-                    <Button type="submit">Submit</Button>
+                    {/*<Button type="submit">Submit</Button>*/}
+                    <Button
+                        type="submit"
+                        loading={submitting}
+                        disabled={submitting}
+                    >
+                              {submitting ? 'Submitting…' : 'Submit'}
+                    </Button>
                 </Group>
             </Stack>
         </form>

@@ -21,7 +21,7 @@ export function BrokerCedantDropdown({value,
     const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
 
     useEffect(() => {
-        fetch(`${API_BASE_URl_DOC}/api/broker-cedants`)
+        fetch(`http://192.168.1.45:3003/api/broker-cedants`)
             .then((res) => res.json())
             .then((data: Cedant[]) =>
                 setOptions(

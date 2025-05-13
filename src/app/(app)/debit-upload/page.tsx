@@ -22,7 +22,7 @@ import {IconPlus, IconAlertCircle, IconEye, IconFileDownload, IconPhoto} from '@
 import {DocumentSearch} from "@/components/debit-upload/debitSearch";
 import {UploadForm} from "@/components/debit-upload/uploadForm";
 import {DocumentDetailsModal} from "@/components/debit-upload/DocumentDetailsModal";
-import {API_BASE_URl_DOC} from "@/config/api";
+import {API_BASE_URl_DOC, ApiError} from "@/config/api";
 
 
 interface DocumentDTO {
@@ -49,23 +49,7 @@ export default function DocumentUploadPage() {
     const [evidenceDocId, setEvidenceDocId] = useState<number | null>(null);
     const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
 
-    // const fetchDocuments = async () => {
-    //     setLoading(true);
-    //     try {
-    //         const res = await fetch(`${API_BASE_URl_DOC}/api/documents`);
-    //         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    //         setDocuments(await res.json());
-    //         setError(null);
-    //     } catch (err: any) {
-    //         setError(err.message);
-    //     } finally {
-    //         setLoading(false);
-    //     }
-    // };
 
-    useEffect(() => {
-        fetchDocuments();
-    }, []);
 
     const viewFiles = (docId: number) => {
         setSelectedDocId(docId);
@@ -75,8 +59,10 @@ export default function DocumentUploadPage() {
     const downloadFirstFile = (files: { id: number; fileName: string }[]) => {
         if (!files.length) return;
         const { id, fileName } = files[0];
+        const token = localStorage.getItem('jwt');
+
         fetch(`${API_BASE_URl_DOC}/api/documents/files/${id}/download`, {
-            headers: { Accept: 'application/octet-stream' },
+            headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`, },
         })
             .then((r) => r.blob())
             .then((blob) => {
@@ -112,9 +98,13 @@ export default function DocumentUploadPage() {
         if (!evidenceDocId || !evidenceFile) return;
         const form = new FormData();
         form.append('evidence', evidenceFile);
+        const token = localStorage.getItem('jwt');
+
         await fetch(`${API_BASE_URl_DOC}/api/documents/${evidenceDocId}/evidence`, {
             method: 'POST',
             body: form,
+            headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`, },
+
         });
         closeEvidenceModal();
         fetchDocuments();
@@ -124,15 +114,29 @@ export default function DocumentUploadPage() {
         setLoading(true);
         try {
             let url = `${API_BASE_URl_DOC}/api/documents`;
+            const token = localStorage.getItem('jwt');
+
+
             if (criteria) {
                 const params = new URLSearchParams();
                 if (criteria.cedantName)     params.append('cedantName', criteria.cedantName);
                 if (criteria.documentType)    params.append('documentType', criteria.documentType);
                 url += `?${params.toString()}`;
             }
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const res = await fetch(url,{headers: {'Authorization': `Bearer ${token}`, }});
+
+            if (res.status === 401) {
+                localStorage.removeItem("jwt");
+                window.location.href = "/login";
+                return;
+            }
+
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+            }
+
             const docs: DocumentDTO[] = await res.json();
+
             setDocuments(docs);
             setError(null);
         } catch (err: any) {

@@ -12,6 +12,8 @@ import {useDisclosure} from "@mantine/hooks";
 import Link from "next/link";
 import '@mantine/dates/styles.css';
 import { IconChevronRight } from "@tabler/icons-react";
+import {useEffect} from "react";
+import {usePathname, useRouter} from "next/navigation";
 
 
 const geistSans = Geist({
@@ -36,7 +38,20 @@ export default function RootLayout({
 }>) {
 
     const [opened, { toggle }] = useDisclosure();
-  return (
+    const router = useRouter();
+    const path = usePathname();
+
+    useEffect(() => {
+        // don’t redirect if we’re already on /login
+        if (path === "/login") return;
+
+        const token = localStorage.getItem("jwt");
+        if (!token) {
+            router.replace("/login");
+        }
+    }, [path, router]);
+
+    return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -44,38 +59,7 @@ export default function RootLayout({
       <MantineProvider defaultColorScheme="light">
           <Notifications />
 
-          <AppShell
-              header={{ height: 60 }}
-              navbar={{ width: 300, breakpoint: 'sm', collapsed: { mobile: !opened } }}
-              padding="md"
-          >
-              <AppShell.Header>
-                  <Group h="100%" px="md">
-                      <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-                      {/*<MantineLogo size={30} />*/}
-                  </Group>
-              </AppShell.Header>
-              <AppShell.Navbar p="md">
-                      <NavLink
-                          component={Link}
-                          href="/debit-upload"
-                          label="Document Upload"
-                          rightSection={
-                              <IconChevronRight size={12} stroke={1.5} className="mantine-rotate-rtl" />
-                          }
-                      />
-                      <NavLink
-                          component={Link}
-                          href="/receipts"
-                          label="Receipts"
-                          rightSection={
-                              <IconChevronRight size={12} stroke={1.5} className="mantine-rotate-rtl" />
-                          }
-                      />
-                      {/* add more links as needed */}
-              </AppShell.Navbar>
-              <AppShell.Main>{children}</AppShell.Main>
-          </AppShell>
+        {children}
       </MantineProvider>
       </body>
     </html>

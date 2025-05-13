@@ -40,7 +40,12 @@ export default function DocumentListPage() {
     // Fetch all documents (metadata + file list)
     useEffect(() => {
         setLoading(true);
-        fetch(`${API_BASE_URl_DOC}/api/documents`)
+        const token = localStorage.getItem('jwt');
+
+        fetch(`${API_BASE_URl_DOC}/api/documents`, {
+            headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`, },
+
+        })
             .then((res) => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 return res.json();
