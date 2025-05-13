@@ -19,22 +19,53 @@ export function BrokerCedantDropdown({value,
                                          onChange,
                                      }: BrokerCedantDropdownProps) {
     const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
-    const token = localStorage.getItem('jwt');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
 
     useEffect(() => {
-        fetch(`${API_BASE_URl_DOC}/api/broker-cedants`, {
-            headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`, },
-        })
-            .then((res) => res.json())
-            .then((data: Cedant[]) =>
-                setOptions(
-                    data.map((c) => ({
-                        value: c.code,
-                        label: `${c.name} (${c.code})`,
-                    }))
-                )
-            );
+        const fetchCedants = async () => {
+            const token = localStorage.getItem('jwt');
+            if (!token) {
+                console.error("No JWT token found. Please log in.");
+                setError("Authentication required. Please log in.");
+                setLoading(false);
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE_URl_DOC}/api/broker-cedants`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
+                });
+
+                if (!res.ok) {
+                    if (res.status === 401 || res.status === 403) {
+                        localStorage.removeItem("jwt");
+                        window.location.href = "/login";
+                        return;
+                    }
+                    throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+                }
+
+                const data: Cedant[] = await res.json();
+                setOptions(data.map((c) => ({
+                    value: c.code,
+                    label: `${c.name} (${c.code})`,
+                })));
+                setError(null);
+            } catch (err: any) {
+                console.error("Error fetching broker cedants:", err);
+                setError(err.message || "Failed to load options");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchCedants();
     }, []);
 
     return (
