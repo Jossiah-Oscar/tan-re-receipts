@@ -25,31 +25,69 @@ export function DocumentDetailsModal({
 
     useEffect(() => {
         if (!opened || documentId == null) return;
+
         setLoading(true);
         setError(null);
-        const token = localStorage.getItem('jwt');
 
-        // fetch just the files for this document
+        const token = localStorage.getItem('jwt');
+        if (!token) {
+            console.error("No JWT token found. Please log in.");
+            window.location.href = "/login";
+            return;
+        }
+
         fetch(`${API_BASE_URl_DOC}/api/documents/${documentId}/files`, {
-            headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`, },
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/json",  // Expecting JSON response
+                "Content-Type": "application/json",
+            },
         })
             .then((res) => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                if (res.status === 401 || res.status === 403) {
+                    console.error("Unauthorized or forbidden request. Redirecting to login.");
+                    localStorage.removeItem("jwt");
+                    window.location.href = "/login";
+                    return Promise.reject(new Error("Unauthorized or forbidden"));
+                }
+
+                if (!res.ok) throw new Error(`HTTP ${res.status} - ${res.statusText}`);
                 return res.json();
             })
             .then((dto: DocumentFileDTO[]) => setFiles(dto))
-            .catch((err) => setError(err.message))
+            .catch((err) => {
+                console.error("Error fetching files:", err);
+                setError(err.message);
+            })
             .finally(() => setLoading(false));
     }, [opened, documentId]);
+
 
     const downloadFile = (fileId: number, fileName: string) => {
         const token = localStorage.getItem('jwt');
 
+        if (!token) {
+            console.error("No JWT token found. Please log in.");
+            window.location.href = "/login";
+            return;
+        }
+
         fetch(`${API_BASE_URl_DOC}/api/documents/files/${fileId}/download`, {
-            headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`,},
+            method: 'GET',
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Accept": "application/octet-stream",
+            },
         })
             .then((res) => {
-                if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+                if (res.status === 401 || res.status === 403) {
+                    console.error("Unauthorized or forbidden request. Redirecting to login.");
+                    localStorage.removeItem("jwt");
+                    window.location.href = "/login";
+                    return Promise.reject(new Error("Unauthorized or forbidden"));
+                }
+
+                if (!res.ok) throw new Error(`Download failed: HTTP ${res.status} - ${res.statusText}`);
                 return res.blob();
             })
             .then((blob) => {
@@ -57,12 +95,12 @@ export function DocumentDetailsModal({
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = fileName;
-                document.body.append(a);
+                document.body.appendChild(a);
                 a.click();
                 a.remove();
                 URL.revokeObjectURL(url);
             })
-            .catch((err) => console.error(err));
+            .catch((err) => console.error("File download failed:", err));
     };
 
     return (
