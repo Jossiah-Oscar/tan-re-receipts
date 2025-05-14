@@ -27,9 +27,12 @@ export function DocumentDetailsModal({
         if (!opened || documentId == null) return;
         setLoading(true);
         setError(null);
+        const token = localStorage.getItem('jwt');
 
         // fetch just the files for this document
-        fetch(`${API_BASE_URl_DOC}/api/documents/${documentId}/files`)
+        fetch(`${API_BASE_URl_DOC}/api/documents/${documentId}/files`, {
+            headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`, },
+        })
             .then((res) => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 return res.json();
@@ -40,8 +43,10 @@ export function DocumentDetailsModal({
     }, [opened, documentId]);
 
     const downloadFile = (fileId: number, fileName: string) => {
+        const token = localStorage.getItem('jwt');
+
         fetch(`${API_BASE_URl_DOC}/api/documents/files/${fileId}/download`, {
-            headers: { Accept: 'application/octet-stream' },
+            headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`,},
         })
             .then((res) => {
                 if (!res.ok) throw new Error(`Download failed: ${res.status}`);

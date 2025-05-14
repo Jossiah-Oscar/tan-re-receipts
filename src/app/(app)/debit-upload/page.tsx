@@ -18,11 +18,12 @@ import {
     ActionIcon,
     Modal, FileInput,
 } from '@mantine/core';
-import {IconPlus, IconAlertCircle, IconEye, IconFileDownload, IconPhoto} from '@tabler/icons-react';
+import {IconPlus, IconAlertCircle, IconEye, IconFileDownload, IconPhoto, IconTrash} from '@tabler/icons-react';
 import {DocumentSearch} from "@/components/debit-upload/debitSearch";
 import {UploadForm} from "@/components/debit-upload/uploadForm";
 import {DocumentDetailsModal} from "@/components/debit-upload/DocumentDetailsModal";
 import {API_BASE_URl_DOC, ApiError} from "@/config/api";
+import {showNotification} from "@mantine/notifications";
 
 
 interface DocumentDTO {
@@ -48,10 +49,12 @@ export default function DocumentUploadPage() {
     const [evidenceOpened, setEvidenceOpened] = useState(false);
     const [evidenceDocId, setEvidenceDocId] = useState<number | null>(null);
     const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
 
 
 
-    const viewFiles = (docId: number) => {
+
+    const  viewFiles = (docId: number) => {
         setSelectedDocId(docId);
         setDetailsOpened(true);
     };
@@ -146,13 +149,57 @@ export default function DocumentUploadPage() {
         }
     };
 
+    const handleDelete = async (docId: number) => {
+        if (!window.confirm('Are you sure you want to delete this document and all its files?')) {
+            return;
+        }
+
+        setDeletingId(docId);
+
+        try {
+            const token = localStorage.getItem('jwt');
+            if (!token) {
+                showNotification({ message: 'Authentication required. Please log in.', color: 'red' });
+                window.location.href = "/login";
+                return;
+            }
+
+            const res = await fetch(`${API_BASE_URl_DOC}/api/documents/${docId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (res.status === 401 || res.status === 403) {
+                localStorage.removeItem("jwt");
+                showNotification({ message: 'Session expired. Please log in again.', color: 'red' });
+                window.location.href = "/login";
+                return;
+            }
+
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status} - ${res.statusText}`);
+            }
+
+            showNotification({ message: 'Document deleted', color: 'green' });
+            await fetchDocuments(); // refresh list
+        } catch (err: any) {
+            showNotification({ message: `Delete failed: ${err.message}`, color: 'red' });
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+
     // initial load
     useEffect(() => {
         fetchDocuments();
     }, []);
 
     return (
-        <Container size="md" py="xl">
+        <Container size="xl" py="xl">
             <Stack>
                 <Title order={2}>Document Management</Title>
 
@@ -173,7 +220,7 @@ export default function DocumentUploadPage() {
                 {loading ? (
                     <Loader />
                 ) : (
-                    <Card shadow="sm" padding="lg" radius="md" withBorder>
+                    <Card shadow="sm" padding="sm" radius="md" withBorder>
                         <Tabs defaultValue="PENDING" variant="outline">
                             <Tabs.List>
                                 <Tabs.Tab value="PENDING">Pending ({pendingDocs.length})</Tabs.Tab>
@@ -218,6 +265,15 @@ export default function DocumentUploadPage() {
                                                             title="Add Evidence"
                                                         >
                                                             <IconPhoto size={16} />
+                                                        </ActionIcon>
+                                                        <ActionIcon
+                                                            color="red"
+                                                            onClick={() => handleDelete(doc.id)}
+                                                            loading={deletingId === doc.id}
+                                                            disabled={deletingId === doc.id}
+                                                            title="Delete"
+                                                        >
+                                                            <IconTrash size={16} />
                                                         </ActionIcon>
                                                     </Group>
                                                 </Table.Td>
