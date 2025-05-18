@@ -2,7 +2,7 @@
 
 
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout1({ children }: { children: React.ReactNode }) {
     // this wrapper only applies to /login
     return (
         // center the login form, no nav or other chrome here

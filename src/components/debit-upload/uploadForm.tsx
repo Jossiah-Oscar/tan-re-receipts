@@ -19,31 +19,50 @@ export function UploadForm({ onSuccess }: { onSuccess: () => void }) {
             alert('Please select a broker/cedant');
             return;
         }
-        setSubmitting(true);
-        const formData = new FormData();
-        formData.append('cedantCode', cedantCode);          // send the code
-        formData.append('documentType', documentType || '');
-        formData.append('fileName', fileName);
-        files.forEach((file) => formData.append('files', file));
-        const token = localStorage.getItem('jwt');
 
+        setSubmitting(true);
 
         try {
-            const response = await fetch(
-                `${API_BASE_URl_DOC}/api/documents/upload`,
-                {
-                    method: 'POST',
-                    body: formData,
-                    headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`, },
-                }
-            );
-            if (response.ok) {
-                onSuccess();
-            } else {
-                alert('Error uploading documents');
+            const token = localStorage.getItem('jwt');
+            if (!token) {
+                alert("Authentication required. Please log in.");
+                window.location.href = "/login";
+                return;
             }
+
+            const formData = new FormData();
+            formData.append('cedantCode', cedantCode);
+            formData.append('documentType', documentType || '');
+            formData.append('fileName', fileName);
+            files.forEach((file) => formData.append('files', file));
+
+            const response = await fetch(`${API_BASE_URl_DOC}/api/documents/upload`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json', // Expecting a JSON response
+                },
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                localStorage.removeItem("jwt");
+                alert("Session expired. Please log in again.");
+                window.location.href = "/login";
+                return;
+            }
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Upload error:", errorText);
+                alert(`Error uploading documents: ${errorText}`);
+                return;
+            }
+
+            // Success handling
+            onSuccess();
         } catch (err) {
-            console.error(err);
+            console.error("Upload failed:", err);
             alert('Error uploading documents');
         } finally {
             setSubmitting(false);

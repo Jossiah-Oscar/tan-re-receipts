@@ -14,6 +14,7 @@ import '@mantine/dates/styles.css';
 import { IconChevronRight } from "@tabler/icons-react";
 import {useEffect} from "react";
 import {usePathname, useRouter} from "next/navigation";
+import {AuthProvider} from "@/context/AuthContext";
 
 
 const geistSans = Geist({
@@ -41,15 +42,15 @@ export default function RootLayout({
     const router = useRouter();
     const path = usePathname();
 
-    useEffect(() => {
-        // don’t redirect if we’re already on /login
-        if (path === "/login") return;
+    const isLogin = path === "/login";
 
+    useEffect(() => {
+        if (isLogin) return;
         const token = localStorage.getItem("jwt");
-        if (!token) {
-            router.replace("/login");
-        }
-    }, [path, router]);
+        if (!token) router.replace("/login");
+        },
+        [isLogin, router]
+    );
 
     return (
     <html lang="en">
@@ -57,9 +58,14 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
       <MantineProvider defaultColorScheme="light">
-          <Notifications />
-
-        {children}
+           <Notifications />
+          {isLogin ? (
+              <>{children}</>
+          ) : (
+              <AuthProvider>
+                  <AppShell>…{children}…</AppShell>
+              </AuthProvider>
+          )}
       </MantineProvider>
       </body>
     </html>

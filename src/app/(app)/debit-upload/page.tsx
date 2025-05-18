@@ -1,29 +1,42 @@
 'use client'
 
-// pages/document-upload.tsx
-import { useState, useEffect } from 'react';
+import {useEffect, useState} from 'react';
 import {
-    Container,
-    Stack,
-    Title,
-    Card,
-    Group,
-    Text,
+    ActionIcon,
     Alert,
-    Loader,
     Badge,
     Button,
-    Tabs,
+    Card,
+    Container,
+    Divider,
+    FileInput,
+    Group,
+    Loader,
+    Menu,
+    Modal,
+    Stack,
     Table,
-    ActionIcon,
-    Modal, FileInput,
+    Tabs,
+    Text,
+    Title,
 } from '@mantine/core';
-import {IconPlus, IconAlertCircle, IconEye, IconFileDownload, IconPhoto, IconTrash} from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconArrowBackUp,
+    IconDotsVertical, IconEdit,
+    IconEye,
+    IconPhoto,
+    IconPlus,
+    IconTrash
+} from '@tabler/icons-react';
 import {DocumentSearch} from "@/components/debit-upload/debitSearch";
 import {UploadForm} from "@/components/debit-upload/uploadForm";
 import {DocumentDetailsModal} from "@/components/debit-upload/DocumentDetailsModal";
-import {API_BASE_URl_DOC, ApiError} from "@/config/api";
+import {API_BASE_URl_DOC} from "@/config/api";
 import {showNotification} from "@mantine/notifications";
+import {useAuth} from "@/context/AuthContext";
+import ReverseCommentModal from "@/components/debit-upload/reverseCommentModal";
+import {useRouter} from "next/navigation";
 
 
 interface DocumentDTO {
@@ -31,9 +44,10 @@ interface DocumentDTO {
     cedantName: string;
     documentType: string;
     fileName: string;
-    status: 'PENDING' | 'DONE';
+    status: 'PENDING' | 'DONE' | 'RETURNED';
     dateCreated: string;
     dateUpdated: string;
+    createdBy: string;
     files: { id: number; fileName: string }[];
 }
 
@@ -45,27 +59,35 @@ export default function DocumentUploadPage() {
     const [uploadOpened, setUploadOpened] = useState(false);
     const [detailsOpened, setDetailsOpened] = useState(false);
     const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
-
+    const [reverseOpen, setReverseOpen] = useState(false);
     const [evidenceOpened, setEvidenceOpened] = useState(false);
     const [evidenceDocId, setEvidenceDocId] = useState<number | null>(null);
     const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [revId, setRevId] = useState<number | null>(null);
+    const [openedActionButton, setOpenedActionButton] = useState(false);
+
+    //AUTH
+    const {username, roles} = useAuth();
+    const isFinance = roles.includes("FINANCE");
+
+    const currentUser = typeof window !== "undefined"
+        ? localStorage.getItem("username")
+        : null;
 
 
-
-
-    const  viewFiles = (docId: number) => {
+    const viewFiles = (docId: number) => {
         setSelectedDocId(docId);
         setDetailsOpened(true);
     };
 
     const downloadFirstFile = (files: { id: number; fileName: string }[]) => {
         if (!files.length) return;
-        const { id, fileName } = files[0];
+        const {id, fileName} = files[0];
         const token = localStorage.getItem('jwt');
 
         fetch(`${API_BASE_URl_DOC}/api/documents/files/${id}/download`, {
-            headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`, },
+            headers: {Accept: 'application/octet-stream', 'Authorization': `Bearer ${token}`,},
         })
             .then((r) => r.blob())
             .then((blob) => {
@@ -83,7 +105,9 @@ export default function DocumentUploadPage() {
 
     // Filter helpers
     const pendingDocs = documents.filter((d) => d.status === 'PENDING');
-    const doneDocs    = documents.filter((d) => d.status === 'DONE');
+    const doneDocs = documents.filter((d) => d.status === 'DONE');
+    const returnedDocs = documents.filter((d) => d.status === 'RETURNED');
+
 
     // **Handlers for evidence modal**
     function openEvidenceModal(docId: number) {
@@ -91,6 +115,7 @@ export default function DocumentUploadPage() {
         setEvidenceFile(null);
         setEvidenceOpened(true);
     }
+
     function closeEvidenceModal() {
         setEvidenceOpened(false);
         setEvidenceDocId(null);
@@ -106,11 +131,26 @@ export default function DocumentUploadPage() {
         await fetch(`${API_BASE_URl_DOC}/api/documents/${evidenceDocId}/evidence`, {
             method: 'POST',
             body: form,
-            headers: { Accept: 'application/octet-stream','Authorization': `Bearer ${token}`, },
+            headers: {Accept: 'application/octet-stream', 'Authorization': `Bearer ${token}`,},
 
         });
         closeEvidenceModal();
         fetchDocuments();
+    }
+
+    async function submitReverse() {
+        // try {
+        //     await apiFetch(`/api/documents/${revId}/reverse`, {
+        //         method: "POST",
+        //         body: { comment: revComment },
+        //     });
+        //     showNotification({ message: "Reversed to Pending", color: "yellow" });
+        //     loadDocs();
+        // } catch (err: any) {
+        //     showNotification({ message: err.message, color: "red" });
+        // } finally {
+        //     setModalOpen(false);
+        // }
     }
 
     const fetchDocuments = async (criteria?: { cedantName: string; documentType: string }) => {
@@ -122,11 +162,11 @@ export default function DocumentUploadPage() {
 
             if (criteria) {
                 const params = new URLSearchParams();
-                if (criteria.cedantName)     params.append('cedantName', criteria.cedantName);
-                if (criteria.documentType)    params.append('documentType', criteria.documentType);
+                if (criteria.cedantName) params.append('cedantName', criteria.cedantName);
+                if (criteria.documentType) params.append('documentType', criteria.documentType);
                 url += `?${params.toString()}`;
             }
-            const res = await fetch(url,{headers: {'Authorization': `Bearer ${token}`, }});
+            const res = await fetch(url, {headers: {'Authorization': `Bearer ${token}`,}});
 
             if (res.status === 401) {
                 localStorage.removeItem("jwt");
@@ -159,7 +199,7 @@ export default function DocumentUploadPage() {
         try {
             const token = localStorage.getItem('jwt');
             if (!token) {
-                showNotification({ message: 'Authentication required. Please log in.', color: 'red' });
+                showNotification({message: 'Authentication required. Please log in.', color: 'red'});
                 window.location.href = "/login";
                 return;
             }
@@ -174,7 +214,7 @@ export default function DocumentUploadPage() {
 
             if (res.status === 401 || res.status === 403) {
                 localStorage.removeItem("jwt");
-                showNotification({ message: 'Session expired. Please log in again.', color: 'red' });
+                showNotification({message: 'Session expired. Please log in again.', color: 'red'});
                 window.location.href = "/login";
                 return;
             }
@@ -183,19 +223,33 @@ export default function DocumentUploadPage() {
                 throw new Error(`HTTP ${res.status} - ${res.statusText}`);
             }
 
-            showNotification({ message: 'Document deleted', color: 'green' });
+            showNotification({message: 'Document deleted', color: 'green'});
             await fetchDocuments(); // refresh list
         } catch (err: any) {
-            showNotification({ message: `Delete failed: ${err.message}`, color: 'red' });
+            showNotification({message: `Delete failed: ${err.message}`, color: 'red'});
         } finally {
             setDeletingId(null);
         }
     };
 
+    function openReverseModal(id: number) {
+        setRevId(id);
+        setReverseOpen(true);
+    }
+
+
+    const router = useRouter();
+
+    const viewDocumentDetails = (docID: number) => {
+        router.push(`/debit-upload/${docID}/edit`);
+    };
 
     // initial load
     useEffect(() => {
         fetchDocuments();
+        console.log(roles)
+        console.log(username)
+
     }, []);
 
     return (
@@ -203,28 +257,30 @@ export default function DocumentUploadPage() {
             <Stack>
                 <Title order={2}>Document Management</Title>
 
-                <DocumentSearch onSearch={(criteria) =>fetchDocuments(criteria)} onSearchStart={() => setLoading(true)} />
+                <DocumentSearch onSearch={(criteria) => fetchDocuments(criteria)}
+                                onSearchStart={() => setLoading(true)}/>
 
                 <Group justify="flex-end" mt="md">
-                    <Button leftSection={<IconPlus size={16} />} onClick={() => setUploadOpened(true)}>
+                    <Button leftSection={<IconPlus size={16}/>} onClick={() => setUploadOpened(true)}>
                         Upload Document
                     </Button>
                 </Group>
 
                 {error && (
-                    <Alert color="red" icon={<IconAlertCircle size={16} />}>
+                    <Alert color="red" icon={<IconAlertCircle size={16}/>}>
                         {error}
                     </Alert>
                 )}
 
                 {loading ? (
-                    <Loader />
+                    <Loader/>
                 ) : (
                     <Card shadow="sm" padding="sm" radius="md" withBorder>
                         <Tabs defaultValue="PENDING" variant="outline">
                             <Tabs.List>
                                 <Tabs.Tab value="PENDING">Pending ({pendingDocs.length})</Tabs.Tab>
                                 <Tabs.Tab value="DONE">Done ({doneDocs.length})</Tabs.Tab>
+                                <Tabs.Tab value="RETURNED">Returned ({returnedDocs.length})</Tabs.Tab>
                             </Tabs.List>
 
                             {/* Pending Tab */}
@@ -234,51 +290,88 @@ export default function DocumentUploadPage() {
                                 ) : (
                                     <Table striped highlightOnHover verticalSpacing="sm">
                                         <Table.Thead>
-                                        <Table.Tr>
-                                            <Table.Th>ID</Table.Th>
-                                            <Table.Th>Cedant</Table.Th>
-                                            <Table.Th>Type</Table.Th>
-                                            <Table.Th>Group Name</Table.Th>
-                                            <Table.Th>Created</Table.Th>
-                                            <Table.Th>Updated</Table.Th>
-                                            <Table.Th>Actions</Table.Th>
-                                        </Table.Tr>
+                                            <Table.Tr>
+                                                <Table.Th>ID</Table.Th>
+                                                <Table.Th>Cedant</Table.Th>
+                                                <Table.Th>Type</Table.Th>
+                                                <Table.Th>Group Name</Table.Th>
+                                                <Table.Th>Created By</Table.Th>
+                                                <Table.Th>Created</Table.Th>
+                                                <Table.Th>Updated</Table.Th>
+                                                <Table.Th>Actions</Table.Th>
+                                            </Table.Tr>
                                         </Table.Thead>
                                         <Table.Tbody>
-                                        {pendingDocs.map((doc) => (
-                                            <Table.Tr key={doc.id}>
-                                                <Table.Td>{doc.id}</Table.Td>
-                                                <Table.Td>{doc.cedantName}</Table.Td>
-                                                <Table.Td><Badge variant="light">{doc.documentType}</Badge></Table.Td>
-                                                <Table.Td>{doc.fileName}</Table.Td>
-                                                <Table.Td>{new Date(doc.dateCreated).toLocaleDateString()}</Table.Td>
-                                                <Table.Td>{new Date(doc.dateUpdated).toLocaleDateString()}</Table.Td>
-                                                <Table.Td>
-                                                    <Group >
-                                                        <ActionIcon color="blue" onClick={() => viewFiles(doc.id)} title="View Files">
-                                                            <IconEye size={16} />
-                                                        </ActionIcon>
+                                            {pendingDocs.map((doc) => (
+                                                <Table.Tr key={doc.id}>
+                                                    <Table.Td>{doc.id}</Table.Td>
+                                                    <Table.Td>{doc.cedantName}</Table.Td>
+                                                    <Table.Td><Badge
+                                                        variant="light">{doc.documentType}</Badge></Table.Td>
+                                                    <Table.Td>{doc.fileName}</Table.Td>
+                                                    <Table.Td>{doc.createdBy}</Table.Td>
+                                                    <Table.Td>{new Date(doc.dateCreated).toLocaleDateString()}</Table.Td>
+                                                    <Table.Td>{new Date(doc.dateUpdated).toLocaleDateString()}</Table.Td>
+                                                    <Table.Td>
+                                                        <Group>
+                                                            <Menu shadow="md" width={200} position="bottom-end">
+                                                                <Menu.Target>
+                                                                    <ActionIcon variant="filled" color="blue">
+                                                                        <IconDotsVertical size={20}/>
+                                                                    </ActionIcon>
+                                                                </Menu.Target>
 
-                                                        <ActionIcon
-                                                            color="green"
-                                                            onClick={() => openEvidenceModal(doc.id)}
-                                                            title="Add Evidence"
-                                                        >
-                                                            <IconPhoto size={16} />
-                                                        </ActionIcon>
-                                                        <ActionIcon
-                                                            color="red"
-                                                            onClick={() => handleDelete(doc.id)}
-                                                            loading={deletingId === doc.id}
-                                                            disabled={deletingId === doc.id}
-                                                            title="Delete"
-                                                        >
-                                                            <IconTrash size={16} />
-                                                        </ActionIcon>
-                                                    </Group>
-                                                </Table.Td>
-                                            </Table.Tr>
-                                        ))}
+                                                                <Menu.Dropdown>
+                                                                    <Menu.Item leftSection={<IconEye size={16}/>}
+                                                                               onClick={() => viewFiles(doc.id)}>View</Menu.Item>
+                                                                    {doc.createdBy === username && (
+                                                                        <Menu.Item
+                                                                            leftSection={<IconEdit size={16}/>}
+                                                                            onClick={() => viewDocumentDetails(doc.id)}
+                                                                        >
+                                                                            Edit
+                                                                        </Menu.Item>
+                                                                    )}
+                                                                    <Menu.Item leftSection={<IconPhoto size={16}/>}
+                                                                               onClick={() => openEvidenceModal(doc.id)}>Add
+                                                                        Evidence</Menu.Item>
+                                                                    <Divider/>
+
+                                                                    {/*Checking if the user is finance and returning the Reverse button*/}
+                                                                    {isFinance && doc.status !== "DONE" && doc.status !== "RETURNED" && (
+                                                                        <Menu.Item
+                                                                            leftSection={<IconArrowBackUp size={16}/>}
+                                                                            onClick={() => openReverseModal(doc.id)}>Return
+                                                                            Document</Menu.Item>
+                                                                    )}
+
+                                                                    {/*Checking is the current user cant delete the document*/}
+                                                                    {doc.createdBy === currentUser && (
+                                                                        <Menu.Item color="red"
+                                                                                   leftSection={<IconTrash size={16}/>}
+                                                                                   onClick={() => handleDelete(doc.id)}>Delete</Menu.Item>
+                                                                    )}
+
+
+                                                                    {/*<Menu.Item leftSection={<IconSettings size={16} />}>Settings</Menu.Item>*/}
+                                                                </Menu.Dropdown>
+                                                            </Menu>
+
+                                                            {/* Uploader gets an Edit button only when it’s Pending */}
+                                                            {/*{doc.createdBy === username && (*/}
+                                                            {/*    <ActionIcon*/}
+                                                            {/*        title="Edit"*/}
+                                                            {/*        size="xs"*/}
+                                                            {/*        color="blue"*/}
+                                                            {/*        onClick={() => viewDocumentDetails(doc.id)}*/}
+                                                            {/*    >*/}
+                                                            {/*        <IconEdit size={16} />*/}
+                                                            {/*    </ActionIcon>*/}
+                                                            {/*)}*/}
+                                                        </Group>
+                                                    </Table.Td>
+                                                </Table.Tr>
+                                            ))}
                                         </Table.Tbody>
                                     </Table>
                                 )}
@@ -291,37 +384,134 @@ export default function DocumentUploadPage() {
                                 ) : (
                                     <Table striped highlightOnHover verticalSpacing="sm">
                                         <Table.Thead>
-                                        <Table.Tr>
-                                            <Table.Th>ID</Table.Th>
-                                            <Table.Th>Cedant</Table.Th>
-                                            <Table.Th>Type</Table.Th>
-                                            <Table.Th>Group Name</Table.Th>
-                                            <Table.Th>Created</Table.Th>
-                                            <Table.Th>Updated</Table.Th>
-                                            <Table.Th>Actions</Table.Th>
-                                        </Table.Tr>
+                                            <Table.Tr>
+                                                <Table.Th>ID</Table.Th>
+                                                <Table.Th>Cedant</Table.Th>
+                                                <Table.Th>Type</Table.Th>
+                                                <Table.Th>Group Name</Table.Th>
+                                                <Table.Th>Created</Table.Th>
+                                                <Table.Th>Updated</Table.Th>
+                                                <Table.Th>Actions</Table.Th>
+                                            </Table.Tr>
                                         </Table.Thead>
                                         <Table.Tbody>
-                                        {doneDocs.map((doc) => (
-                                            <Table.Tr key={doc.id}>
-                                                <Table.Td>{doc.id}</Table.Td>
-                                                <Table.Td>{doc.cedantName}</Table.Td>
-                                                <Table.Td><Badge variant="light">{doc.documentType}</Badge></Table.Td>
-                                                <Table.Td>{doc.fileName}</Table.Td>
-                                                <Table.Td>{new Date(doc.dateCreated).toLocaleDateString()}</Table.Td>
-                                                <Table.Td>{new Date(doc.dateUpdated).toLocaleDateString()}</Table.Td>
-                                                <Table.Td>
-                                                    <Group >
-                                                        <ActionIcon color="blue" onClick={() => viewFiles(doc.id)} title="View Files">
-                                                            <IconEye size={16} />
-                                                        </ActionIcon>
-                                                        <ActionIcon color="blue" onClick={() => downloadFirstFile(doc.files)} title="Download Latest">
-                                                            <IconFileDownload size={16} />
-                                                        </ActionIcon>
-                                                    </Group>
-                                                </Table.Td>
+                                            {doneDocs.map((doc) => (
+                                                <Table.Tr key={doc.id}>
+                                                    <Table.Td>{doc.id}</Table.Td>
+                                                    <Table.Td>{doc.cedantName}</Table.Td>
+                                                    <Table.Td><Badge
+                                                        variant="light">{doc.documentType}</Badge></Table.Td>
+                                                    <Table.Td>{doc.fileName}</Table.Td>
+                                                    <Table.Td>{new Date(doc.dateCreated).toLocaleDateString()}</Table.Td>
+                                                    <Table.Td>{new Date(doc.dateUpdated).toLocaleDateString()}</Table.Td>
+                                                    <Table.Td>
+                                                        <Group>
+                                                            {/*<ActionIcon color="blue" onClick={() => viewFiles(doc.id)} title="View Files">*/}
+                                                            {/*    <IconEye size={16} />*/}
+                                                            {/*</ActionIcon>*/}
+                                                            {/*<ActionIcon color="blue" onClick={() => downloadFirstFile(doc.files)} title="Download Latest">*/}
+                                                            {/*    <IconFileDownload size={16} />*/}
+                                                            {/*</ActionIcon>*/}
+                                                            {/*{isFinance && doc.status !== "PENDING" && (*/}
+                                                            {/*    <ActionIcon*/}
+                                                            {/*        size="xs"*/}
+                                                            {/*        color="yellow"*/}
+                                                            {/*        onClick={() => openReverseModal(doc.id)}*/}
+                                                            {/*    >*/}
+                                                            {/*        Reverse*/}
+                                                            {/*    </ActionIcon>*/}
+                                                            {/*)}*/}
+
+                                                            <Menu shadow="md" width={200} position="bottom-end">
+                                                                <Menu.Target>
+                                                                    <ActionIcon variant="filled" color="blue">
+                                                                        <IconDotsVertical size={20}/>
+                                                                    </ActionIcon>
+                                                                </Menu.Target>
+                                                                <Menu.Dropdown>
+                                                                    <Menu.Item leftSection={<IconEye size={16}/>}
+                                                                               onClick={() => viewFiles(doc.id)}>View</Menu.Item>
+                                                                    <Divider/>
+
+                                                                </Menu.Dropdown>
+                                                            </Menu>
+                                                        </Group>
+                                                    </Table.Td>
+                                                </Table.Tr>
+                                            ))}
+                                        </Table.Tbody>
+                                    </Table>
+                                )}
+                            </Tabs.Panel>
+
+                            {/* Returned Tab */}
+                            <Tabs.Panel value="RETURNED" pt="md">
+                                {returnedDocs.length === 0 ? (
+                                    <Text color="dimmed">No completed documents.</Text>
+                                ) : (
+                                    <Table striped highlightOnHover verticalSpacing="sm">
+                                        <Table.Thead>
+                                            <Table.Tr>
+                                                <Table.Th>ID</Table.Th>
+                                                <Table.Th>Cedant</Table.Th>
+                                                <Table.Th>Type</Table.Th>
+                                                <Table.Th>Group Name</Table.Th>
+                                                <Table.Th>Created</Table.Th>
+                                                <Table.Th>Updated</Table.Th>
+                                                <Table.Th>Actions</Table.Th>
                                             </Table.Tr>
-                                        ))}
+                                        </Table.Thead>
+                                        <Table.Tbody>
+                                            {returnedDocs.map((doc) => (
+                                                <Table.Tr key={doc.id}>
+                                                    <Table.Td>{doc.id}</Table.Td>
+                                                    <Table.Td>{doc.cedantName}</Table.Td>
+                                                    <Table.Td><Badge
+                                                        variant="light">{doc.documentType}</Badge></Table.Td>
+                                                    <Table.Td>{doc.fileName}</Table.Td>
+                                                    <Table.Td>{new Date(doc.dateCreated).toLocaleDateString()}</Table.Td>
+                                                    <Table.Td>{new Date(doc.dateUpdated).toLocaleDateString()}</Table.Td>
+                                                    <Table.Td>
+                                                        <Group>
+                                                            {/*<ActionIcon color="blue" onClick={() => viewFiles(doc.id)} title="View Files">*/}
+                                                            {/*    <IconEye size={16} />*/}
+                                                            {/*</ActionIcon>*/}
+                                                            {/*<ActionIcon color="blue" onClick={() => downloadFirstFile(doc.files)} title="Download Latest">*/}
+                                                            {/*    <IconFileDownload size={16} />*/}
+                                                            {/*</ActionIcon>*/}
+                                                            {/*{isFinance && doc.status !== "PENDING" && (*/}
+                                                            {/*    <ActionIcon*/}
+                                                            {/*        size="xs"*/}
+                                                            {/*        color="yellow"*/}
+                                                            {/*        onClick={() => openReverseModal(doc.id)}*/}
+                                                            {/*    >*/}
+                                                            {/*        Reverse*/}
+                                                            {/*    </ActionIcon>*/}
+                                                            {/*)}*/}
+
+                                                            <Menu shadow="md" width={200} position="bottom-end">
+                                                                <Menu.Target>
+                                                                    <ActionIcon variant="filled" color="blue">
+                                                                        <IconDotsVertical size={20}/>
+                                                                    </ActionIcon>
+                                                                </Menu.Target>
+                                                                <Menu.Dropdown>
+                                                                    <Menu.Item leftSection={<IconEye size={16}/>}
+                                                                               onClick={() => viewFiles(doc.id)}>View</Menu.Item>
+                                                                    <Divider/>
+                                                                    {isFinance && doc.status !== "DONE" && doc.status !== "RETURNED" && (
+                                                                        <Menu.Item
+                                                                            leftSection={<IconArrowBackUp size={16}/>}
+                                                                            onClick={() => openReverseModal(doc.id)}>Return
+                                                                            Document</Menu.Item>
+                                                                    )}
+
+                                                                </Menu.Dropdown>
+                                                            </Menu>
+                                                        </Group>
+                                                    </Table.Td>
+                                                </Table.Tr>
+                                            ))}
                                         </Table.Tbody>
                                     </Table>
                                 )}
@@ -373,6 +563,15 @@ export default function DocumentUploadPage() {
                     Submit Evidence
                 </Button>
             </Modal>
+
+
+            {/* ReverseCommentModal */}
+            <ReverseCommentModal
+                id={revId!}
+                opened={reverseOpen}
+                onReversed={() => fetchDocuments()}
+                onClose={() => setReverseOpen(false)}
+            />
         </Container>
     );
 }
