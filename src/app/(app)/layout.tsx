@@ -3,13 +3,18 @@
 
 
 import {Notifications} from "@mantine/notifications";
-import {AppShell, Burger, Group, MantineProvider, NavLink} from "@mantine/core";
+import {AppShell, Burger, Group, MantineProvider, Menu, NavLink} from "@mantine/core";
 import Link from "next/link";
-import {IconChevronRight} from "@tabler/icons-react";
+import {IconArrowBackUp, IconChevronRight} from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
+import {useAuth} from "@/context/AuthContext";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     const [opened, { toggle }] = useDisclosure();
+    const {username, roles} = useAuth();
+    const isAdmin = roles.includes("FINANCE");
+
+
 
     return (
 
@@ -41,6 +46,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             <IconChevronRight size={12} stroke={1.5} className="mantine-rotate-rtl" />
                         }
                     />
+                    {isAdmin && (
+                    <NavLink
+                        component={Link}
+                        href="/admin"
+                        label="Admin"
+                        rightSection={
+                            <IconChevronRight size={12} stroke={1.5} className="mantine-rotate-rtl" />
+                        }
+                    />
+                    )}
                     {/* add more links as needed */}
                 </AppShell.Navbar>
                 <AppShell.Main>{children}</AppShell.Main>
