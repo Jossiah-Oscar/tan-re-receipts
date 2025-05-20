@@ -46,6 +46,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             <IconChevronRight size={12} stroke={1.5} className="mantine-rotate-rtl" />
                         }
                     />
+                    <NavLink
+                        component={Link}
+                        href="/office-store"
+                        label="Office Store"
+                        rightSection={
+                            <IconChevronRight size={12} stroke={1.5} className="mantine-rotate-rtl" />
+                        }
+                    />
                     {isAdmin && (
                     <NavLink
                         component={Link}

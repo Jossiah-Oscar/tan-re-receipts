@@ -69,7 +69,7 @@ function getToken(): string | null {
 
 export type FetchOptions = Omit<RequestInit, "body"> & {
     requiresAuth?: boolean;
-    body?: Record<string, unknown> | FormData;
+    body?: Record<string, unknown> | FormData | unknown[];
 };
 
 
