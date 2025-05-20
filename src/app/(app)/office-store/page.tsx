@@ -173,14 +173,53 @@ export default function InventoryPage() {
                 <Title order={2}>Inventory Management</Title>
             </Group>
 
-            <Tabs defaultValue="inventory">
+            <Tabs defaultValue="requests">
                 <Tabs.List>
+                    <Tabs.Tab value="requests">Requests</Tabs.Tab>
+
                     {isOfficeAssistant && (
 
                         <Tabs.Tab value="inventory">Stock</Tabs.Tab>
                         )}
-                    <Tabs.Tab value="requests">Requests</Tabs.Tab>
                 </Tabs.List>
+
+                {/** — Requests Tab */}
+                <Tabs.Panel value="requests" pt="md">
+                    <Group justify="right" mb="md">
+                        <Button onClick={() => setReqModalOpen(true)}>Request Items</Button>
+                    </Group>
+
+                    {reqLoading ? (
+                        <Loader />
+                    ) : requests.length === 0 ? (
+                        <Text>No requests made yet.</Text>
+                    ) : (
+                        <Table highlightOnHover striped verticalSpacing="md">
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th>ID</Table.Th>
+                                    <Table.Th>Requested By</Table.Th>
+                                    <Table.Th>Date</Table.Th>
+                                    <Table.Th>Items</Table.Th>
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {requests.map((req) => (
+                                    <Table.Tr key={req.id}>
+                                        <Table.Td>{req.id}</Table.Td>
+                                        <Table.Td>{req.createdBy}</Table.Td>
+                                        <Table.Td>{new Date(req.createdAt).toLocaleString()}</Table.Td>
+                                        <Table.Td>
+                                            {req.lines
+                                                .map((l) => `${l.quantity}×${l.itemName}`)
+                                                .join(", ")}
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ))}
+                            </Table.Tbody>
+                        </Table>
+                    )}
+                </Tabs.Panel>
 
                 {/** — Inventory Tab */}
                 {isOfficeAssistant && (
@@ -225,43 +264,7 @@ export default function InventoryPage() {
                 )
                 }
 
-                {/** — Requests Tab */}
-                <Tabs.Panel value="requests" pt="md">
-                    <Group justify="right" mb="md">
-                        <Button onClick={() => setReqModalOpen(true)}>Request Items</Button>
-                    </Group>
 
-                    {reqLoading ? (
-                        <Loader />
-                    ) : requests.length === 0 ? (
-                        <Text>No requests made yet.</Text>
-                    ) : (
-                        <Table highlightOnHover striped verticalSpacing="md">
-                            <Table.Thead>
-                            <Table.Tr>
-                                <Table.Th>ID</Table.Th>
-                                <Table.Th>Requested By</Table.Th>
-                                <Table.Th>Date</Table.Th>
-                                <Table.Th>Items</Table.Th>
-                            </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                            {requests.map((req) => (
-                                <Table.Tr key={req.id}>
-                                    <Table.Td>{req.id}</Table.Td>
-                                    <Table.Td>{req.createdBy}</Table.Td>
-                                    <Table.Td>{new Date(req.createdAt).toLocaleString()}</Table.Td>
-                                    <Table.Td>
-                                        {req.lines
-                                            .map((l) => `${l.quantity}×${l.itemName}`)
-                                            .join(", ")}
-                                    </Table.Td>
-                                </Table.Tr>
-                            ))}
-                            </Table.Tbody>
-                        </Table>
-                    )}
-                </Tabs.Panel>
             </Tabs>
 
             {/** — Add Item Modal */}
