@@ -37,6 +37,7 @@ import {showNotification} from "@mantine/notifications";
 import {useAuth} from "@/context/AuthContext";
 import ReverseCommentModal from "@/components/debit-upload/reverseCommentModal";
 import {useRouter} from "next/navigation";
+import {EvidenceModal} from "@/components/debit-upload/evidenceModal";
 
 
 interface DocumentDTO {
@@ -65,7 +66,9 @@ export default function DocumentUploadPage() {
     const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [revId, setRevId] = useState<number | null>(null);
-    const [openedActionButton, setOpenedActionButton] = useState(false);
+    const [openEvidenceDownloadModal, setOpenedEvidenceDownloadModal] = useState(false);
+    const [evidenceDownloadDocId, setEvidenceDownloadDocId] = useState<number | null>(null);
+
 
     //AUTH
     const {username, roles} = useAuth();
@@ -114,6 +117,12 @@ export default function DocumentUploadPage() {
         setEvidenceDocId(docId);
         setEvidenceFile(null);
         setEvidenceOpened(true);
+    }
+
+    function openEvidenceDownload(docId: number) {
+        setEvidenceDownloadDocId(docId);
+        // setEvidenceFile(null);
+        setOpenedEvidenceDownloadModal(true);
     }
 
     function closeEvidenceModal() {
@@ -247,8 +256,6 @@ export default function DocumentUploadPage() {
     // initial load
     useEffect(() => {
         fetchDocuments();
-        console.log(roles)
-        console.log(username)
 
     }, []);
 
@@ -431,6 +438,9 @@ export default function DocumentUploadPage() {
                                                                 <Menu.Dropdown>
                                                                     <Menu.Item leftSection={<IconEye size={16}/>}
                                                                                onClick={() => viewFiles(doc.id)}>View</Menu.Item>
+                                                                    <Menu.Item leftSection={<IconPhoto size={16}/>}
+                                                                               onClick={() => openEvidenceDownload(doc.id)}>Download
+                                                                        Evidence</Menu.Item>
                                                                     <Divider/>
 
                                                                 </Menu.Dropdown>
@@ -554,7 +564,7 @@ export default function DocumentUploadPage() {
                 <FileInput
                     label="Choose evidence image"
                     placeholder="Select a file"
-                    accept="image/*"
+                    // accept="image/*"
                     value={evidenceFile}
                     onChange={setEvidenceFile}
                     required
@@ -572,6 +582,8 @@ export default function DocumentUploadPage() {
                 onReversed={() => fetchDocuments()}
                 onClose={() => setReverseOpen(false)}
             />
+
+            <EvidenceModal documentId={evidenceDownloadDocId} opened={openEvidenceDownloadModal} onClose={() => setOpenedEvidenceDownloadModal(false)} />
         </Container>
     );
 }
