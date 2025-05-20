@@ -1,50 +1,59 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Modal, TextInput, MultiSelect, Button } from "@mantine/core";
+import {useEffect, useState} from "react";
+import {Button, Modal, MultiSelect, TextInput} from "@mantine/core";
 import {apiFetch} from "@/config/api";
 import {showNotification} from "@mantine/notifications";
 
 interface Props {
     opened: boolean;
-    onClose(): void;
     existingUser: { username: string; roles: string[] } | null;
+
+    onClose(): void;
+
     onSaved(): void;
 }
 
-export default function UserModal({ opened, onClose, existingUser, onSaved }: Props) {
+export default function UserModal({opened, onClose, existingUser, onSaved}: Props) {
     const [username, setUsername] = useState(existingUser?.username || "");
-    const [roles, setRoles]       = useState<string[]>(existingUser?.roles || []);
+    const [roles, setRoles] = useState<string[]>(existingUser?.roles || []);
     const [allRoles, setAllRoles] = useState<string[]>([]);
-    const [saving, setSaving]     = useState(false);
+    const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(true);
 
 
     // load role options
     useEffect(() => {
-        async function loadRoles() {
-            setLoading(true);
-            try {
-                const data = await apiFetch<string[]>("/admin/roles");
-                setRoles(data);    // data is already a string[], no .name
-            } catch (e: any) {
-                showNotification({ message: e.message, color: "red" });
-            } finally {
-                setLoading(false);
-            }
-        }    }, []);
+        loadRoles()
+    }, []);
+
+    async function loadRoles() {
+        setLoading(true);
+        try {
+            const data = await apiFetch<string[]>("/admin/roles");
+            setRoles(data);
+            setAllRoles(data)
+        } catch (e: any) {
+            showNotification({message: e.message, color: "red"});
+        } finally {
+            setLoading(false);
+        }
+    }
 
     async function handleSave() {
         setSaving(true);
         try {
             if (existingUser) {
-                // replace roles
-                await apiFetch(`/admin/users/${username}/roles`, {
+                const editPath = `/admin/users/${encodeURIComponent(
+                    existingUser.username
+                )}/roles`;
+
+                await apiFetch(editPath, {
                     method: "PUT",
                     body: { roles },
                 });
             } else {
-                // create new user
+                // new user
                 await apiFetch("/admin/users", {
                     method: "POST",
                     body: { username, roles },
@@ -52,18 +61,21 @@ export default function UserModal({ opened, onClose, existingUser, onSaved }: Pr
             }
             onSaved();
         } catch (e: any) {
-            // show error
+            showNotification({ message: e.message, color: "red" });
         } finally {
             setSaving(false);
         }
     }
+
 
     return (
         <Modal opened={opened} onClose={onClose} title={existingUser ? "Edit User" : "New User"}>
             <TextInput
                 label="Username"
                 value={username}
-                onChange={e => setUsername(e.currentTarget.value)}
+                onChange={e => setUsername(encodeURIComponent(
+                    existingUser!.username
+                    ))}
                 disabled={!!existingUser}
             />
             <MultiSelect
