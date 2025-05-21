@@ -339,17 +339,23 @@ export default function DocumentUploadPage() {
                                                                             Edit
                                                                         </Menu.Item>
                                                                     )}
-                                                                    <Menu.Item leftSection={<IconPhoto size={16}/>}
-                                                                               onClick={() => openEvidenceModal(doc.id)}>Add
-                                                                        Evidence</Menu.Item>
-                                                                    <Divider/>
+                                                                    {/*<Menu.Item leftSection={<IconPhoto size={16}/>}*/}
+                                                                    {/*           onClick={() => openEvidenceModal(doc.id)}>Add*/}
+                                                                    {/*    Evidence</Menu.Item>*/}
+                                                                    {/*<Divider/>*/}
 
                                                                     {/*Checking if the user is finance and returning the Reverse button*/}
                                                                     {isFinance && doc.status !== "DONE" && doc.status !== "RETURNED" && (
+                                                                        <>
+                                                                        <Menu.Item leftSection={<IconPhoto size={16}/>}
+                                                                                   onClick={() => openEvidenceModal(doc.id)}>Add
+                                                                            Evidence</Menu.Item>
+                                                                        <Divider/>
                                                                         <Menu.Item
                                                                             leftSection={<IconArrowBackUp size={16}/>}
                                                                             onClick={() => openReverseModal(doc.id)}>Return
                                                                             Document</Menu.Item>
+                                                                        </>
                                                                     )}
 
                                                                     {/*Checking is the current user cant delete the document*/}
