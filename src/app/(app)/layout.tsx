@@ -20,7 +20,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
             <AppShell
                 header={{ height: 60 }}
-                navbar={{ width: 300, breakpoint: 'sm', collapsed: { mobile: !opened } }}
+                navbar={{ width: 250, breakpoint: 'sm', collapsed: { mobile: !opened } }}
                 padding="md"
             >
                 <AppShell.Header>
@@ -30,6 +30,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     </Group>
                 </AppShell.Header>
                 <AppShell.Navbar p="md">
+                    <NavLink
+                        component={Link}
+                        href="/dashboard"
+                        label="Dashboard"
+                        rightSection={
+                            <IconChevronRight size={12} stroke={1.5} className="mantine-rotate-rtl" />
+                        }
+                    />
                     <NavLink
                         component={Link}
                         href="/debit-upload"
