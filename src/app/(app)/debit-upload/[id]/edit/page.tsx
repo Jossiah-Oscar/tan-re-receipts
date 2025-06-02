@@ -10,7 +10,7 @@ import {
     Button,
     Table,
     Loader,
-    Text,
+    Text, FileInput, Group, Stack,
 } from "@mantine/core";
 import { showNotification } from "@mantine/notifications";
 import { apiFetch } from "@/config/api";
@@ -63,6 +63,9 @@ export default function EditDocumentPage() {
     const [saving, setSaving]             = useState(false);
     const [cedantCode, setCedantCode] = useState<string | null>(null);
 
+    const [newFiles, setNewFiles] = useState<File[]>([]);
+    const [uploading, setUploading] = useState(false);
+
 
     useEffect(() => {
         loadAll();
@@ -89,6 +92,27 @@ export default function EditDocumentPage() {
             setError(err.message);
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function handleUpload() {
+        if (newFiles.length === 0) return;
+        setUploading(true);
+        try {
+            const form = new FormData();
+            newFiles.forEach((f) => form.append("files", f));
+            await apiFetch(`/api/documents/${id}/files`, {
+                method: "POST",
+                body: form,          // FormData triggers file upload path
+                requiresAuth: true,  // default true
+            });
+            showNotification({ message: "Files uploaded", color: "green" });
+            setNewFiles([]);
+            loadAll(); // re-fetch files list
+        } catch (e: any) {
+            showNotification({ message: e.message, color: "red" });
+        } finally {
+            setUploading(false);
         }
     }
 
@@ -167,33 +191,49 @@ export default function EditDocumentPage() {
                     {files.length === 0 ? (
                         <Text>No files attached.</Text>
                     ) : (
+                        <Stack >
+                            <Group justify="flex-end">
+                                <FileInput
+                                    multiple
+                                    placeholder="Select files"
+                                    value={newFiles}
+                                    onChange={setNewFiles}
+                                />
+                                <Button onClick={handleUpload} loading={uploading} disabled={newFiles.length===0}>
+                                    Upload
+                                </Button>
+                            </Group>
                         <Table highlightOnHover>
-                            <thead>
-                            <tr>
-                                <th>File Name</th>
-                                <th>Content Type</th>
-                                <th>Actions</th>
-                            </tr>
-                            </thead>
-                            <tbody>
+                            <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>File Name</Table.Th>
+                                <Table.Th>Content Type</Table.Th>
+                                <Table.Th>Actions</Table.Th>
+                            </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
                             {files.map((f) => (
-                                <tr key={f.id}>
-                                    <td>{f.fileName}</td>
-                                    <td>{f.contentType}</td>
-                                    <td>
-                                        <Button
-                                            size="xs"
-                                            component="a"
-                                            href={`/api/documents/${id}/files/${f.id}`}
-                                            target="_blank"
-                                        >
-                                            Download
-                                        </Button>
-                                    </td>
-                                </tr>
+                                <Table.Tr key={f.id}>
+                                    <Table.Td>{f.fileName}</Table.Td>
+                                    <Table.Td>{f.contentType}</Table.Td>
+                                    <Table.Td>
+                                        <Group>
+                                            <Button
+                                                size="xs"
+                                                component="a"
+                                                href={`/api/documents/${id}/files/${f.id}`}
+                                                target="_blank"
+                                            >
+                                                Download
+                                            </Button>
+
+                                        </Group>
+                                    </Table.Td>
+                                </Table.Tr>
                             ))}
-                            </tbody>
+                            </Table.Tbody>
                         </Table>
+                        </Stack>
                     )}
                 </Tabs.Panel>
 
@@ -203,26 +243,26 @@ export default function EditDocumentPage() {
                         <Text>No history yet.</Text>
                     ) : (
                         <Table highlightOnHover>
-                            <thead>
-                            <tr>
-                                <th>When</th>
-                                <th>By</th>
-                                <th>From → To</th>
-                                <th>Comment</th>
-                            </tr>
-                            </thead>
-                            <tbody>
+                            <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>When</Table.Th>
+                                <Table.Th>By</Table.Th>
+                                <Table.Th>From → To</Table.Th>
+                                <Table.Th>Comment</Table.Th>
+                            </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
                             {txs.map((t) => (
-                                <tr key={t.id}>
-                                    <td>{new Date(t.changedAt).toLocaleString()}</td>
-                                    <td>{t.changedBy}</td>
-                                    <td>
+                                <Table.Tr key={t.id}>
+                                    <Table.Td>{new Date(t.changedAt).toLocaleString()}</Table.Td>
+                                    <Table.Td>{t.changedBy}</Table.Td>
+                                    <Table.Td>
                                         {t.oldStatus} → {t.newStatus}
-                                    </td>
-                                    <td>{t.comment}</td>
-                                </tr>
+                                    </Table.Td>
+                                    <Table.Td>{t.comment}</Table.Td>
+                                </Table.Tr>
                             ))}
-                            </tbody>
+                            </Table.Tbody>
                         </Table>
                     )}
                 </Tabs.Panel>
