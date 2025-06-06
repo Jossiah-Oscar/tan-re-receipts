@@ -107,7 +107,7 @@ export default function LoginPage() {
             const {token} = await res.json();
             localStorage.setItem("jwt", token);
             localStorage.setItem("username", username);
-            router.replace("/debit-upload");   // redirect to your app’s home page
+            router.replace("/dashboard");   // redirect to your app’s home page
         } catch (err: any) {
             setError(err.message);
         } finally {

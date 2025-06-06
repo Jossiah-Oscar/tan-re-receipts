@@ -1,16 +1,21 @@
-import { Card, Text, Title } from '@mantine/core';
+import {Card, Stack, Text, Title} from '@mantine/core';
 
 
 interface ClaimsCardProps {
     claimsAmount: number;
+    cardName: string;
 }
 
-export default function ClaimsCard({ claimsAmount }: ClaimsCardProps) {
+export default function ClaimsCard({ claimsAmount, cardName}: ClaimsCardProps) {
     return (
         <Card shadow="sm" padding="lg" radius="md" withBorder>
-            <Title order={4} mb="xs">Total Claims (YTD)</Title>
-            <Text w={700} size="xl" color="red">TZS {claimsAmount.toLocaleString()}</Text>
-            <Text size="sm" color="dimmed">Year to date claim payout</Text>
+       <Stack align="center" gap="sm">
+           <Title order={4} mb="xs">{cardName}</Title>
+           {/*<Text w={700} size="sm" >TZS {claimsAmount.toLocaleString()}</Text>*/}
+           <Text size="lg">TZS {claimsAmount.toLocaleString()}</Text>
+
+           <Text size="sm" color="dimmed">Claims Payout this month</Text>
+       </Stack>
         </Card>
     );
 }
