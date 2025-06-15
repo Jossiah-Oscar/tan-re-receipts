@@ -82,7 +82,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     {/*    leftSection={<IconReport size={16} stroke={1.5} />}*/}
                     {/*    childrenOffset={28}*/}
                     {/*>*/}
-                    {/*    <NavLink label="Outstanding Transactions" href="#required-for-focus" />*/}
+                    {/*    <NavLink label="Outstanding Transactions" href="/reports/premium-register" />*/}
                     {/*    /!*<NavLink label="Second child link" href="#required-for-focus" />*!/*/}
                     {/*    /!*<NavLink label="Third child link" href="#required-for-focus" />*!/*/}
                     {/*</NavLink>*/}

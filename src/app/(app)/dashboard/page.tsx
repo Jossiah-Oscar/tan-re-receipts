@@ -1,7 +1,7 @@
 "use client"
 
 import {useEffect, useState} from "react";
-import {Box, Container, Flex, Loader, Modal, SimpleGrid, Stack} from "@mantine/core";
+import {Box, Center, Container, Flex, Loader, Modal, SimpleGrid, Stack} from "@mantine/core";
 import GwpCard from "@/components/dashboard/gwpCard";
 import ClaimsCard from "@/components/dashboard/claimCard";
 import {API_BASE_URL} from "@/config/api";
@@ -46,7 +46,7 @@ export default function Dashboard() {
             .then((data) => setClaimYEar(data));
     }, []);
 
-    if (gwp === null || gwpYear === null) return <Loader variant="bars" />;
+    if (gwp === null || gwpYear === null) return <Center><Loader variant="bars" /> </Center>;
 
     const progress = (gwp / monthlyTarget) * 100;
     const yearProgress =  (gwpYear / yearlyTarget) * 100

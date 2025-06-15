@@ -402,6 +402,7 @@ export default function DocumentUploadPage() {
                                                 <Table.Th>Cedant</Table.Th>
                                                 <Table.Th>Type</Table.Th>
                                                 <Table.Th>Group Name</Table.Th>
+                                                <Table.Th>Created By</Table.Th>
                                                 <Table.Th>Created</Table.Th>
                                                 <Table.Th>Updated</Table.Th>
                                                 <Table.Th>Actions</Table.Th>
@@ -415,6 +416,7 @@ export default function DocumentUploadPage() {
                                                     <Table.Td><Badge
                                                         variant="light">{doc.documentType}</Badge></Table.Td>
                                                     <Table.Td>{doc.fileName}</Table.Td>
+                                                    <Table.Td>{doc.createdBy}</Table.Td>
                                                     <Table.Td>{new Date(doc.dateCreated).toLocaleDateString()}</Table.Td>
                                                     <Table.Td>{new Date(doc.dateUpdated).toLocaleDateString()}</Table.Td>
                                                     <Table.Td>
@@ -472,6 +474,7 @@ export default function DocumentUploadPage() {
                                                 <Table.Th>Cedant</Table.Th>
                                                 <Table.Th>Type</Table.Th>
                                                 <Table.Th>Group Name</Table.Th>
+                                                <Table.Th>Created By</Table.Th>
                                                 <Table.Th>Created</Table.Th>
                                                 <Table.Th>Updated</Table.Th>
                                                 <Table.Th>Actions</Table.Th>
@@ -485,6 +488,7 @@ export default function DocumentUploadPage() {
                                                     <Table.Td><Badge
                                                         variant="light">{doc.documentType}</Badge></Table.Td>
                                                     <Table.Td>{doc.fileName}</Table.Td>
+                                                    <Table.Td>{doc.createdBy}</Table.Td>
                                                     <Table.Td>{new Date(doc.dateCreated).toLocaleDateString()}</Table.Td>
                                                     <Table.Td>{new Date(doc.dateUpdated).toLocaleDateString()}</Table.Td>
                                                     <Table.Td>
