@@ -22,7 +22,6 @@ import {
     IconUserCheck,
     IconDotsVertical,
 } from '@tabler/icons-react';
-import {Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, } from 'recharts';
 import {useEffect, useState} from "react";
 import {API_BASE_URL} from "@/config/api";
 
