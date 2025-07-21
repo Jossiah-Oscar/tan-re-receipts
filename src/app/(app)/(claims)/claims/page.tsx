@@ -66,6 +66,7 @@ export default function ClaimsTable() {
 
 
     const handleSubmit = async () => {
+        setLoading(true);
         if (!files || !claim) {
             alert('Please Upload a file!');
             return;
@@ -123,6 +124,7 @@ export default function ClaimsTable() {
             alert('Error uploading documents');
         } finally {
             // setSubmitting(false);
+            setLoading(false);
             closeClaimDocModal()
         }
     };

@@ -1,3 +1,5 @@
+'use client'
+
 import {
     Grid,
     Card,
@@ -8,8 +10,9 @@ import {
     Select,
     Table,
     ActionIcon,
-    rem,
+    rem, Progress, RingProgress,
 } from '@mantine/core';
+import { LineChart ,BarChart} from '@mantine/charts';
 import {
     IconTrendingUp,
     IconTrendingDown,
@@ -19,7 +22,9 @@ import {
     IconUserCheck,
     IconDotsVertical,
 } from '@tabler/icons-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import {Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, } from 'recharts';
+import {useEffect, useState} from "react";
+import {API_BASE_URL} from "@/config/api";
 
 const mockChartData = [
     { month: 'Jan', premiums: 5.0, claims: 2.1 },
@@ -32,13 +37,6 @@ const mockChartData = [
     { month: 'Aug', premiums: 8.0, claims: 2.9 },
 ];
 
-const mockClaims = [
-    { id: 'CLM001', insured: 'Tanzania Ports Authority', amount: 'TSh 250.0M', status: 'PENDING' },
-    { id: 'CLM002', insured: 'TIPER Co Ltd', amount: 'TSh 180.0M', status: 'APPROVED' },
-    { id: 'CLM003', insured: 'TANESCO', amount: 'TSh 320.0M', status: 'UNDER REVIEW' },
-    { id: 'CLM004', insured: 'Tanzania Railways Corporation', amount: 'TSh 150.0M', status: 'PENDING' },
-];
-
 interface StatCardProps {
     title: string;
     value: string;
@@ -48,41 +46,87 @@ interface StatCardProps {
     color: string;
 }
 
+type CedantGwp = {
+    cedantName: string;
+    cedantCode: string;
+    totalBookedPremium: number;
+};
+
+type PremiumTrend = {
+    month: string;
+    thisYearPremium: number;
+    lastYearPremium: number;
+};
+
+
 function StatCard({ title, value, trend, trendText, icon: Icon, color }: StatCardProps) {
     const TrendIcon = trend === 'up' ? IconTrendingUp : IconTrendingDown;
 
     return (
         <Card shadow="sm" padding="lg" radius="md" withBorder>
-            <Group justify="space-between" align="flex-start" wrap="nowrap">
-                <Stack gap="xs">
+            <Group justify="center" align="flex-start" wrap="nowrap">
+                <Stack gap="xs" justify="center">
+
+                    <Group justify="center">
+
                     <Text size="sm" c="dimmed">
                         {title}
                     </Text>
-                    <Text size="xl" fw={700} style={{ lineHeight: 1 }}>
-                        {value}
-                    </Text>
-                    <Group gap={4} c={trend === 'up' ? 'teal.6' : 'red.6'}>
-                        <TrendIcon size={16} style={{ flexShrink: 0 }} />
+                    </Group>
+
+                    <Group justify="center">
+                    <RingProgress
+                        size={120}
+                        thickness={12}
+                        sections={[{ value: 15, color: 'blue' }]}
+                        label={
+                            <Text c="blue" fw={700} ta="center" size="xl">
+                                {15}%
+                            </Text>
+                        }
+                    />
+                    </Group>
+
+                    <Group gap={4} c="black">
+                        {/*<TrendIcon size={16} style={{ flexShrink: 0 }} />*/}
                         <Text size="sm" fw={500}>
-                            {trendText}
+                            {`Target: ${trendText}`}
                         </Text>
                     </Group>
+
+                    <Group gap={4} c="dimmed">
+                    {/*<TrendIcon size={16} style={{ flexShrink: 0 }} />*/}
+                        <Text size="sm" fw={500}>
+                            {`Target: ${trendText}`}
+                        </Text>
+                </Group>
+
                 </Stack>
-                <ThemeIcon
-                    size={56}
-                    radius="md"
-                    variant="light"
-                    color={color}
-                    style={{ backgroundColor: `var(--mantine-color-${color}-0)` }}
-                >
-                    <Icon size={24} />
-                </ThemeIcon>
             </Group>
         </Card>
     );
 }
 
 export default function DashboardPage() {
+
+    const [gwpList, setGwpList] = useState<CedantGwp[]>([]);
+    const [gwpTrends, setGwpTrends] = useState<PremiumTrend[]>([]);
+
+
+    useEffect(() => {
+        fetch(`${API_BASE_URL}/api/dashboard/gwp/top-cedants`)
+            .then((res) => res.json())
+            .then((data) => setGwpList(data));
+
+        fetch(`${API_BASE_URL}/api/dashboard/monthly-trend`)
+            .then((res) => res.json())
+            .then((data) => setGwpTrends(data))
+
+
+        ;
+    }, []);
+
+
     return (
         <div className="p-6">
             <Text size="xl" fw={700} mb="md">Dashboard Overview</Text>
@@ -90,8 +134,8 @@ export default function DashboardPage() {
             <Grid>
                 <Grid.Col span={{ base: 12, md: 3 }}>
                     <StatCard
-                        title="Gross Written Premiums"
-                        value="TZS 19.3 B"
+                        title="Current Month GWP"
+                        value="TZS 4,181,118,809.7"
                         trend="up"
                         trendText="12% vs last month"
                         icon={IconReceipt2}
@@ -101,8 +145,8 @@ export default function DashboardPage() {
 
                 <Grid.Col span={{ base: 12, md: 3 }}>
                     <StatCard
-                        title="Claim Ratio"
-                        value="42.3%"
+                        title="Current Year GWP"
+                        value="TZS 164,142,367,262.2"
                         trend="down"
                         trendText="2.1% vs last month"
                         icon={IconAlertTriangle}
@@ -112,10 +156,10 @@ export default function DashboardPage() {
 
                 <Grid.Col span={{ base: 12, md: 3 }}>
                     <StatCard
-                        title="Active Policies"
-                        value="1,284"
+                        title="Claim Payout this Month"
+                        value="TZS 164,142,367,262.2"
                         trend="up"
-                        trendText="8.3% vs last month"
+                        trendText="TZS 164,142,367,262.2"
                         icon={IconFileAnalytics}
                         color="blue"
                     />
@@ -123,53 +167,53 @@ export default function DashboardPage() {
 
                 <Grid.Col span={{ base: 12, md: 3 }}>
                     <StatCard
-                        title="Customer Satisfaction"
-                        value="94.2%"
+                        title="Claim Payout this Year"
+                        value="TZS 164,142,367,262.2"
                         trend="up"
                         trendText="1.2% vs last month"
                         icon={IconUserCheck}
-                        color="indigo"
+                        color="black"
                     />
                 </Grid.Col>
 
                 {/* Charts Section */}
-                <Grid.Col span={{ base: 12, md: 8 }}>
+                <Grid.Col span={{ base: 12, md: 12 }}>
                     <Card shadow="sm" padding="lg" radius="md" withBorder>
                         <Group justify="space-between" mb="md">
-                            <Text fw={600}>Premium vs Claims Trend</Text>
-                            <Select
-                                size="xs"
-                                defaultValue="8"
-                                data={[
-                                    { value: '8', label: 'Last 8 Months' },
-                                    { value: '6', label: 'Last 6 Months' },
-                                    { value: '3', label: 'Last 3 Months' },
-                                ]}
-                            />
+                            <Text fw={600}>Current Year vs Last Year Premium Trend</Text>
+
                         </Group>
 
                         {/*<div style={{ height: 300 }}>*/}
-                        {/*    <ResponsiveContainer width="100%" height="100%">*/}
-                        {/*        <LineChart data={mockChartData}>*/}
-                        {/*            <CartesianGrid strokeDasharray="3 3" />*/}
-                        {/*            <XAxis dataKey="month" />*/}
-                        {/*            <YAxis />*/}
-                        {/*            <Tooltip />*/}
-                        {/*            <Legend />*/}
-                        {/*            <Line*/}
-                        {/*                type="monotone"*/}
-                        {/*                dataKey="premiums"*/}
-                        {/*                stroke="var(--mantine-color-blue-6)"*/}
-                        {/*                name="Premiums (TSh B)"*/}
-                        {/*            />*/}
-                        {/*            <Line*/}
-                        {/*                type="monotone"*/}
-                        {/*                dataKey="claims"*/}
-                        {/*                stroke="var(--mantine-color-red-6)"*/}
-                        {/*                name="Claims (TSh B)"*/}
-                        {/*            />*/}
-                        {/*        </LineChart>*/}
-                        {/*    </ResponsiveContainer>*/}
+                            <BarChart
+                                h={300}
+                                data={gwpTrends}
+                                dataKey="month"
+                                series={[
+                                    { name: 'thisYearPremium', label: 'This Year', color: 'blue.6' },
+                                    { name: 'lastYearPremium', label: 'Last Year', color: 'gray.5' },
+                                ]}
+                                withLegend
+                                yAxisProps={{
+                                    tickFormatter: (value) => {
+                                        if (value >= 1_000_000_000) return (value / 1_000_000_000).toFixed(1) + 'B';
+                                        if (value >= 1_000_000) return (value / 1_000_000).toFixed(1) + 'M';
+                                        if (value >= 1_000) return (value / 1_000).toFixed(1) + 'K';
+                                        return value;
+                                    },
+                                }}
+                                tooltipProps={{
+                                    labelFormatter: (value) => `Month: ${value}`,
+                                    formatter: (val) => [
+                                        Intl.NumberFormat('en-US', {
+                                            style: 'currency',
+                                            currency: 'TZS',
+                                            maximumFractionDigits: 0,
+                                        }).format(val),
+                                    ],
+                                }}
+                                // grid={{ y: true }}
+                            />
                         {/*</div>*/}
                     </Card>
                 </Grid.Col>
@@ -178,42 +222,30 @@ export default function DashboardPage() {
                 <Grid.Col span={{ base: 12, md: 4 }}>
                     <Card shadow="sm" padding="lg" radius="md" withBorder>
                         <Group justify="space-between" mb="md">
-                            <Text fw={600}>Recent Claims</Text>
-                            <Text size="xs" c="dimmed">Showing latest 5 of 125 claims</Text>
+                            <Text fw={600}>2025 Top 10 Cedant by GWP</Text>
+                            {/*<Text size="xs" c="dimmed">Showing latest 5 of 125 claims</Text>*/}
                         </Group>
 
                         <Table>
                             <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Th>Claim ID</Table.Th>
-                                    <Table.Th>Insured</Table.Th>
+                                    <Table.Th>Cedant</Table.Th>
                                     <Table.Th>Amount</Table.Th>
-                                    <Table.Th>Status</Table.Th>
                                     <Table.Th />
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
-                                {mockClaims.map((claim) => (
-                                    <Table.Tr key={claim.id}>
-                                        <Table.Td>{claim.id}</Table.Td>
-                                        <Table.Td>{claim.insured}</Table.Td>
-                                        <Table.Td>{claim.amount}</Table.Td>
+                                {gwpList.map((cedant) => (
+
+                                    <Table.Tr key={cedant.cedantCode}>
+                                        <Table.Td>{cedant.cedantName}</Table.Td>
                                         <Table.Td>
-                                            <Text
-                                                size="xs"
-                                                c={
-                                                    claim.status === 'APPROVED' ? 'teal.6' :
-                                                        claim.status === 'PENDING' ? 'yellow.6' : 'blue.6'
-                                                }
-                                                fw={500}
-                                            >
-                                                {claim.status}
-                                            </Text>
+                                            TZS {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cedant.totalBookedPremium)}
                                         </Table.Td>
                                         <Table.Td>
-                                            <ActionIcon variant="subtle" color="gray">
+                                            {/*<ActionIcon variant="subtle" color="gray">*/}
                                                 <IconDotsVertical style={{ width: rem(16), height: rem(16) }} />
-                                            </ActionIcon>
+                                            {/*</ActionIcon>*/}
                                         </Table.Td>
                                     </Table.Tr>
                                 ))}

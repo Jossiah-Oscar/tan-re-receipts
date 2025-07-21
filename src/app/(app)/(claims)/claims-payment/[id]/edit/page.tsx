@@ -2,7 +2,7 @@
 
 
 import {Button, Container, FileInput, Group, Stack, Table, Tabs, Text, Title} from "@mantine/core";
-import {API_BASE_URL, apiFetch} from "@/config/api";
+import {API_BASE_URL, API_BASE_URl_DOC, apiFetch} from "@/config/api";
 import {showNotification} from "@mantine/notifications";
 import {ClaimDocument} from "@/components/claims/financeRequests";
 import {useEffect, useState} from "react";
@@ -27,7 +27,7 @@ export interface ClaimWithOutstandingDTO {
 
 
 export default function EditDocumentPage() {
-    const { id } = useParams();
+    const {id} = useParams();
     const searchParams = useSearchParams();
     const value = searchParams.get('value');
     const [itemsLoading, setItemsLoading] = useState(false);
@@ -35,7 +35,6 @@ export default function EditDocumentPage() {
     const [newFiles, setNewFiles] = useState<File[]>([]);
     const [outstandingClaims, setOutStandingClaim] = useState<ClaimWithOutstandingDTO[]>([]);
     const [uploading, setUploading] = useState(false);
-
 
 
     useEffect(() => {
@@ -51,7 +50,7 @@ export default function EditDocumentPage() {
             console.log(data);
 
         } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
+            showNotification({title: "Error", message: e.message, color: "red"});
         } finally {
             setItemsLoading(false);
         }
@@ -84,17 +83,49 @@ export default function EditDocumentPage() {
                 body: form,          // FormData triggers file upload path
                 requiresAuth: true,  // default true
             });
-            showNotification({ message: "Files uploaded", color: "green" });
+            showNotification({message: "Files uploaded", color: "green"});
             setNewFiles([]);
             fetchItems(); // re-fetch files list
         } catch (e: any) {
-            showNotification({ message: e.message, color: "red" });
+            showNotification({message: e.message, color: "red"});
         } finally {
             setUploading(false);
         }
     }
 
-       return(
+    async function downloadEvidence(fileId: number, fileName: string) {
+        // if (!documentId) return;
+        const url = `${API_BASE_URl_DOC}/api/claim-documents/files/${fileId}/download`;
+        const token = localStorage.getItem('jwt');
+
+
+        try {
+            const res = await fetch(url, {
+                method: 'GET',
+                headers: { Accept: 'application/octet-stream', 'Authorization': `Bearer ${token}`},
+            });
+
+            console.log('download response:', res);
+            if (!res.ok) {
+                throw new Error(`Download failed: ${res.status} ${res.statusText}`);
+            }
+
+            const blob = await res.blob();
+            const downloadUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(downloadUrl);
+        } catch (err: any) {
+            console.error('Error downloading evidence:', err);
+        }
+}
+
+
+        return(
            <Container my="xl">
                <Title order={2}>Edit Document </Title>
 
@@ -143,7 +174,7 @@ export default function EditDocumentPage() {
                                                        <Button
                                                            size="xs"
                                                            component="a"
-                                                           href={`/api/documents/${id}/files/${f.id}`}
+                                                           onClick={() => downloadEvidence(f.id, f.fileName)}
                                                            target="_blank"
                                                        >
                                                            Download
