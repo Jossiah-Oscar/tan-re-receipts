@@ -208,10 +208,11 @@ export default function Dashboard() {
                                     valueFormatter={(value) => new Intl.NumberFormat('en-US').format(value)}
                                     // withBarValueLabel
                                     // withLegends
-                                    // tooltipProps={{
-                                    //     labelFormatter: (label) => `Month: ${label}`,
-                                    //     formatter: (val, name) => [`TZS ${new Intl.NumberFormat().format(val)}`, name],
-                                    // }}
+                                    withTooltip
+                                    tooltipProps={{
+                                        labelFormatter: (label) => `Month: ${label}`,
+                                        formatter: (val, name) => [`TZS ${new Intl.NumberFormat().format(val)}`, name],
+                                    }}
                                     barProps={{ stroke: 'none' }}
                                     // valueLabelProps={{ position: 'inside', fill: 'white' }}
                                     yAxisProps={{
