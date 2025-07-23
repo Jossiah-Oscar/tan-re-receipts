@@ -22,6 +22,7 @@ import {API_BASE_URL} from "@/config/api";
 import GwpMonthlyCard from "@/components/dashboard/gwpTable";
 import {IconAlertTriangle, IconDotsVertical, IconFileAnalytics, IconReceipt2, IconUserCheck} from "@tabler/icons-react";
 import {BarChart} from "@mantine/charts";
+import {formatShortNumber} from "@/utils/format";
 
 export interface DashboardSummary {
     currentMonth: string;
@@ -47,12 +48,7 @@ export interface CedantBalance {
     brokerCedantName: string;
     balanceRepCcy: number;
 }
-export function formatShortNumber(value: number): string {
-    if (value >= 1_000_000_000) return (value / 1_000_000_000).toFixed(1) + 'B';
-    if (value >= 1_000_000) return (value / 1_000_000).toFixed(1) + 'M';
-    if (value >= 1_000) return (value / 1_000).toFixed(1) + 'K';
-    return value.toFixed(1);
-}
+
 
 
 export default function Dashboard() {
