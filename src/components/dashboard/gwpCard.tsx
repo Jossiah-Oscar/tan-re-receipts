@@ -35,3 +35,47 @@ export default function GwpCard({ currentGwp, targetGwp, progress, cardName }: G
         </Card>
     );
 }
+
+export function StatCard({ currentGwp, targetGwp, progress, cardName }: GwpCardProps) {
+    // const TrendIcon = trend === 'up' ? IconTrendingUp : IconTrendingDown;
+
+    return (
+        <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Group justify="center" align="flex-start" wrap="nowrap">
+                <Stack gap="xs" justify="center">
+
+                    <Group justify="center">
+
+                        <Text size="sm" c="dimmed">
+                            {cardName}
+                        </Text>
+                    </Group>
+
+                    <Group justify="center">
+                        <RingProgress
+                            size={120}
+                            thickness={12}
+                            sections={[{ value: 15, color: 'blue' }]}
+                            label={
+                                <Text c="blue" fw={700} ta="center" size="xl">
+                                    {Math.round(progress)}%
+                                </Text>
+                            }
+                        />
+                    </Group>
+
+                    <Group gap={4} c="black">
+                        {/*<TrendIcon size={16} style={{ flexShrink: 0 }} />*/}
+                        <Text size="lg">TZS {currentGwp.toLocaleString()}</Text>
+                    </Group>
+
+                    <Group gap={4} c="dimmed">
+                        {/*<TrendIcon size={16} style={{ flexShrink: 0 }} />*/}
+                        <Text size="sm" c="gray">Target: TZS {targetGwp.toLocaleString()}</Text>
+                    </Group>
+
+                </Stack>
+            </Group>
+        </Card>
+    );
+}
