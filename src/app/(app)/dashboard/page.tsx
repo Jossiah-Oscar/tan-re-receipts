@@ -1,6 +1,6 @@
 "use client"
 
-import {useEffect, useState} from "react";
+import {JSX, useEffect, useState} from "react";
 import {
     Box,
     Card,
@@ -23,6 +23,7 @@ import GwpMonthlyCard from "@/components/dashboard/gwpTable";
 import {IconAlertTriangle, IconDotsVertical, IconFileAnalytics, IconReceipt2, IconUserCheck} from "@tabler/icons-react";
 import {BarChart} from "@mantine/charts";
 import {formatShortNumber} from "@/utils/format";
+import {TooltipProps} from "recharts";
 
 export interface DashboardSummary {
     currentMonth: string;
@@ -48,6 +49,47 @@ export interface CedantBalance {
     brokerCedantName: string;
     balanceRepCcy: number;
 }
+
+
+const CustomTooltip = ({
+                           active,
+                           payload,
+                           label,
+                       }: TooltipProps<any, any>): JSX.Element | null => {
+    if (active && payload && payload.length) {
+        return (
+            <div
+                style={{
+                    backgroundColor: 'white',
+                    padding: '12px',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.1)',
+                }}
+            >
+                <p style={{ color: '#374151', fontWeight: 600, marginBottom: '8px' }}>
+                    Month: {label}
+                </p>
+                {payload.map((entry, index) => (
+                    <p
+                        key={index}
+                        style={{
+                            color: entry.color || 'black',
+                            fontSize: '14px',
+                            margin: '2px 0',
+                        }}
+                    >
+                        {`${entry.name ?? 'N/A'}: ${new Intl.NumberFormat('en-US').format(
+                            entry.value as number
+                        )}`}
+                    </p>
+                ))}
+            </div>
+        );
+    }
+
+    return null;
+};
 
 
 
@@ -98,49 +140,6 @@ export default function Dashboard() {
     }, []);
 
 
-
-    const tooltipProps = {
-        content: ({
-                      active,
-                      payload,
-                      label,
-                  }: {
-            active?: boolean;
-            payload?: { name: string; value: number; color: string }[];
-            label?: string | number;
-        }) => {
-            if (active && payload && payload.length) {
-                return (
-                    <div
-                        style={{
-                            backgroundColor: 'white',
-                            padding: '12px',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '8px',
-                            boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.1)', // ✅ fixed
-                        }}
-                    >
-                        <p style={{ color: '#374151', fontWeight: '600', marginBottom: '8px' }}>
-                            {`Month: ${label}`}
-                        </p>
-                        {payload.map((entry, index) => (
-                            <p
-                                key={index}
-                                style={{
-                                    color: entry.color,
-                                    fontSize: '14px',
-                                    margin: '2px 0',
-                                }}
-                            >
-                                {`${entry.name}: ${new Intl.NumberFormat('en-US').format(entry.value)}`}
-                            </p>
-                        ))}
-                    </div>
-                );
-            }
-            return null;
-        },
-    };
 
     if (gwp === null || gwpYear === null) return <Center><Loader variant="bars" /> </Center>;
 
@@ -209,7 +208,9 @@ export default function Dashboard() {
                                     valueFormatter={(value) => new Intl.NumberFormat('en-US').format(value)}
                                     // withBarValueLabel
                                     // withLegends
-                                    tooltipProps={tooltipProps}
+                                    tooltipProps={{
+                                        content: <CustomTooltip />
+                                    }}
                                     barProps={{ stroke: 'none' }}
                                     // valueLabelProps={{ position: 'inside', fill: 'white' }}
                                     yAxisProps={{
