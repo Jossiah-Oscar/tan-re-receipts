@@ -21,9 +21,9 @@ import ClaimsCard, {ClaimStatCard} from "@/components/dashboard/claimCard";
 import {API_BASE_URL} from "@/config/api";
 import GwpMonthlyCard from "@/components/dashboard/gwpTable";
 import {IconAlertTriangle, IconDotsVertical, IconFileAnalytics, IconReceipt2, IconUserCheck} from "@tabler/icons-react";
-import {BarChart} from "@mantine/charts";
+import {BarChart } from "@mantine/charts";
 import {formatShortNumber} from "@/utils/format";
-import {TooltipProps} from "recharts";
+// import {TooltipProps} from "recharts";
 
 export interface DashboardSummary {
     currentMonth: string;
@@ -51,45 +51,45 @@ export interface CedantBalance {
 }
 
 
-const CustomTooltip = ({
-                           active,
-                           payload,
-                           label,
-                       }: TooltipProps<any, any>): JSX.Element | null => {
-    if (active && payload && payload.length) {
-        return (
-            <div
-                style={{
-                    backgroundColor: 'white',
-                    padding: '12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.1)',
-                }}
-            >
-                <p style={{ color: '#374151', fontWeight: 600, marginBottom: '8px' }}>
-                    Month: {label}
-                </p>
-                {payload.map((entry, index) => (
-                    <p
-                        key={index}
-                        style={{
-                            color: entry.color || 'black',
-                            fontSize: '14px',
-                            margin: '2px 0',
-                        }}
-                    >
-                        {`${entry.name ?? 'N/A'}: ${new Intl.NumberFormat('en-US').format(
-                            entry.value as number
-                        )}`}
-                    </p>
-                ))}
-            </div>
-        );
-    }
-
-    return null;
-};
+// const CustomTooltip = ({
+//                            active,
+//                            payload,
+//                            label,
+//                        }: TooltipProps<any, any>): JSX.Element | null => {
+//     if (active && payload && payload.length) {
+//         return (
+//             <div
+//                 style={{
+//                     backgroundColor: 'white',
+//                     padding: '12px',
+//                     border: '1px solid #e5e7eb',
+//                     borderRadius: '8px',
+//                     boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.1)',
+//                 }}
+//             >
+//                 <p style={{ color: '#374151', fontWeight: 600, marginBottom: '8px' }}>
+//                     Month: {label}
+//                 </p>
+//                 {payload.map((entry, index) => (
+//                     <p
+//                         key={index}
+//                         style={{
+//                             color: entry.color || 'black',
+//                             fontSize: '14px',
+//                             margin: '2px 0',
+//                         }}
+//                     >
+//                         {`${entry.name ?? 'N/A'}: ${new Intl.NumberFormat('en-US').format(
+//                             entry.value as number
+//                         )}`}
+//                     </p>
+//                 ))}
+//             </div>
+//         );
+//     }
+//
+//     return null;
+// };
 
 
 
@@ -208,9 +208,10 @@ export default function Dashboard() {
                                     valueFormatter={(value) => new Intl.NumberFormat('en-US').format(value)}
                                     // withBarValueLabel
                                     // withLegends
-                                    tooltipProps={{
-                                        content: <CustomTooltip />
-                                    }}
+                                    // tooltipProps={{
+                                    //     labelFormatter: (label) => `Month: ${label}`,
+                                    //     formatter: (val, name) => [`TZS ${new Intl.NumberFormat().format(val)}`, name],
+                                    // }}
                                     barProps={{ stroke: 'none' }}
                                     // valueLabelProps={{ position: 'inside', fill: 'white' }}
                                     yAxisProps={{
