@@ -21,10 +21,9 @@ import ClaimsCard, {ClaimStatCard} from "@/components/dashboard/claimCard";
 import {API_BASE_URL} from "@/config/api";
 import GwpMonthlyCard from "@/components/dashboard/gwpTable";
 import {IconAlertTriangle, IconDotsVertical, IconFileAnalytics, IconReceipt2, IconUserCheck} from "@tabler/icons-react";
-import {BarChart } from "@mantine/charts";
 import {formatShortNumber} from "@/utils/format";
-import {TooltipProps} from "recharts";
-import {TooltipPayload} from "recharts/types/state/tooltipSlice";
+import {TooltipProps, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, Tooltip, ResponsiveContainer} from "recharts";
+
 
 export interface DashboardSummary {
     currentMonth: string;
@@ -33,6 +32,15 @@ export interface DashboardSummary {
     gwpProgressPercent: number;
     totalClaimsYtd: number;
 }
+const gwpTrendss = [
+    { month: 'Jan', thisYearPremium: 27569177741.93, lastYearPremium: 25659414901.49 },
+    { month: 'Feb', thisYearPremium: 24347448729.23, lastYearPremium: 21750735481.86 },
+    { month: 'Mar', thisYearPremium: 18338190237.29, lastYearPremium: 13369816750.26 },
+    { month: 'Apr', thisYearPremium: 27577683387.76, lastYearPremium: 18131888574.82 },
+    { month: 'May', thisYearPremium: 32591323528.55, lastYearPremium: 30063276183.02 },
+    { month: 'Jun', thisYearPremium: 29537424827.74, lastYearPremium: 23095931414.04 },
+    { month: 'Jul', thisYearPremium: 12850078800.57, lastYearPremium: 30293818476.42 },
+];
 
 export interface CedantGwp  {
     cedantName: string;
@@ -50,47 +58,6 @@ export interface CedantBalance {
     brokerCedantName: string;
     balanceRepCcy: number;
 }
-
-
-// const CustomTooltip = ({
-//                            active,
-//                            payload,
-//                            label,
-//                        }: TooltipProps<any, any>): JSX.Element | null => {
-//     if (active && payload && payload.length) {
-//         return (
-//             <div
-//                 style={{
-//                     backgroundColor: 'white',
-//                     padding: '12px',
-//                     border: '1px solid #e5e7eb',
-//                     borderRadius: '8px',
-//                     boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.1)',
-//                 }}
-//             >
-//                 <p style={{ color: '#374151', fontWeight: 600, marginBottom: '8px' }}>
-//                     Month: {label}
-//                 </p>
-//                 {payload.map((entry: TooltipPayload, index: number) => (
-//                     <p
-//                         key={index}
-//                         style={{
-//                             color: entry.color || 'black',
-//                             fontSize: '14px',
-//                             margin: '2px 0',
-//                         }}
-//                     >
-//                         {`${entry.name ?? 'N/A'}: ${new Intl.NumberFormat('en-US').format(
-//                             entry.value as number
-//                         )}`}
-//                     </p>
-//                 ))}
-//             </div>
-//         );
-//     }
-//
-//     return null;
-// };
 
 
 export default function Dashboard() {
@@ -200,31 +167,25 @@ export default function Dashboard() {
                                 <Text fw={600}>Current Year vs Last Year Premium Trend</Text>
                             </Group>
 
-                            <div style={{ height: 300 }}>
-                                <BarChart
-                                    h={300}
-                                    data={gwpTrends}
-                                    dataKey="month"
-                                    valueFormatter={(value) => new Intl.NumberFormat('en-US').format(value)}
-                                    // withBarValueLabel
-                                    // withLegends
-                                    withTooltip
-                                    // tooltipProps={{ content: <CustomTooltip /> }}
-                                    tooltipProps={{
-                                        labelFormatter: (label) => `Month: ${label}`,
-                                        formatter: (val, name) => [`TZS ${new Intl.NumberFormat().format(val)}`, name],
-                                    }}
-                                    // barProps={{ stroke: 'none' }}
-                                    // valueLabelProps={{ position: 'inside', fill: 'white' }}
-                                    yAxisProps={{
-                                        tickFormatter: (value) => formatShortNumber(value)
-                                    }}
-                                    series={[
-                                        { name: 'thisYearPremium', color: 'violet.6'},
-                                        { name: 'lastYearPremium', color: 'blue.6'},
-                                    ]}
-                                />
-                            </div>
+                            <ResponsiveContainer width="100%" height={400}>
+                                <BarChart data={gwpTrends}>
+                                    height={300}
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="month" />
+                                    <Tooltip />
+                                    <YAxis
+                                        tickFormatter={(value) =>
+                                            new Intl.NumberFormat('en-US', {
+                                                notation: 'compact',
+                                                maximumFractionDigits: 1,
+                                            }).format(value)
+                                        }
+                                    />
+                                    <Legend />
+                                    <Bar dataKey="lastYearPremium" name="Last Year Premium" fill="#3b82f6" /> {/* blue.6 */}
+                                    <Bar dataKey="thisYearPremium" name="This Year Premium" fill="#7c3aed" /> {/* violet.6 */}
+                                </BarChart>
+                            </ResponsiveContainer>
                         </Card>
                     </Grid.Col>
 
