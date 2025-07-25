@@ -2,15 +2,14 @@
 
 
 
-import {Notifications} from "@mantine/notifications";
-import {AppShell, Burger, Group, MantineProvider, Menu, NavLink} from "@mantine/core";
+import {AppShell, Burger, Group, MantineProvider, ColorSchemeScript , NavLink} from "@mantine/core";
 import Link from "next/link";
 import {
     IconArrowBackUp, IconBuildingStore,
-    IconChevronRight,
-    IconDashboard,
+    IconChevronRight, IconContract,
+    IconDashboard, IconDevicesExclamation,
     IconFingerprint,
-    IconReceipt, IconReport, IconSettings,
+    IconReceipt, IconRegistered, IconReport, IconSettings,
     IconUpload
 } from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
@@ -19,11 +18,21 @@ import {useAuth} from "@/context/AuthContext";
 export default function Layout({ children }: { children: React.ReactNode }) {
     const [opened, { toggle }] = useDisclosure();
     const {username, roles} = useAuth();
-    const isAdmin = roles.includes("FINANCE");
+    const isFinanca = roles.includes("FINANCE");
+    const isAdmin = roles.includes("ADMIN");
+    const isCEO = roles.includes("CEO");
+
+
 
 
 
     return (
+        // <MantineProvider
+        //     defaultColorScheme="light"
+        //     theme={{
+        //         colorScheme: 'light', // 👈 force light mode
+        //     }}
+        // >
 
             <AppShell
                 header={{ height: 50 }}
@@ -36,72 +45,68 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         {/*<MantineLogo size={30} />*/}
                     </Group>
                 </AppShell.Header>
-                <AppShell.Navbar p="md">
+                <AppShell.Navbar p="sm">
                     <NavLink
                         component={Link}
                         href="/dashboard"
                         label="Dashboard"
                         leftSection={<IconDashboard size={16} stroke={1.5} />}
-                        // rightSection={
-                        //     <IconChevronRight size={12} stroke={1.5} className="mantine-rotate-rtl" />
-                        // }
                     />
-                    <NavLink
-                        component={Link}
-                        href="/debit-upload"
-                        label="Document Upload"
-                        leftSection={<IconUpload size={16} stroke={1.5} />}
 
-                        // rightSection={
-                        //     <IconChevronRight size={12} stroke={1.5} className="mantine-rotate-rtl" />
-                        // }
-                    />
-                    <NavLink
-                        component={Link}
-                        href="/receipts"
-                        label="Receipts"
-                        leftSection={<IconReceipt size={16} stroke={1.5} />}
+                    {/* Only show these if NOT CEO */}
+                    {!isCEO && (
+                        <>
+                            <NavLink
+                                component={Link}
+                                href="/debit-upload"
+                                label="Document Upload"
+                                leftSection={<IconUpload size={16} stroke={1.5} />}
+                            />
+                            <NavLink
+                                component={Link}
+                                href="/receipts"
+                                label="Receipts"
+                                leftSection={<IconReceipt size={16} stroke={1.5} />}
+                            />
+                            <NavLink
+                                component={Link}
+                                href="/office-store"
+                                label="Office Store"
+                                leftSection={<IconBuildingStore size={16} stroke={1.5} />}
+                            />
+                            <NavLink
+                                href="#required-for-focus"
+                                label="Claim"
+                                leftSection={<IconReport size={16} stroke={1.5} />}
+                                childrenOffset={28}
+                            >
+                                <NavLink
+                                    component={Link}
+                                    href="/claims"
+                                    label="Submit to Finance"
+                                    leftSection={<IconDevicesExclamation size={16} stroke={1.5} />}
+                                />
+                                <NavLink
+                                    component={Link}
+                                    href="/claims-payment"
+                                    label="Claims To Pay"
+                                    leftSection={<IconContract size={16} stroke={1.5} />}
+                                />
+                            </NavLink>
 
-                        // rightSection={
-                        //     <IconChevronRight size={12} stroke={1.5} className="mantine-rotate-rtl" />
-                        // }
-                    />
-                    <NavLink
-                        component={Link}
-                        href="/office-store"
-                        label="Office Store"
-                        leftSection={<IconBuildingStore size={16} stroke={1.5} />}
-
-                        // rightSection={
-                        //     <IconChevronRight size={12} stroke={1.5} className="mantine-rotate-rtl" />
-                        // }
-                    />
-                    {/*<NavLink*/}
-                    {/*    href="#required-for-focus"*/}
-                    {/*    label="Reports"*/}
-                    {/*    leftSection={<IconReport size={16} stroke={1.5} />}*/}
-                    {/*    childrenOffset={28}*/}
-                    {/*>*/}
-                    {/*    <NavLink label="Outstanding Transactions" href="/reports/premium-register" />*/}
-                    {/*    /!*<NavLink label="Second child link" href="#required-for-focus" />*!/*/}
-                    {/*    /!*<NavLink label="Third child link" href="#required-for-focus" />*!/*/}
-                    {/*</NavLink>*/}
-
-
-                    {isAdmin && (
-                    <NavLink
-                        component={Link}
-                        href="/admin"
-                        label="Admin"
-                        leftSection={<IconSettings size={16} stroke={1.5} />}
-                        // rightSection={
-                        //     <IconChevronRight size={12} stroke={1.5} className="mantine-rotate-rtl" />
-                        // }
-                    />
+                            {isAdmin && (
+                                <NavLink
+                                    component={Link}
+                                    href="/admin"
+                                    label="Admin"
+                                    leftSection={<IconSettings size={16} stroke={1.5} />}
+                                />
+                            )}
+                        </>
                     )}
-                    {/* add more links as needed */}
                 </AppShell.Navbar>
                 <AppShell.Main>{children}</AppShell.Main>
             </AppShell>
+// </MantineProvider>
     );
 }

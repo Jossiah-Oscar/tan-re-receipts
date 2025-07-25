@@ -70,11 +70,9 @@ export default function InventoryPage() {
     const [rows, setRows] = useState<RequestLine[]>([{}]);
 
 
-    // ——— Fetch stock & requests on mount
     useEffect(() => {
         fetchItems();
         fetchRequests();
-        console.log(roles);
     }, []);
 
     async function fetchItems() {
