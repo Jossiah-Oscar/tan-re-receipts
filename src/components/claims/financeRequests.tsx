@@ -3,8 +3,6 @@
 import {
     ActionIcon, Button,
     Card,
-    Container,
-    Divider, FileInput,
     Group,
     Loader,
     Menu,
@@ -17,10 +15,10 @@ import {
 import {apiFetch} from "@/config/api";
 import {showNotification} from "@mantine/notifications";
 import {useEffect, useState} from "react";
-import {Claim, ClaimDTO} from "@/app/(app)/(claims)/claims/page";
-import {IconArrowBackUp, IconDotsVertical, IconEdit, IconEye, IconPhoto, IconTrash} from "@tabler/icons-react";
-import ProcessPaymentTab from "@/components/claims/processPaymentTab";
+import {IconDotsVertical, IconEye} from "@tabler/icons-react";
+import PendingPaymentTab from "@/components/claims/pendingPaymentTab";
 import {useRouter} from "next/navigation";
+import useFinanceRequestStore from "@/store/useFinanceRequestStore";
 
 
 export interface ClaimDocument {
@@ -63,109 +61,42 @@ export interface FinanceStatus {
 
 export default function ClaimsPaymentTable() {
 
-
-    const [itemsLoading, setItemsLoading] = useState(true);
-    const [items, setItems] = useState<ClaimDocument[]>([]);
-    const [financeStatues, setFinanceStatues] = useState<FinanceStatus[]>([]);
-
-    const [loading, setLoading] = useState(false);
-    const [evidenceOpened, setEvidenceOpened] = useState(false);
-    const [docID, setDocID] = useState<number>();
-    const [financeStatusID, setFinanceStatusID] = useState<string>();
-    const [comment, setComment] = useState("");
-
-
-    function closeClaimDocModal() {
-        setEvidenceOpened(false);
-
-    }
-
-    function openClaimDocModal() {
-        setEvidenceOpened(true);
-        fetchFinanceStatues();
-    }
-
+    const {
+        items,
+        loading,
+        financeStatuses,
+        modalStates,
+        comment,
+        financeStatusId,
+        fetchItems,
+        fetchFinanceStatuses,
+        setModalState,
+        setSelectedDocId,
+        setFinanceStatusId,
+        setComment,
+        changeFinanceStatus
+    } = useFinanceRequestStore()
 
     useEffect(() => {
         fetchItems()
-
-    }, []);
-
-
-        const pendingDocs = items.filter((d) => d.status.name === 'PENDING_PAYMENT');
-        const processingPayments = items.filter((d) => d.status.name === 'PROCESSING_PAYMENT');
-        const completed = items.filter((d) => d.status.name === 'COMPLETED');
-
-
-
-
-    async function fetchItems() {
-        setItemsLoading(true);
-        try {
-            const data = await apiFetch<ClaimDocument[]>("/api/claim-documents/claim-payments");
-            setItems(data);
-
-        } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
-        } finally {
-            setItemsLoading(false);
-        }
-    }
-
-    async function fetchFinanceStatues() {
-        setItemsLoading(true);
-        try {
-            const data = await apiFetch<FinanceStatus[]>("/api/claim-documents/finance-status");
-            setFinanceStatues(data);
-        } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
-        } finally {
-            setItemsLoading(false);
-        }
-    }
-
-    async function changeFinanceStatus(docId: number, financeStatusId: number, comment: string, mainStatusId: number) {
-        if (!financeStatusId) {
-            showNotification({ title: "Validation", message: "Finance status is required", color: "yellow" });
-            return;
-        }
-
-        const selectedStatus = financeStatues.find(status => status.id === financeStatusId);
-
-        if (!selectedStatus) {
-            showNotification({ title: "Error", message: "Selected status not found", color: "red" });
-            return;
-        }
-
-        if (selectedStatus.name === "OTHER" && (!comment || comment.trim() === "")) {
-            showNotification({ title: "Validation", message: "Comment is required for 'Other' status", color: "yellow" });
-            return;
-        }
-
-        try {
-            await apiFetch(`/api/claim-documents/${docId}/finance-status`, {
-                method: "POST",
-                body: {
-                    financeStatusId,
-                    mainStatusId,
-                    comment
-                },
-            });
-
-            showNotification({ title: "Success", message: "Finance status updated", color: "green" });
-            // Optional: refresh data or close modal
-            closeClaimDocModal();
-            // fetchDocument(docId);
-        } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
-        }
-    }
+    }, [fetchItems]);
 
     const router = useRouter();
 
     const viewDocumentDetails = (docID: number, sequenceNo: number) => {
         router.push(`/claims-payment/${docID}/edit?value=${sequenceNo}`);
     };
+
+
+    const handleOpenModal = (docId: number) => {
+        setSelectedDocId(docId)
+        setModalState('evidenceModal', true)
+        fetchFinanceStatuses()
+    }
+
+    const pendingDocs = items.filter((d) => d.status.name === 'PENDING_PAYMENT');
+        const processingPayments = items.filter((d) => d.status.name === 'PROCESSING_PAYMENT');
+        const completed = items.filter((d) => d.status.name === 'COMPLETED');
 
 
     return (
@@ -179,7 +110,7 @@ export default function ClaimsPaymentTable() {
                   </Tabs.List>
 
                   <Tabs.Panel value="PENDING-PAYMENT" pt="md">
-                      {itemsLoading ? (
+                      {loading ? (
                           <Loader />
                       ) : pendingDocs.length === 0 ? (
                           <Text>No Claim to Pay.</Text>
@@ -221,10 +152,8 @@ export default function ClaimsPaymentTable() {
                                                           <Menu.Item
                                                               leftSection={<IconEye size={16}/>}
                                                               onClick={()=> {
-                                                                         openClaimDocModal();
-                                                                         setDocID(it.id);
-
-                                                                     }}> Process Payment
+                                                                  () => handleOpenModal(it.id)
+                                                              }}> Process Payment
                                                           </Menu.Item>
                                                       </Menu.Dropdown>
                                                   </Menu>
@@ -239,7 +168,7 @@ export default function ClaimsPaymentTable() {
 
                   <Tabs.Panel value="PROCESSING-PAYMENT" pt="md">
 
-                    <ProcessPaymentTab/>
+                    <PendingPaymentTab/>
 
                   </Tabs.Panel>
 
@@ -247,24 +176,22 @@ export default function ClaimsPaymentTable() {
                   </Card>
 
             <Modal
-                opened={evidenceOpened}
-                onClose={closeClaimDocModal}
+                opened={modalStates.evidenceModal}
+                onClose={() => setModalState('evidenceModal', false)}
                 title="Change Status"
                 size="sm"
                 centered
             >
                 <Stack>
                     <Select
-                    // label="Your favorite library"
                     placeholder="Processing Status"
-                    data={financeStatues.map(status => ({
+                    data={financeStatuses.map(status => ({
                         value: status.id.toString(),
                         label: status.label
                     }))}
-                    onChange={(_value, option) => setFinanceStatusID(_value!)}
+                    onChange={(_value, option) => setFinanceStatusId(_value!)}
                 />
 
-                    {/*{selectedStatus?.name === "OTHER" && (!comment || comment.trim() === "") && (*/}
                     <Textarea
                         placeholder="Other Reason"
                         autosize
@@ -275,11 +202,7 @@ export default function ClaimsPaymentTable() {
                     {/*)}*/}
 
                     <Button fullWidth mt="md"
-                            onClick={() => {
-                                changeFinanceStatus(docID!, Number(financeStatusID), comment, 3)
-                            }
-                    }
-                        // disabled={!evidenceFile}
+                            onClick={() => changeFinanceStatus(3)}
                     >
                         Process Payment
                     </Button>

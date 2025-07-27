@@ -19,152 +19,54 @@ import {useEffect, useState} from "react";
 import {ClaimDocument, FinanceStatus} from "@/components/claims/financeRequests";
 import {API_BASE_URl_DOC, apiFetch} from "@/config/api";
 import {showNotification} from "@mantine/notifications";
+import useClaimPaymentStore from "@/store/useClaimPaymentStore"
 import {ClaimFinanceDocStatus} from "@/model/ClaimFinanceDocStatus";
 import {useRouter} from "next/navigation";
 
-export default function ProcessPaymentTab() {
-    const [itemsLoading, setItemsLoading] = useState(true);
-    const [openPOPModal, setOpenPOPModal] = useState(false);
-    const [financeStatusModal, setFinanceStatus] = useState(false);
-    const [financeStatues, setFinanceStatues] = useState<FinanceStatus[]>([]);
-    const[popFile, setPopFile] = useState<File | null>(null);
+export default function PendingPaymentTab() {
+
     const [docID, setDocID] = useState<number | null>(null);
-    const [items, setItems] = useState<ClaimFinanceDocStatus[]>([])
-    const [financeStatusID, setFinanceStatusID] = useState<string>();
-    const [comment, setComment] = useState("");
+    const router = useRouter();
 
+    const {
+        items,
+        loading,
+        popFile,
+        modalStates,
+        financeStatuses,
+        comment,
+        financeStatusId,
+        fetchItems,
+        fetchFinanceStatuses,
+        setPopFile,
+        setModalState,
+        setSelectedDocId,
+        setComment,
+        setFinanceStatusId,
+        submitEvidence,
+        changeFinanceStatus,
+    } = useClaimPaymentStore()
 
-
-
-    function closePOPModal() {
-        setOpenPOPModal(false);
-
-    }
-
-    function openPopModal() {
-        setOpenPOPModal(true);
-    }
     useEffect(() => {
         fetchItems()
 
-    }, []);
+    }, [fetchItems]);
 
-    function closeFinanceStatusModal() {
-        setFinanceStatus(false);
-
-    }
-
-    function openFinanceStatusModal() {
-        setFinanceStatus(true);
-        fetchFinanceStatues();
-    }
-
-
-    async function submitEvidence() {
-        if (!setDocID || !popFile) return;
-        const form = new FormData();
-        form.append('files', popFile);
-        const token = localStorage.getItem('jwt');
-
-        await fetch(`${API_BASE_URl_DOC}/api/claim-documents/${docID}/upload`, {
-            method: 'POST',
-            body: form,
-            headers: {Accept: 'application/octet-stream', 'Authorization': `Bearer ${token}`,},
-
-        }).then(async (response) => {
-            changeMainStatus(docID!, 4)
-        })
-        closePOPModal();
-    }
-
-    async function fetchFinanceStatues() {
-        setItemsLoading(true);
-        try {
-            const data = await apiFetch<FinanceStatus[]>("/api/claim-documents/finance-status");
-            setFinanceStatues(data);
-        } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
-        } finally {
-            setItemsLoading(false);
-        }
-    }
-
-    async function changeMainStatus(docId: number, statusId: number) {
-        if (!statusId) {
-            showNotification({ title: "Validation", message: "Status is required", color: "yellow" });
-            return;
-        }
-        try {
-            await apiFetch(`/api/claim-documents/${docId}/status`, {
-                method: "POST",
-                body: {
-                    statusId,
-                },
-            });
-            showNotification({ title: "Success", message: "Document status updated", color: "green" });
-            // Optional: refresh data or close modal
-            // fetchItems(docId);
-        } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
-        }
-    }
-
-    async function fetchItems() {
-        setItemsLoading(true);
-        try {
-            const data = await apiFetch<ClaimFinanceDocStatus[]>("/api/claim-documents/claim-process-payments");
-            setItems(data);
-
-        } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
-        } finally {
-            setItemsLoading(false);
-        }
-    }
-
-    async function changeFinanceStatus(docId: number, financeStatusId: number, comment: string, mainStatusId: number) {
-        if (!financeStatusId) {
-            showNotification({ title: "Validation", message: "Finance status is required", color: "yellow" });
-            return;
-        }
-
-        const selectedStatus = financeStatues.find(status => status.id === financeStatusId);
-
-        if (!selectedStatus) {
-            showNotification({ title: "Error", message: "Selected status not found", color: "red" });
-            return;
-        }
-
-        if (selectedStatus.name === "OTHER" && (!comment || comment.trim() === "")) {
-            showNotification({ title: "Validation", message: "Comment is required for 'Other' status", color: "yellow" });
-            return;
-        }
-
-        try {
-            await apiFetch(`/api/claim-documents/${docId}/finance-status`, {
-                method: "POST",
-                body: {
-                    financeStatusId,
-                    mainStatusId,
-                    comment
-                },
-            });
-
-            showNotification({ title: "Success", message: "Finance status updated", color: "green" });
-            // Optional: refresh data or close modal
-            closeFinanceStatusModal();
-            // fetchDocument(docId);
-        } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
-        }
-    }
-
-    const router = useRouter();
 
     const viewDocumentDetails = (docID: number, sequenceNo: number) => {
         router.push(`/claims-payment/${docID}/edit?value=${sequenceNo}`);
     };
 
+    const handleOpenPopModal = (docId: number) => {
+        setSelectedDocId(docId)
+        setModalState('popModal', true)
+    }
+
+    const handleOpenFinanceStatusModal = (docId: number) => {
+        setSelectedDocId(docId)
+        setModalState('financeStatusModal', true)
+        fetchFinanceStatuses()
+    }
 
     return (
         <>
@@ -209,14 +111,13 @@ export default function ProcessPaymentTab() {
                                                 </Menu.Item>
                                                 <Menu.Item leftSection={<IconEye size={16}/>}
                                                            onClick={()=> {
-                                                               openFinanceStatusModal()
-                                                               setDocID(it.claimDocuments.id);
+                                                               handleOpenFinanceStatusModal(it.claimDocuments.id)
                                                            }}>Change Status
                                                 </Menu.Item>
                                                 <Menu.Item
                                                     leftSection={<IconEye size={16}/>}
                                                     onClick={()=> {
-                                                        openPopModal();
+                                                        handleOpenPopModal(it.claimDocuments.id);
                                                         setDocID(it.claimDocuments.id);
 
                                                     }}> Attach POP
@@ -232,10 +133,9 @@ export default function ProcessPaymentTab() {
 
 
 {/*Attach Proof of Payment MODAL*/}
-
             <Modal
-                opened={openPOPModal}
-                onClose={closePOPModal}
+                opened={modalStates.popModal}
+                onClose={() => setModalState('popModal', false)}
                 title="Proof Of Payment"
                 size="sm"
                 centered
@@ -255,24 +155,22 @@ export default function ProcessPaymentTab() {
 
 
             <Modal
-                opened={financeStatusModal}
-                onClose={closeFinanceStatusModal}
+                opened={modalStates.financeStatusModal}
+                onClose={() => setModalState('financeStatusModal', false)}
                 title="Change Status"
                 size="sm"
                 centered
             >
                 <Stack>
                     <Select
-                        // label="Your favorite library"
                         placeholder="Processing Status"
-                        data={financeStatues.map(status => ({
+                        data={financeStatuses.map(status => ({
                             value: status.id.toString(),
                             label: status.label
                         }))}
-                        onChange={(_value, option) => setFinanceStatusID(_value!)}
+                        onChange={(_value, option) => setFinanceStatusId(_value!)}
                     />
 
-                    {/*{selectedStatus?.name === "OTHER" && (!comment || comment.trim() === "") && (*/}
                     <Textarea
                         placeholder="Other Reason"
                         autosize
@@ -284,10 +182,9 @@ export default function ProcessPaymentTab() {
 
                     <Button fullWidth mt="md"
                             onClick={() => {
-                                changeFinanceStatus(docID!, Number(financeStatusID), comment, 3)
+                                changeFinanceStatus(3)
                             }
                             }
-                        // disabled={!evidenceFile}
                     >
                         Process Payment
                     </Button>

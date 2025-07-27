@@ -223,7 +223,7 @@ export default function EditDocumentPage() {
                                    </Table.Thead>
                                    <Table.Tbody>
                                        {outstandingClaims.map((ot) => (
-                                           <Table.Tr key={ot.claimNumber}>
+                                           <Table.Tr key={ot.transReference}>
                                                <Table.Td>{ot.contractNumber}</Table.Td>
                                                <Table.Td>{ot.underwritingYear}</Table.Td>
                                                <Table.Td>{ot.claimNumber}</Table.Td>

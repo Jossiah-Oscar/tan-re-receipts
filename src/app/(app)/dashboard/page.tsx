@@ -1,111 +1,50 @@
 "use client"
 
-import {JSX, useEffect, useState} from "react";
+import { useEffect, useState} from "react";
 import {
     Box,
     Card,
     Center,
     Container,
-    Flex,
     Grid,
     Group,
     Loader,
     Modal, rem,
-    SimpleGrid,
-    Stack,
     Table,
     Text
 } from "@mantine/core";
-import GwpCard, {StatCard} from "@/components/dashboard/gwpCard";
-import ClaimsCard, {ClaimStatCard} from "@/components/dashboard/claimCard";
-import {API_BASE_URL} from "@/config/api";
+import {StatCard} from "@/components/dashboard/gwpCard";
+import {ClaimStatCard} from "@/components/dashboard/claimCard";
 import GwpMonthlyCard from "@/components/dashboard/gwpTable";
-import {IconAlertTriangle, IconDotsVertical, IconFileAnalytics, IconReceipt2, IconUserCheck} from "@tabler/icons-react";
+import { IconDotsVertical, } from "@tabler/icons-react";
 import {formatShortNumber} from "@/utils/format";
-import {TooltipProps, BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, Tooltip, ResponsiveContainer} from "recharts";
-
-
-export interface DashboardSummary {
-    currentMonth: string;
-    monthlyTarget: number;
-    currentMonthGwp: number;
-    gwpProgressPercent: number;
-    totalClaimsYtd: number;
-}
-const gwpTrendss = [
-    { month: 'Jan', thisYearPremium: 27569177741.93, lastYearPremium: 25659414901.49 },
-    { month: 'Feb', thisYearPremium: 24347448729.23, lastYearPremium: 21750735481.86 },
-    { month: 'Mar', thisYearPremium: 18338190237.29, lastYearPremium: 13369816750.26 },
-    { month: 'Apr', thisYearPremium: 27577683387.76, lastYearPremium: 18131888574.82 },
-    { month: 'May', thisYearPremium: 32591323528.55, lastYearPremium: 30063276183.02 },
-    { month: 'Jun', thisYearPremium: 29537424827.74, lastYearPremium: 23095931414.04 },
-    { month: 'Jul', thisYearPremium: 12850078800.57, lastYearPremium: 30293818476.42 },
-];
-
-export interface CedantGwp  {
-    cedantName: string;
-    cedantCode: string;
-    totalBookedPremium: number;
-}
-
-export interface PremiumTrend {
-    month: string;
-    thisYearPremium: number;
-    lastYearPremium: number;
-}
-
-export interface CedantBalance {
-    brokerCedantName: string;
-    balanceRepCcy: number;
-}
+import {BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, Tooltip, ResponsiveContainer} from "recharts";
+import useDashboardStore from "@/store/useDashboardStore"
 
 
 export default function Dashboard() {
-    const [gwp, setGwp] = useState<number | null>(null);
-    const [gwpYear, setGwpYear] = useState<number | null>(null);
-    const [claims, setClaims] = useState<number | null>(null);
-    const [claimYear, setClaimYEar] = useState<number | null>(null);
     const [opened, setOpened] = useState(false);
     const [openedYearModal, setOpenedYearModal] = useState(false);
-    const [gwpList, setGwpList] = useState<CedantGwp[]>([]);
-    const [gwpTrends, setGwpTrends] = useState<PremiumTrend[]>([]);
-    const [cedantBalance, setcedantBalance] = useState<CedantBalance[]>([]);
 
+
+    const {
+        gwp,
+        gwpYear,
+        claims,
+        claimYear,
+        gwpList,
+        gwpTrends,
+        cedantBalance,
+        loading,
+        fetchDashboardData
+    } = useDashboardStore()
 
     const monthlyTarget = 336_903_845_564 / 12;
     const yearlyTarget: number = 336903845564;
 
-
     useEffect(() => {
-        fetch(`${API_BASE_URL}/api/dashboard/gwp`)
-            .then((res) => res.json())
-            .then((data) => setGwp(data));
-
-        fetch(`${API_BASE_URL}/api/dashboard/year-gwp`)
-            .then((res) => res.json())
-            .then((data) => setGwpYear(data));
-
-        fetch(`${API_BASE_URL}/api/dashboard/claims`)
-            .then((res) => res.json())
-            .then((data) => setClaims(data));
-        fetch(`${API_BASE_URL}/api/dashboard/year-claim`)
-            .then((res) => res.json())
-            .then((data) => setClaimYEar(data));
-
-        fetch(`${API_BASE_URL}/api/dashboard/gwp/top-cedants`)
-            .then((res) => res.json())
-            .then((data) => setGwpList(data));
-
-        fetch(`${API_BASE_URL}/api/dashboard/monthly-trend`)
-            .then((res) => res.json())
-            .then((data) => setGwpTrends(data))
-        ;
-        fetch(`${API_BASE_URL}/api/dashboard/outstanding-balances`)
-            .then((res) => res.json())
-            .then((data) => setcedantBalance(data))
-        ;
-    }, []);
-
+      fetchDashboardData()
+    }, [fetchDashboardData]);
 
 
     if (gwp === null || gwpYear === null) return <Center><Loader variant="bars" /> </Center>;
