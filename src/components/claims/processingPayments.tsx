@@ -23,7 +23,7 @@ import useClaimPaymentStore from "@/store/useClaimPaymentStore"
 import {ClaimFinanceDocStatus} from "@/model/ClaimFinanceDocStatus";
 import {useRouter} from "next/navigation";
 
-export default function PendingPaymentTab() {
+export default function ProcessingPayments() {
 
     const [docID, setDocID] = useState<number | null>(null);
     const router = useRouter();

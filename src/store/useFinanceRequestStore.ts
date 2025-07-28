@@ -56,6 +56,7 @@ interface FinanceRequestState {
     setComment: (comment: string) => void
     fetchItems: () => Promise<void>
     fetchFinanceStatuses: () => Promise<void>
+    refreshAllocation: () => Promise<void>
     changeFinanceStatus: (mainStatusId: number) => Promise<void>
 }
 
@@ -86,6 +87,21 @@ const useFinanceRequestStore = create<FinanceRequestState>((set, get) => ({
         try {
             const data = await apiFetch<ClaimDocument[]>('/api/claim-documents/claim-payments')
             set({ items: data, loading: false })
+        } catch (error) {
+            set({ error: (error as Error).message, loading: false })
+            showNotification({
+                title: 'Error',
+                message: (error as Error).message,
+                color: 'red'
+            })
+        }
+    },
+
+    refreshAllocation: async () => {
+        // set({ loading: true, error: null })
+        try {
+            const data = await apiFetch<ClaimDocument[]>('/api/claim-documents/refresh-statuses')
+            // set({ items: data, loading: false })
         } catch (error) {
             set({ error: (error as Error).message, loading: false })
             showNotification({

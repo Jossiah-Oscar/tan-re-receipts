@@ -16,9 +16,11 @@ import {apiFetch} from "@/config/api";
 import {showNotification} from "@mantine/notifications";
 import {useEffect, useState} from "react";
 import {IconDotsVertical, IconEye} from "@tabler/icons-react";
-import PendingPaymentTab from "@/components/claims/pendingPaymentTab";
+import ProcessingPayments from "@/components/claims/processingPayments";
 import {useRouter} from "next/navigation";
 import useFinanceRequestStore from "@/store/useFinanceRequestStore";
+import PendingAllocation from "@/components/claims/awaitingAllocation";
+import CompletePaymentTable from "@/components/claims/completedPaymentsTab";
 
 
 export interface ClaimDocument {
@@ -95,8 +97,6 @@ export default function ClaimsPaymentTable() {
     }
 
     const pendingDocs = items.filter((d) => d.status.name === 'PENDING_PAYMENT');
-        const processingPayments = items.filter((d) => d.status.name === 'PROCESSING_PAYMENT');
-        const completed = items.filter((d) => d.status.name === 'COMPLETED');
 
 
     return (
@@ -106,6 +106,7 @@ export default function ClaimsPaymentTable() {
                   <Tabs.List>
                       <Tabs.Tab value="PENDING-PAYMENT">PENDING-PAYMENT </Tabs.Tab>
                       <Tabs.Tab value="PROCESSING-PAYMENT">PROCESSING PAYMENT </Tabs.Tab>
+                      <Tabs.Tab value="PENDING-ALLOCATION">PENDING ALLOCATION</Tabs.Tab>
                       <Tabs.Tab value="COMPLETED">COMPLETED</Tabs.Tab>
                   </Tabs.List>
 
@@ -168,9 +169,18 @@ export default function ClaimsPaymentTable() {
 
                   <Tabs.Panel value="PROCESSING-PAYMENT" pt="md">
 
-                    <PendingPaymentTab/>
+                    <ProcessingPayments/>
 
                   </Tabs.Panel>
+
+                  <Tabs.Panel value="PENDING-ALLOCATION" pt="md">
+                      <PendingAllocation />
+                  </Tabs.Panel>
+
+                  <Tabs.Panel value="COMPLETED" pt="md">
+                      <CompletePaymentTable />
+                  </Tabs.Panel>
+
 
               </Tabs>
                   </Card>
