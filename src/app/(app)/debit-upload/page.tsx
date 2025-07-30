@@ -13,7 +13,7 @@ import {
     Group,
     Loader,
     Menu,
-    Modal,
+    Modal, Pagination,
     Stack,
     Table,
     Tabs,
@@ -52,6 +52,7 @@ interface DocumentDTO {
     files: { id: number; fileName: string }[];
 }
 
+
 export default function DocumentUploadPage() {
     const [documents, setDocuments] = useState<DocumentDTO[]>([]);
     const [loading, setLoading] = useState(true);
@@ -68,6 +69,13 @@ export default function DocumentUploadPage() {
     const [revId, setRevId] = useState<number | null>(null);
     const [openEvidenceDownloadModal, setOpenedEvidenceDownloadModal] = useState(false);
     const [evidenceDownloadDocId, setEvidenceDownloadDocId] = useState<number | null>(null);
+    const [currentPage, setCurrentPage] = useState<Record<'PENDING' | 'DONE' | 'RETURNED', number>>({
+        PENDING: 1,
+        DONE: 1,
+        RETURNED: 1
+    });
+    const pageSize = 10;
+
 
 
     //AUTH
@@ -106,10 +114,35 @@ export default function DocumentUploadPage() {
             .catch(console.error);
     };
 
+    const paginateArray = (array:DocumentDTO[], page = 1) => {
+        const startIndex = (page - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+
+        return {
+            data: array.slice(startIndex, endIndex),
+            totalPages: Math.ceil(array.length / pageSize),
+            currentPage: page
+        };
+    };
+
     // Filter helpers
     const pendingDocs = documents.filter((d) => d.status === 'PENDING');
     const doneDocs = documents.filter((d) => d.status === 'DONE');
     const returnedDocs = documents.filter((d) => d.status === 'RETURNED');
+
+    // Pagination
+    const paginatedPending = paginateArray(pendingDocs, currentPage.PENDING);
+    const paginatedDone = paginateArray(doneDocs, currentPage.DONE);
+    const paginatedReturned = paginateArray(returnedDocs, currentPage.RETURNED);
+
+
+    const handlePageChange = (status: 'PENDING' | 'DONE' | 'RETURNED', newPage: number) => {
+        setCurrentPage(prev => ({
+            ...prev,
+            [status]: newPage
+        }));
+    };
+
 
 
     // **Handlers for evidence modal**
@@ -292,9 +325,11 @@ export default function DocumentUploadPage() {
 
                             {/* Pending Tab */}
                             <Tabs.Panel value="PENDING" pt="md">
-                                {pendingDocs.length === 0 ? (
+                                <Stack>
+                                {paginatedPending.data.length === 0 ? (
                                     <Text color="dimmed">No pending documents.</Text>
                                 ) : (
+                                    <>
                                     <Table striped highlightOnHover verticalSpacing="sm">
                                         <Table.Thead>
                                             <Table.Tr>
@@ -309,7 +344,7 @@ export default function DocumentUploadPage() {
                                             </Table.Tr>
                                         </Table.Thead>
                                         <Table.Tbody>
-                                            {pendingDocs.map((doc) => (
+                                            {paginatedPending.data.map((doc) => (
                                                 <Table.Tr key={doc.id}>
                                                     <Table.Td>{doc.id}</Table.Td>
                                                     <Table.Td>{doc.cedantName}</Table.Td>
@@ -387,79 +422,91 @@ export default function DocumentUploadPage() {
                                             ))}
                                         </Table.Tbody>
                                     </Table>
+
+                                        {/* Pagination Controls */}
+                                        {paginatedPending.totalPages > 1 && (
+                                            <Group justify="center" mt="md">
+                                                <Pagination
+                                                    value={paginatedPending.currentPage}
+                                                    onChange={(page) => handlePageChange('PENDING', page)}
+                                                    total={paginatedPending.totalPages}
+                                                    size="sm"
+                                                />
+                                            </Group>
+                                        )}
+                                    </>
                                 )}
+                                </Stack>
                             </Tabs.Panel>
 
                             {/* Done Tab */}
                             <Tabs.Panel value="DONE" pt="md">
-                                {doneDocs.length === 0 ? (
-                                    <Text color="dimmed">No completed documents.</Text>
-                                ) : (
-                                    <Table striped highlightOnHover verticalSpacing="sm">
-                                        <Table.Thead>
-                                            <Table.Tr>
-                                                <Table.Th>ID</Table.Th>
-                                                <Table.Th>Cedant</Table.Th>
-                                                <Table.Th>Type</Table.Th>
-                                                <Table.Th>Group Name</Table.Th>
-                                                <Table.Th>Created By</Table.Th>
-                                                <Table.Th>Created</Table.Th>
-                                                <Table.Th>Updated</Table.Th>
-                                                <Table.Th>Actions</Table.Th>
-                                            </Table.Tr>
-                                        </Table.Thead>
-                                        <Table.Tbody>
-                                            {doneDocs.map((doc) => (
-                                                <Table.Tr key={doc.id}>
-                                                    <Table.Td>{doc.id}</Table.Td>
-                                                    <Table.Td>{doc.cedantName}</Table.Td>
-                                                    <Table.Td><Badge
-                                                        variant="light">{doc.documentType}</Badge></Table.Td>
-                                                    <Table.Td>{doc.fileName}</Table.Td>
-                                                    <Table.Td>{doc.createdBy}</Table.Td>
-                                                    <Table.Td>{new Date(doc.dateCreated).toLocaleDateString()}</Table.Td>
-                                                    <Table.Td>{new Date(doc.dateUpdated).toLocaleDateString()}</Table.Td>
-                                                    <Table.Td>
-                                                        <Group>
-                                                            {/*<ActionIcon color="blue" onClick={() => viewFiles(doc.id)} title="View Files">*/}
-                                                            {/*    <IconEye size={16} />*/}
-                                                            {/*</ActionIcon>*/}
-                                                            {/*<ActionIcon color="blue" onClick={() => downloadFirstFile(doc.files)} title="Download Latest">*/}
-                                                            {/*    <IconFileDownload size={16} />*/}
-                                                            {/*</ActionIcon>*/}
-                                                            {/*{isFinance && doc.status !== "PENDING" && (*/}
-                                                            {/*    <ActionIcon*/}
-                                                            {/*        size="xs"*/}
-                                                            {/*        color="yellow"*/}
-                                                            {/*        onClick={() => openReverseModal(doc.id)}*/}
-                                                            {/*    >*/}
-                                                            {/*        Reverse*/}
-                                                            {/*    </ActionIcon>*/}
-                                                            {/*)}*/}
+                                <Stack>
+                                    {doneDocs.length === 0 ? (
+                                        <Text color="dimmed">No completed documents.</Text>
+                                    ) : (
+                                        <>
+                                            <Table striped highlightOnHover verticalSpacing="sm">
+                                                <Table.Thead>
+                                                    <Table.Tr>
+                                                        <Table.Th>ID</Table.Th>
+                                                        <Table.Th>Cedant</Table.Th>
+                                                        <Table.Th>Type</Table.Th>
+                                                        <Table.Th>Group Name</Table.Th>
+                                                        <Table.Th>Created By</Table.Th>
+                                                        <Table.Th>Created</Table.Th>
+                                                        <Table.Th>Updated</Table.Th>
+                                                        <Table.Th>Actions</Table.Th>
+                                                    </Table.Tr>
+                                                </Table.Thead>
+                                                <Table.Tbody>
+                                                    {paginatedDone.data.map((doc) => (
+                                                        <Table.Tr key={doc.id}>
+                                                            <Table.Td>{doc.id}</Table.Td>
+                                                            <Table.Td>{doc.cedantName}</Table.Td>
+                                                            <Table.Td><Badge variant="light">{doc.documentType}</Badge></Table.Td>
+                                                            <Table.Td>{doc.fileName}</Table.Td>
+                                                            <Table.Td>{doc.createdBy}</Table.Td>
+                                                            <Table.Td>{new Date(doc.dateCreated).toLocaleDateString()}</Table.Td>
+                                                            <Table.Td>{new Date(doc.dateUpdated).toLocaleDateString()}</Table.Td>
+                                                            <Table.Td>
+                                                                <Group>
+                                                                    <Menu shadow="md" width={200} position="bottom-end">
+                                                                        <Menu.Target>
+                                                                            <ActionIcon variant="filled" color="blue">
+                                                                                <IconDotsVertical size={20}/>
+                                                                            </ActionIcon>
+                                                                        </Menu.Target>
+                                                                        <Menu.Dropdown>
+                                                                            <Menu.Item leftSection={<IconEye size={16}/>}
+                                                                                       onClick={() => viewFiles(doc.id)}>View</Menu.Item>
+                                                                            <Menu.Item leftSection={<IconPhoto size={16}/>}
+                                                                                       onClick={() => openEvidenceDownload(doc.id)}>Download
+                                                                                Evidence</Menu.Item>
+                                                                            <Divider/>
+                                                                        </Menu.Dropdown>
+                                                                    </Menu>
+                                                                </Group>
+                                                            </Table.Td>
+                                                        </Table.Tr>
+                                                    ))}
+                                                </Table.Tbody>
+                                            </Table>
 
-                                                            <Menu shadow="md" width={200} position="bottom-end">
-                                                                <Menu.Target>
-                                                                    <ActionIcon variant="filled" color="blue">
-                                                                        <IconDotsVertical size={20}/>
-                                                                    </ActionIcon>
-                                                                </Menu.Target>
-                                                                <Menu.Dropdown>
-                                                                    <Menu.Item leftSection={<IconEye size={16}/>}
-                                                                               onClick={() => viewFiles(doc.id)}>View</Menu.Item>
-                                                                    <Menu.Item leftSection={<IconPhoto size={16}/>}
-                                                                               onClick={() => openEvidenceDownload(doc.id)}>Download
-                                                                        Evidence</Menu.Item>
-                                                                    <Divider/>
-
-                                                                </Menu.Dropdown>
-                                                            </Menu>
-                                                        </Group>
-                                                    </Table.Td>
-                                                </Table.Tr>
-                                            ))}
-                                        </Table.Tbody>
-                                    </Table>
-                                )}
+                                            {/* Pagination Controls */}
+                                            {paginatedDone.totalPages > 1 && (
+                                                <Group justify="center" mt="md">
+                                                    <Pagination
+                                                        value={paginatedDone.currentPage}
+                                                        onChange={(page) => handlePageChange('DONE', page)}
+                                                        total={paginatedDone.totalPages}
+                                                        size="sm"
+                                                    />
+                                                </Group>
+                                            )}
+                                        </>
+                                    )}
+                                </Stack>
                             </Tabs.Panel>
 
                             {/* Returned Tab */}
@@ -481,7 +528,7 @@ export default function DocumentUploadPage() {
                                             </Table.Tr>
                                         </Table.Thead>
                                         <Table.Tbody>
-                                            {returnedDocs.map((doc) => (
+                                            {paginatedReturned.data.map((doc) => (
                                                 <Table.Tr key={doc.id}>
                                                     <Table.Td>{doc.id}</Table.Td>
                                                     <Table.Td>{doc.cedantName}</Table.Td>
