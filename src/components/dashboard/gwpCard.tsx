@@ -55,7 +55,7 @@ export function StatCard({ currentGwp, targetGwp, progress, cardName }: GwpCardP
                         <RingProgress
                             size={120}
                             thickness={12}
-                            sections={[{ value: 15, color: 'blue' }]}
+                            sections={[{ value: progress, color: 'blue' }]}
                             label={
                                 <Text c="blue" fw={700} ta="center" size="xl">
                                     {Math.round(progress)}%
