@@ -50,7 +50,7 @@ interface FinanceRequestState {
     comment: string
 
     // Actions
-    setModalState: (modal: keyof FinanceRequestState['modalStates'], state: boolean) => void
+    setModalState: (modal: 'evidenceModal', state: boolean) => void
     setSelectedDocId: (id: number | null) => void
     setFinanceStatusId: (id: string | undefined) => void
     setComment: (comment: string) => void

@@ -152,9 +152,9 @@ export default function ClaimsPaymentTable() {
                                                           </Menu.Item>
                                                           <Menu.Item
                                                               leftSection={<IconEye size={16}/>}
-                                                              onClick={()=> {
+                                                              onClick={
                                                                   () => handleOpenModal(it.id)
-                                                              }}> Process Payment
+                                                              }> Process Payment
                                                           </Menu.Item>
                                                       </Menu.Dropdown>
                                                   </Menu>
