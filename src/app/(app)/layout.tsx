@@ -14,6 +14,7 @@ import {
 } from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
 import {useAuth} from "@/context/AuthContext";
+import EnhancedNavbar from "@/components/dashboard-layout/navBar";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     const [opened, { toggle }] = useDisclosure();
@@ -21,18 +22,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const isFinanca = roles.includes("FINANCE");
     const isAdmin = roles.includes("ADMIN");
     const isCEO = roles.includes("CEO");
+    const user={ name: username, role: roles[0], avatar: null }
 
 
 
 
 
     return (
-        // <MantineProvider
-        //     defaultColorScheme="light"
-        //     theme={{
-        //         colorScheme: 'light', // 👈 force light mode
-        //     }}
-        // >
 
             <AppShell
                 header={{ height: 50 }}
@@ -45,6 +41,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         {/*<MantineLogo size={30} />*/}
                     </Group>
                 </AppShell.Header>
+
+                {/*<EnhancedNavbar*/}
+                {/*    isCEO={isCEO}*/}
+                {/*    isAdmin={isAdmin}*/}
+                {/*    user={user}*/}
+                {/*/>*/}
+
                 <AppShell.Navbar p="sm">
                     <NavLink
                         component={Link}
@@ -93,6 +96,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                                     leftSection={<IconContract size={16} stroke={1.5} />}
                                 />
                             </NavLink>
+
+                            <NavLink
+                                component={Link}
+                                href="/reports"
+                                label="Report Center"
+                                leftSection={<IconReport size={16} stroke={1.5} />}
+                            />
 
                             {isAdmin && (
                                 <NavLink
