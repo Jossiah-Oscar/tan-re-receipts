@@ -14,7 +14,6 @@ import {
 } from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
 import {useAuth} from "@/context/AuthContext";
-import EnhancedNavbar from "@/components/dashboard-layout/navBar";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
     const [opened, { toggle }] = useDisclosure();
