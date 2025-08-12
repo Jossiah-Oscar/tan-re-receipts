@@ -113,7 +113,8 @@ export default function ReceiptDetail() {
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `receipt-${receipt.receiptNumber}.pdf`;
+            // link.download = `REC-${receipt.receiptNumber}.pdf`;
+            link.download = `REC - ${receipt.receiptNumber} - ${receipt.instrumentDate} - ${referenceText}.pdf`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

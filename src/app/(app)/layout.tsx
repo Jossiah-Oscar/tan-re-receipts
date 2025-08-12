@@ -1,7 +1,5 @@
 "use client";
 
-
-
 import {AppShell, Burger, Group, MantineProvider, ColorSchemeScript , NavLink} from "@mantine/core";
 import Link from "next/link";
 import {

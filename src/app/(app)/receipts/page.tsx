@@ -32,7 +32,6 @@ export default function ReportPage() {
     };
 
 
-    // Fetch data from the Spring Boot API
     useEffect(() => {
         const fetchReceipts = async () => {
             setLoading(true);
