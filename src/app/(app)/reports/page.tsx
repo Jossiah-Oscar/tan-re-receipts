@@ -31,11 +31,15 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import {DatePickerInput} from "@mantine/dates";
 import {useReportStore} from "@/store/useReportStore";
+import {BrokerOutstandingForm} from "@/components/reports/forms/broker-outstandingReport";
+import {CedantOutstandingForm} from "@/components/reports/forms/cedant-outstandingReport";
+import {TanreOutstandingForm} from "@/components/reports/forms/tanre-outstandingReport";
 
 const ReportDownloadInterface = () => {
     const [loading, setLoading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [settingsOpened, setSettingsOpened] = useState(false);
+    const [reportType, setReportType] = useState<string | null>(null);
     const reportStore = useReportStore();
 
 
@@ -56,6 +60,8 @@ const ReportDownloadInterface = () => {
     const reportTypes = [
         { value: 'broker_outstanding', label: 'Broker Outstanding Statement' },
         { value: 'cedant_outstanding', label: 'Cedant Outstanding Statement' },
+        { value: 'tanre_outstanding', label: 'Outstanding Transaction Statement' },
+
     ];
 
     const handleReset = () => {
@@ -68,6 +74,7 @@ const ReportDownloadInterface = () => {
     };
 
     return (
+        <>
         <Container size="xl" py="xl">
             {/* Header Section */}
             <Paper shadow="xs" p="xl" mb="xl" style={{
@@ -127,49 +134,6 @@ const ReportDownloadInterface = () => {
                                     />
                                 </div>
 
-                                <Group grow>
-                                    <Select
-                                        label="Client Name"
-                                        placeholder="Select client name"
-                                        data={reportStore.getClientSelectData()}
-                                        value={form.values.brokerCode}
-                                        onChange={(value) => {
-                                            // Find the selected client to get both code and name
-                                            const selectedClient = reportStore.clients.find(client => client.BROKER_CEDANT_CODE === value);
-
-                                            form.setValues({
-                                                brokerCode: value || '',
-                                                brokerName: selectedClient?.BROKER_CEDANT_NAME || ''
-                                            });
-                                        }}
-                                        searchable
-                                        required
-                                    />
-
-                                </Group>
-
-                                {/* Date Range */}
-                                <Group grow>
-                                    <DatePickerInput
-                                        label="Start Date"
-                                        placeholder="Select start date"
-                                        leftSection={<IconCalendar size={16} />}
-                                        clearable
-                                        {...form.getInputProps('startDate')}
-                                    />
-                                    <DatePickerInput
-                                        label="End Date"
-                                        placeholder="Select end date"
-                                        leftSection={<IconCalendar size={16} />}
-                                        clearable
-                                        {...form.getInputProps('endDate')}
-                                    />
-                                </Group>
-
-                                {/*<Divider label="Filters" labelPosition="center" />*/}
-
-
-
                                 {/* Progress Bar */}
                                 {loading && (
                                     <Alert color="blue" icon={<IconInfoCircle size={16} />}>
@@ -178,30 +142,13 @@ const ReportDownloadInterface = () => {
                                     </Alert>
                                 )}
 
-                                {/* Action Buttons */}
-                                <Group justify="flex-end" mt="xl">
-                                    <Button
-                                        variant="subtle"
-                                        leftSection={<IconRefresh size={16} />}
-                                        onClick={handleReset}
-                                        disabled={loading}
-                                    >
-                                        Reset
-                                    </Button>
+                                {form.values.reportType === "broker_outstanding" && <BrokerOutstandingForm />}
+                                {form.values.reportType === "cedant_outstanding" && <CedantOutstandingForm />}
+                                {form.values.reportType === "tanre_outstanding" && <TanreOutstandingForm />}
 
-                                    <Button
-                                        onClick={() => reportStore.handleDownload(form.values.brokerName,form.values.brokerCode,form.values.startDate,form.values.endDate,form.values.reportType )}
-                                        leftSection={loading ? <Loader size={16} /> : <IconDownload size={16} />}
-                                        loading={loading}
-                                        // disabled={!form.values.reportType}
-                                        size="md"
-                                        gradient={{ from: 'blue', to: 'cyan', deg: 45 }}
-                                    >
-                                        {loading ? 'Generating...' : 'Download Report'}
-                                    </Button>
-                                </Group>
                             </Stack>
                         </div>
+
                     </Paper>
                 </Grid.Col>
 
@@ -231,6 +178,8 @@ const ReportDownloadInterface = () => {
                                 </Button>
                             </Stack>
                         </Paper>
+
+
 
                         {/*/!* Download History *!/*/}
                         {/*<Paper shadow="sm" p="md" radius="md">*/}
@@ -319,6 +268,7 @@ const ReportDownloadInterface = () => {
                 </Stack>
             </Modal>
         </Container>
+            </>
     );
 };
 

@@ -91,7 +91,7 @@ export default function FacultativeOfferForm() {
             <Paper shadow="sm" p="lg" pos="relative">
                 <LoadingOverlay visible={dropdownStore.loading || offerStore.loading} />
 
-                <Title order={2} mb="lg">Facultative Offer Analysis</Title>
+                <Title order={2} mb="lg">Offer Analysis</Title>
 
                 <form onSubmit={form.onSubmit(handleSubmit)}>
                     {/* Basic Information */}
