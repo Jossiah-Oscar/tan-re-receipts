@@ -3,14 +3,15 @@
 
 import ClaimsTable from "@/app/(app)/(claims)/claims/page";
 import ClaimsPaymentTable from "@/components/claims/financeRequests";
-import {Container, Stack, Title} from "@mantine/core";
+import {Button, Card, Container, Group, Select, Stack, TextInput, Title} from "@mantine/core";
 
 export default function ClaimsPayment() {
 
     return (
-       <Container size="xl" py="xl">
+       <Container size="xl">
            <Stack>
-           <Title order={2}>Claim Payment</Title>
+           <Title order={3}>Claim Payment</Title>
+
        <ClaimsPaymentTable />
 
            </Stack>

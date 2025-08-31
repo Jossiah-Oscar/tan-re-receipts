@@ -3,7 +3,7 @@
 import {useEffect, useState} from 'react';
 import {
     ActionIcon,
-    Alert,
+    Alert, Avatar,
     Badge,
     Button,
     Card,
@@ -24,7 +24,7 @@ import {
     IconAlertCircle,
     IconArrowBackUp,
     IconDotsVertical, IconEdit,
-    IconEye,
+    IconEye, IconFileTypeDoc,
     IconPhoto,
     IconPlus,
     IconTrash
@@ -293,19 +293,65 @@ export default function DocumentUploadPage() {
     }, []);
 
     return (
-        <Container size="xl" py="xl">
-            <Stack>
-                <Title order={2}>Document Management</Title>
+        <Container size="xl" >
+            <Stack gap="xs">
+                <Group justify="space-between" mt="md">
+                    <Title order={3}>Document Management</Title>
+                    {/*<Button leftSection={<IconPlus size={16}/>} onClick={() => setUploadOpened(true)}>*/}
+                    {/*    Upload Document*/}
+                    {/*</Button>*/}
+                </Group>
+                {/*<Title order={3}>Document Management</Title>*/}
+                <Card>
+                    <Group justify="center">
+                        <Card shadow="sm" p="md" radius="md" withBorder mb="xs">
+                            <Group>
+                                <IconFileTypeDoc></IconFileTypeDoc>
+                                <Stack >
+                                    <Text size="sm">
+                                        Pending Documents
+                                    </Text>
+                                    <Text size="lg">{pendingDocs.length}</Text>
+
+                                </Stack>
+                        </Group>
+                        </Card>
+                        <Card shadow="sm" p="md" radius="md" withBorder mb="xs">
+                            <Group>
+                                <IconFileTypeDoc></IconFileTypeDoc>
+                                <Stack >
+                                    <Text size="sm">
+                                        Done Documents
+                                    </Text>
+                                    <Text size="lg">{doneDocs.length}</Text>
+
+                                </Stack>
+                            </Group>
+                        </Card>
+                        <Card shadow="sm" p="md" radius="md" withBorder mb="xs">
+                            <Group>
+                                <IconFileTypeDoc></IconFileTypeDoc>
+                                <Stack >
+                                    <Text size="sm">
+                                        Returned Documents
+                                    </Text>
+                                    <Text size="lg">{returnedDocs.length}</Text>
+
+                                </Stack>
+                            </Group>
+                        </Card>
+
+                    </Group>
+                </Card>
 
                 <DocumentSearch onSearch={(criteria) => fetchDocuments(criteria)}
                                 onSearchStart={() => setLoading(true)}/>
 
-                <Group justify="flex-end" mt="md">
+                <Group justify="flex-end">
                     <Button leftSection={<IconPlus size={16}/>} onClick={() => setUploadOpened(true)}>
                         Upload Document
                     </Button>
                 </Group>
-
                 {error && (
                     <Alert color="red" icon={<IconAlertCircle size={16}/>}>
                         {error}

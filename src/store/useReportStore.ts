@@ -24,25 +24,38 @@ interface ReportType {
     reportName: string;
 }
 
-interface BrokerCedant {
+interface Client {
     BROKER_CEDANT_CODE: string;
     BROKER_CEDANT_NAME: string;
+    BROKER_CEDANT_TYPE: string;
 }
 
 
 interface ReportStore {
     // variables
     clientFormData: ClientFormData,
-    clients: BrokerCedant[];
+    clients: Client[];
+    brokers: Client[];
+    cedants: Client[];
+    downloading: boolean;
+    downloadProgress: number;
+
 
 
     //actions
     setClientFormData: (data: Partial<ClientFormData>) => void,
     getClientFormInitialValues: () => ClientFormData,
-    setClients: (clients: BrokerCedant[]) => void;
+    setClients: (clients: Client[]) => void;
+    setBrokers: (brokers: Client[]) => void;
+    setCedants: (cedants: Client[]) => void;
     loadDropdownData: () => Promise<void>;
     handleDownload: (params: Parameters<ReportHandler>[0]) => Promise<void>;
     getClientSelectData: () => { value: string; label: string }[];
+    getBrokerSelectData: () => { value: string; label: string }[];
+    getCedantSelectData: () => { value: string; label: string }[];
+    setDownloading: (downloading: boolean) => void;
+    setDownloadProgress: (progress: number) => void;
+
 }
 
 
@@ -54,13 +67,39 @@ const useReportStore = create<ReportStore>((set,get) => ({
         brokerName: "",
         startDate: null,
         endDate: null,
-        reportType: ''
+        reportType: '',
     },
 
     clients: [],
+    brokers: [],
+    cedants: [],
 
 
-    setClients: (clients: BrokerCedant[]) => set({clients}),
+    downloading: false,
+    downloadProgress: 0,
+
+    setDownloading: (downloading: boolean) => set({ downloading }),
+    setDownloadProgress: (progress: number) => set({ downloadProgress: progress }),
+
+
+
+    setClients: (clients: Client[]) => {
+        set({ clients });
+        // Automatically filter and set brokers and cedants
+        const brokers = clients.filter(client =>
+            client.BROKER_CEDANT_TYPE?.trim() === 'B'
+        );
+        const cedants = clients.filter(client =>
+            client.BROKER_CEDANT_TYPE?.trim() === 'C'
+        );
+
+
+        set({ brokers, cedants });
+    },
+    setBrokers: (brokers: Client[]) => set({ brokers }),
+    setCedants: (cedants: Client[]) => set({ cedants }),
+
+
 
     getClientFormInitialValues: (): ClientFormData => {
         const state = get();
@@ -91,7 +130,7 @@ const useReportStore = create<ReportStore>((set,get) => ({
             }
 
             // 3) Parse the JSON body as your BrokerCedant[]
-            const clients: BrokerCedant[] = await res.json();
+            const clients: Client[] = await res.json();
 
             // 4) Store it in state
             setClients(clients);
@@ -102,85 +141,59 @@ const useReportStore = create<ReportStore>((set,get) => ({
     },
 
     handleDownload: async (params: Parameters<ReportHandler>[0]) => {
+        const { setDownloading, setDownloadProgress } = get();
+
+        setDownloading(true);
+        setDownloadProgress(0);
+
         try {
+            setDownloadProgress(25);
             const handler = reportHandlers[params.reportType];
+
             if (!handler) throw new Error(`Unknown report type: ${params.reportType}`);
+            setDownloadProgress(50);
+
             await handler(params);
+            setDownloadProgress(75);
+
+
+            setDownloadProgress(100);
         } catch (err) {
             console.error("Download failed", err);
             throw err;
+        } finally {
+            setTimeout(() => {
+                setDownloading(false);
+                setDownloadProgress(0);
+            }, 1000);
+
         }
     },
-    // handleDownload: async (clientName:string, clientCode:string, startDate: Date|null, endDate: Date | null, reportType?: string) => {
-    //     try {
-    //         // Build query parameters
-    //         const queryParams = new URLSearchParams();
-    //         queryParams.append('clientCode', clientCode);
-    //
-    //         // Format dates to YYYY-MM-DD or your preferred format
-    //         if (startDate) {
-    //             const formattedStartDate = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
-    //             queryParams.append('start', formattedStartDate);
-    //         }
-    //
-    //         if (endDate) {
-    //             const formattedEndDate = endDate.toISOString().split('T')[0]; // YYYY-MM-DD
-    //             queryParams.append('end', formattedEndDate);
-    //         }
-    //
-    //         // Determine endpoint based on report type
-    //         let endpoint: string;
-    //
-    //         switch (reportType) {
-    //             case 'broker_outstanding':
-    //                 endpoint = 'broker-statement-of-account';
-    //                 break;
-    //             case 'cedant_outstanding':
-    //                 endpoint = 'cedant-statement-of-account';
-    //                 break;
-    //             default:
-    //                 endpoint = 'cedant-statement-of-account';
-    //                 break;
-    //         }
-    //
-    //
-    //         const res = await fetch(
-    //             `${API_BASE_URL}/api/reports/outstanding/${endpoint}?${queryParams.toString()}`,
-    //             { method: 'GET' }
-    //         );
-    //         if (!res.ok) {
-    //             throw new Error(`Server error: ${res.status}`);
-    //         }
-    //
-    //         const blob = await res.blob();
-    //
-    //         const today = new Date();
-    //         const formattedDate = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
-    //         let filename = `SOA-${clientName}_${formattedDate}.xlsx`;
-    //
-    //
-    //         const url = window.URL.createObjectURL(blob);
-    //         const a = document.createElement('a');
-    //         a.href = url;
-    //         a.download = filename;
-    //         document.body.appendChild(a);
-    //         a.click();
-    //
-    //         a.remove();
-    //         window.URL.revokeObjectURL(url);
-    //     } catch (err: any) {
-    //         console.error('Download failed', err);
-    //         throw err;
-    //     }
-    // },
 
     getClientSelectData: () => {
         const { clients } = get();
         return clients.map(client => ({
             value: client.BROKER_CEDANT_CODE,
-            label: `${client.BROKER_CEDANT_NAME} (${client.BROKER_CEDANT_CODE})`,
+            label: client.BROKER_CEDANT_NAME
         }));
     },
+
+    getBrokerSelectData: () => {
+        const { brokers } = get();
+        return brokers.map(broker => ({
+            value: broker.BROKER_CEDANT_CODE,
+            label: broker.BROKER_CEDANT_NAME
+        }));
+    },
+
+    getCedantSelectData: () => {
+        const { cedants } = get();
+        return cedants.map(cedant => ({
+            value: cedant.BROKER_CEDANT_CODE,
+            label: cedant.BROKER_CEDANT_NAME
+        }));
+    },
+
 
 }));
 

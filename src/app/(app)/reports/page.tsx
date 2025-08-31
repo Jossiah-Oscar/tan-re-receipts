@@ -34,6 +34,8 @@ import {useReportStore} from "@/store/useReportStore";
 import {BrokerOutstandingForm} from "@/components/reports/forms/broker-outstandingReport";
 import {CedantOutstandingForm} from "@/components/reports/forms/cedant-outstandingReport";
 import {TanreOutstandingForm} from "@/components/reports/forms/tanre-outstandingReport";
+import {ClaimDocumentsForm} from "@/components/reports/forms/claim-documentReport";
+import {DebitNoteReport} from "@/components/reports/forms/debit-noteReport";
 
 const ReportDownloadInterface = () => {
     const [loading, setLoading] = useState(false);
@@ -61,7 +63,8 @@ const ReportDownloadInterface = () => {
         { value: 'broker_outstanding', label: 'Broker Outstanding Statement' },
         { value: 'cedant_outstanding', label: 'Cedant Outstanding Statement' },
         { value: 'tanre_outstanding', label: 'Outstanding Transaction Statement' },
-
+        { value: 'claim_documents', label: 'Claim Documents Status Report' },
+        { value: 'debit_note_report', label: 'Debit/Credit Status Report' },
     ];
 
     const handleReset = () => {
@@ -75,7 +78,7 @@ const ReportDownloadInterface = () => {
 
     return (
         <>
-        <Container size="xl" py="xl">
+        <Container size="xl" >
             {/* Header Section */}
             <Paper shadow="xs" p="xl" mb="xl" style={{
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -145,6 +148,10 @@ const ReportDownloadInterface = () => {
                                 {form.values.reportType === "broker_outstanding" && <BrokerOutstandingForm />}
                                 {form.values.reportType === "cedant_outstanding" && <CedantOutstandingForm />}
                                 {form.values.reportType === "tanre_outstanding" && <TanreOutstandingForm />}
+                                {form.values.reportType === "claim_documents" && <ClaimDocumentsForm />}
+                                {form.values.reportType === "debit_note_report" && <DebitNoteReport />}
+
+
 
                             </Stack>
                         </div>

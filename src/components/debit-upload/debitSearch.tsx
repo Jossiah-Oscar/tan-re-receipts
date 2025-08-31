@@ -20,6 +20,7 @@ export function DocumentSearch({ onSearch, onSearchStart }: DocumentSearchProps)
     return (
 <Card shadow="sm" p="md" radius="md" withBorder mb="lg">
     <Stack mb="md">
+        <Group justify="space-between">
             <Group grow>
                 <TextInput
                     placeholder="Search by Cedant Name"
@@ -32,9 +33,7 @@ export function DocumentSearch({ onSearch, onSearchStart }: DocumentSearchProps)
                     value={documentType}
                     onChange={setDocumentType}
                 />
-
             </Group>
-        <Group justify="flex-end" mt="md">
             <Button onClick={handleSearch}>Search</Button>
         </Group>
         </Stack>

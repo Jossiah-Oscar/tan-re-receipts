@@ -1,7 +1,7 @@
 'use client'
 
 import {
-    ActionIcon, Button,
+    ActionIcon, Avatar, Button,
     Card,
     Group,
     Loader,
@@ -10,7 +10,7 @@ import {
     Stack,
     Table,
     Tabs,
-    Text, Textarea
+    Text, Textarea, TextInput
 } from "@mantine/core";
 import {apiFetch} from "@/config/api";
 import {showNotification} from "@mantine/notifications";
@@ -69,7 +69,6 @@ export default function ClaimsPaymentTable() {
         financeStatuses,
         modalStates,
         comment,
-        financeStatusId,
         fetchItems,
         fetchFinanceStatuses,
         setModalState,
@@ -97,10 +96,94 @@ export default function ClaimsPaymentTable() {
     }
 
     const pendingDocs = items.filter((d) => d.status.name === 'PENDING_PAYMENT');
+    const pendingAllocation = items.filter((d) => d.status.name === 'PENDING_ALLOCATION')
+    const completed = items.filter((d) => d.status.name === 'COMPLETED')
 
 
     return (
         <>
+            <Card>
+                <Group justify="center">
+                    <Card shadow="sm" p="md" radius="md" withBorder mb="xs">
+                        <Group>
+                            <Avatar></Avatar>
+                            <Stack >
+                                <Text size="sm">
+                                    Pending Documents
+                                </Text>
+                                <Text size="lg">{pendingDocs.length}</Text>
+
+                            </Stack>
+                        </Group>
+                    </Card>
+                    <Card shadow="sm" p="md" radius="md" withBorder mb="xs">
+                        <Group>
+                            <Avatar></Avatar>
+                            <Stack >
+                                <Text size="sm">
+                                    Processing Documents
+                                </Text>
+                                <Text size="lg">{items.length}</Text>
+
+                            </Stack>
+                        </Group>
+                    </Card>
+                    <Card shadow="sm" p="md" radius="md" withBorder mb="xs">
+                        <Group>
+                            <Avatar></Avatar>
+                            <Stack >
+                                <Text size="sm">
+                                    Allocation Documents
+                                </Text>
+                                <Text size="lg">{pendingAllocation.length}</Text>
+
+                            </Stack>
+                        </Group>
+                    </Card>
+                    <Card shadow="sm" p="md" radius="md" withBorder mb="xs">
+                        <Group>
+                            <Avatar></Avatar>
+                            <Stack >
+                                <Text size="sm">
+                                    Completed Documents
+                                </Text>
+                                <Text size="lg">{completed.length}</Text>
+
+                            </Stack>
+                        </Group>
+                    </Card>
+
+                </Group>
+            </Card>
+
+            {/*SEARCH BAR*/}
+
+
+            {/*<Card shadow="sm" p="md" radius="md" withBorder mb="lg">*/}
+            {/*    <Stack mb="md" justify="center">*/}
+            {/*        <Group justify="space-between">*/}
+            {/*            <Group grow>*/}
+            {/*                <TextInput*/}
+            {/*                    placeholder="Search by Claim Number"*/}
+            {/*                    // value={cedantName}*/}
+            {/*                    // onChange={(e) => setCedantName(e.currentTarget.value)}*/}
+            {/*                />*/}
+            {/*                <TextInput*/}
+            {/*                    placeholder="Search by Insured Name"*/}
+            {/*                    // value={cedantName}*/}
+            {/*                    // onChange={(e) => setCedantName(e.currentTarget.value)}*/}
+            {/*                />*/}
+
+            {/*            </Group>*/}
+            {/*            <Button >Search</Button>*/}
+            {/*        </Group>*/}
+            {/*    </Stack>*/}
+            {/*</Card>*/}
+
+
+            {/*SEARCH BAR*/}
+
+
           <Card shadow="sm" padding="sm" radius="md" withBorder>
               <Tabs defaultValue="PENDING-PAYMENT" variant="outline">
                   <Tabs.List>
@@ -125,6 +208,7 @@ export default function ClaimsPaymentTable() {
                                       <Table.Th>Broker/Cedant</Table.Th>
                                       <Table.Th>Insured Name</Table.Th>
                                       <Table.Th>Loss Date</Table.Th>
+                                      <Table.Th>Created At</Table.Th>
                                       <Table.Th>Actions</Table.Th>
                                   </Table.Tr>
                               </Table.Thead>
@@ -137,6 +221,7 @@ export default function ClaimsPaymentTable() {
                                           <Table.Td>{it.brokerCedant}</Table.Td>
                                           <Table.Td>{it.insured}</Table.Td>
                                           <Table.Td>{it.lossDate}</Table.Td>
+                                          <Table.Td>{it.createdAt?.slice(0, 10)}</Table.Td>
                                           <Table.Td>
                                               <Group>
                                                   <Menu shadow="md" width={200} position="bottom-end">
