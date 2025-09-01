@@ -50,7 +50,7 @@ export const brokerOutstandingHandler: ReportHandler = async ({
     const formattedDate = `${String(today.getDate()).padStart(2, "0")}-${String(
         today.getMonth() + 1
     ).padStart(2, "0")}-${today.getFullYear()}`;
-    const filename = `Broker-SOA-${clientName}_${formattedDate}.xlsx`;
+    const filename = `SOA-${clientName}_${formattedDate}.xlsx`;
 
     await downloadFile(res, filename);
 };
@@ -76,7 +76,7 @@ export const cedantOutstandingHandler: ReportHandler = async ({
     const formattedDate = `${String(today.getDate()).padStart(2, "0")}-${String(
         today.getMonth() + 1
     ).padStart(2, "0")}-${today.getFullYear()}`;
-    const filename = `Cedant-SOA-${clientName}_${formattedDate}.xlsx`;
+    const filename = `SOA-${clientName}_${formattedDate}.xlsx`;
 
     await downloadFile(res, filename);
 };
