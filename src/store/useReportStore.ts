@@ -59,8 +59,6 @@ interface ReportStore {
 }
 
 
-
-
 const useReportStore = create<ReportStore>((set,get) => ({
     clientFormData: {
         brokerCode: "",
@@ -174,7 +172,7 @@ const useReportStore = create<ReportStore>((set,get) => ({
         const { clients } = get();
         return clients.map(client => ({
             value: client.BROKER_CEDANT_CODE,
-            label: client.BROKER_CEDANT_NAME
+            label: `${client.BROKER_CEDANT_NAME} (${client.BROKER_CEDANT_CODE})`
         }));
     },
 
@@ -182,7 +180,7 @@ const useReportStore = create<ReportStore>((set,get) => ({
         const { brokers } = get();
         return brokers.map(broker => ({
             value: broker.BROKER_CEDANT_CODE,
-            label: broker.BROKER_CEDANT_NAME
+            label: `${broker.BROKER_CEDANT_NAME} (${broker.BROKER_CEDANT_CODE})`
         }));
     },
 
@@ -190,7 +188,7 @@ const useReportStore = create<ReportStore>((set,get) => ({
         const { cedants } = get();
         return cedants.map(cedant => ({
             value: cedant.BROKER_CEDANT_CODE,
-            label: cedant.BROKER_CEDANT_NAME
+            label: `${cedant.BROKER_CEDANT_NAME} (${cedant.BROKER_CEDANT_CODE})`
         }));
     },
 

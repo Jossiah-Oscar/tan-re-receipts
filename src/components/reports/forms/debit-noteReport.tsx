@@ -15,7 +15,7 @@ export function DebitNoteReport() {
         initialValues: {
             startDate: null,
             endDate: null,
-            userName: username,
+            userName: 'smazola',
         },
     });
 
