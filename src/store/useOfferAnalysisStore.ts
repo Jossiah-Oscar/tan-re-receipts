@@ -1,225 +1,213 @@
-import { create } from 'zustand'
-import {apiFetch} from "@/config/api";
+import { create } from 'zustand';
+import {API_BASE_URL, apiFetch} from '@/config/api';
 
-// Type definitions
-interface BusinessClass {
-    id: number;
-    name: string;
+/* ===========================
+ * Types for dropdown data
+ * =========================== */
+
+export interface ContractType {
+    contractTypesId: number;
+    contractTypeId: number;
+    typeCode: string;
+    typeName: string;
 }
 
-interface BusinessClass {
-    id: number;
-    name: string;
+
+export interface Currency {
+    code: string;           // 'TZS'
+    name: string;           // 'Tanzanian Shilling'
+    exchange_rate?: number; // backend may use any of: exchange_rate | exchangeRate | rate
+    exchangeRate?: number;
+    rate?: number;
 }
 
-interface Currency {
-    code: string;
-    name: string;
-    exchange_rate: number;
-}
-
-interface BrokerCedant {
+export interface BrokerCedant {
     brokerCedantCode: string;
     brokerCedantName: string;
 }
 
-interface ContractType {
+export interface Program {
+    programId: number;
+    programName: string;
+}
+
+export interface User {
     id: number;
-    name: string;
+    username: string;
 }
 
 
+
+
+/* ===========================
+ * Dropdown Store
+ * =========================== */
+
 interface DropdownStore {
-    classes: BusinessClass[];
+    programs: Program[];
     currencies: Currency[];
     contractTypes: ContractType[];
-    broker: BrokerCedant[];
-    cedants: BrokerCedant[];
+    users: User[];
     loading: boolean;
     error: string | null;
-    setClasses: (cls: BusinessClass[]) => void;
-    setBroker: (br: BrokerCedant[]) => void;
-    setCedants: (cd: BrokerCedant[]) => void;
+
+    setProgram: (cls: Program[]) => void;
+    setUsers: (types: User[]) => void;
     setCurrencies: (curr: Currency[]) => void;
     setContractTypes: (types: ContractType[]) => void;
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
+
     loadDropdownData: () => Promise<void>;
-    getClassSelectData: () => { value: string; label: string }[];
+
+    getProgramSelectData: () => { value: string; label: string }[];
+    getUserSelectionData: () => { value: string; label: string }[];
     getCurrencySelectData: () => { value: string; label: string }[];
     getContractTypeSelectData: () => { value: string; label: string }[];
-    getBrokerSelectData: () => { value: string; label: string }[];
-    getCedantSelectData: () => { value: string; label: string }[];
 }
 
 const useDropdownStore = create<DropdownStore>((set, get) => ({
-    classes: [],
+    programs: [],
     currencies: [],
     contractTypes: [],
+    users: [],
     cedants: [],
-    broker:[],
+    broker: [],
     loading: false,
     error: null,
 
-    setClasses: (cls: BusinessClass[]) => set({ classes: cls }),
-    setCurrencies: (curr: Currency[]) => set({ currencies: curr }),
-    setContractTypes: (types: ContractType[]) => set({ contractTypes: types }),
-    setBroker: (br: BrokerCedant[]) => set({broker:br}),
-    setCedants: (cd: BrokerCedant[]) => set({cedants:cd}),
-    setLoading: (loading: boolean) => set({ loading }),
-    setError: (error: string | null) => set({ error }),
+    setProgram: (cls) => set({ programs: cls }),
+    setCurrencies: (curr) => set({ currencies: curr }),
+    setContractTypes: (types) => set({ contractTypes: types }),
+    setUsers: (users) => set({users: users}),
+    setLoading: (loading) => set({ loading }),
+    setError: (error) => set({ error }),
 
-    // Load all dropdown data
     loadDropdownData: async () => {
-        const { setLoading, setError, setClasses, setCurrencies, setContractTypes,setCedants, setBroker } = get();
-
+        const { setLoading, setError, setProgram, setCurrencies, setContractTypes, setUsers } = get();
         setLoading(true);
         setError(null);
-
         try {
-            // Load all data in parallel
-            const [classesData, currenciesData, contractTypesData, brokerData, cedantData] = await Promise.all([
-                apiFetch<BusinessClass[]>('/api/business-classes'),
+            // Load all dropdown data concurrently
+            const [contractTypes, currencies, classes, users] = await Promise.all([
+                apiFetch<ContractType[]>(`/api/contract-types`),
                 apiFetch<Currency[]>('/api/currencies'),
-                apiFetch<ContractType[]>('/api/contract-types'),
-                apiFetch<BrokerCedant[]>('/api/broker-cedants/brokers'),
-                apiFetch<BrokerCedant[]>('/api/broker-cedants/cedants')
-
+                apiFetch<Program[]>('/api/program'),
+                apiFetch<User[]>('/admin/users/list')
             ]);
 
-            // Log successful data load
-            console.log('Loaded dropdown data:', {
-                classes: classesData?.length,
-                currencies: currenciesData?.length,
-                contractTypes: contractTypesData?.length
-            });
+            setContractTypes(contractTypes || []);
+            setCurrencies(currencies || []);
+            setProgram(classes || []);
+            setUsers(users || []);
 
-            // Update store with fetched data
-            setClasses(classesData);
-            setCurrencies(currenciesData);
-            setContractTypes(contractTypesData);
-            setBroker(brokerData);
-            setCedants(cedantData);
 
         } catch (err: any) {
-            console.error('Dropdown load error:', err);
-            setError(err.message || 'Unknown error loading dropdowns');
-
-            // Re-throw to allow error handling in components
+            setError(err?.message || 'Unknown error loading dropdowns');
             throw err;
         } finally {
             setLoading(false);
         }
+    },
+
+    getProgramSelectData: () => get().programs.map((c) => ({ value: String(c.programId), label: c.programName })),
+    getUserSelectionData: () => get().users.map((c) => ({ value: String(c.id), label: c.username })),
+    getCurrencySelectData: () =>
+        get().currencies.map((c) => ({ value: c.code, label: `${c.name} (${c.code})` })),
+
+    getContractTypeSelectData: () =>{
+        const {contractTypes} = get();
+        return contractTypes.map(contractType => ({
+            value:String(contractType.contractTypeId || contractType.contractTypesId),
+            label: contractType.typeName
+        }));
     }
 
-,
-
-    // Transform data for Mantine Select components
-    getClassSelectData: () => {
-        const { classes } = get();
-        return classes.map(cls => ({ value: cls.id.toString(), label: cls.name }));
-    },
-
-    getCurrencySelectData: () => {
-        const { currencies } = get();
-        return currencies.map(curr => ({
-            value: curr.code,
-            label: `${curr.name} (${curr.code})`
-        }));
-    },
-
-    getContractTypeSelectData: () => {
-        const { contractTypes } = get();
-        return contractTypes.map(type => ({
-            value: type.id.toString(),
-            label: type.name
-        }));
-    },
-
-    getBrokerSelectData: () => {
-        const { broker } = get();
-        return broker.map(type => ({
-            value: type.brokerCedantCode,
-            label: type.brokerCedantName
-        }));
-    },
-
-    getCedantSelectData: () => {
-        const { cedants } = get();
-        return cedants.map(type => ({
-            value: type.brokerCedantCode,
-            label: type.brokerCedantName
-        }));
-    },
 }));
 
+/* ===========================
+ * Calc Response DTO (backend)
+ * =========================== */
+
 export interface FacultativeOfferCalcResponseDto {
-    businessClassId:       number;
-    contractTypeId:        number;
+    programId?: number;
+    contractTypeId?: number;
 
-    // 1) Converted to Tz
-    sumInsuredTz:          number;
-    premiumTz:             number;
+    // Status & messaging (these match your API)
+    calculationStatus: 'SUCCESS' | 'WARNING' | 'ERROR';
+    message: string;
 
-    // 2) Shares
-    soExposureTz:          number;
-    soPremiumTz:           number;
-    saExposureTz:          number;
-    saPremiumTz:           number;
+    // Original amounts
+    sumInsuredOs: number;
+    premiumOs: number;
 
-    // 3) TAN-RE
-    tanReRetentionPct:     number;
-    tanReRetExposureTz:    number;
-    tanReRetPremiumTz:     number;
+    // Converted to TZS (note: API returns 'premiumTzs' not 'premiumTz')
+    premiumTzs: number; // API returns this name
 
-    // 4) Surplus Retro
-    suRetroPct:            number;
-    suRetroExposureTz:     number;
-    suRetroPremiumTz:      number;
+    // Exposures and premiums (these match your API response)
+    exposureOffered: number;    // maps to soExposureTz in your store
+    premiumOffered: number;     // maps to soPremiumTz in your store
+    exposureAccepted: number;   // maps to saExposureTz in your store
+    premiumAccepted: number;    // maps to saPremiumTz in your store
 
-    // 5) Facultative Retro
-    facRetroPct:           number;
-    facRetroExposureTz:    number;
-    facRetroPremiumTz:     number;
+    // Retention breakdown
+    retentionExposure: number;  // maps to tanReRetExposureTz
+    retentionPremium: number;   // maps to tanReRetPremiumTz
 
-    // status & messaging
-    calculationStatus:     'SUCCESS' | 'WARNING' | 'ERROR';
-    message:               string;
+    // Surplus breakdown
+    surplusExposure: number;    // maps to suRetroExposureTz
+    surplusPremium: number;     // maps to suRetroPremiumTz
 
-    // program transparency
-    retentionAmount:       number;
-    treatyLimit:           number;
-    totalTreatyCapacity:   number;
+    // Facultative retro
+    facRetroExposure: number;   // maps to facRetroExposureTz
+    facRetroPremium: number;    // maps to facRetroPremiumTz
+
+    // Totals
+    totalExposure: number;
+    totalPremium: number;
 }
 
-interface OfferFormData {
+/* ===========================
+ * Offer form + store
+ * =========================== */
+
+export interface OfferFormData {
     cedant: string;
-    dateTimeCreated: Date;
+    broker: string; // added
+    offerReceivedDate: Date;
     insured: string;
     occupation: string;
-    businessClassId: string;
+    programId: string; // maps to programId
     contractTypeId: string;
     country: string;
     periodFrom: Date;
     periodTo: Date;
     currencyCode: string;
     exchangeRate: number;
+    notes:string;
+
     sumInsuredOs: number;
     premiumOs: number;
+
     sumInsuredTz: number;
     premiumTz: number;
+
     shareOfferedPct: number;
     soExposureTz: number;
     soPremiumTz: number;
+
     shareAcceptedPct: number;
     saExposureTz: number;
     saPremiumTz: number;
+
     tanReRetentionPct: number;
     tanReRetExposureTz: number;
     tanReRetPremiumTz: number;
+
     suRetroPct: number;
     suRetroExposureTz: number;
     suRetroPremiumTz: number;
+
     facRetroPct: number;
     facRetroExposureTz: number;
     facRetroPremiumTz: number;
@@ -231,12 +219,14 @@ interface OfferStore extends OfferFormData {
     error: string | null;
     calculationStatus: 'SUCCESS' | 'WARNING' | 'ERROR' | null;
     calculationMessage: string | null;
+
     setValues: (values: Partial<OfferFormData>) => void;
     setLoading: (loading: boolean) => void;
     setCalculating: (calculating: boolean) => void;
     setError: (error: string | null) => void;
     setCalculationStatus: (status: 'SUCCESS' | 'WARNING' | 'ERROR' | null) => void;
     setCalculationMessage: (message: string | null) => void;
+
     resetForm: () => void;
     getInitialValues: () => OfferFormData;
     validateForm: (values: OfferFormData) => Record<string, string>;
@@ -245,36 +235,43 @@ interface OfferStore extends OfferFormData {
     updateCurrencyAndExchangeRate: (currencyCode: string) => void;
 }
 
-// Enhanced Zustand store for form state with all form logic
 const useOfferStore = create<OfferStore>((set, get) => ({
-    // Form data
+    // form defaults
     cedant: '',
-    dateTimeCreated: new Date(),
+    broker: '',
+    offerReceivedDate: new Date(),
     insured: '',
     occupation: '',
-    businessClassId: '',
+    programId: '',
     contractTypeId: '',
     country: '',
     periodFrom: new Date(),
     periodTo: new Date(),
     currencyCode: '',
     exchangeRate: 1,
+    notes: '',
+
     sumInsuredOs: 0,
     premiumOs: 0,
     sumInsuredTz: 0,
     premiumTz: 0,
+
     shareOfferedPct: 0,
     soExposureTz: 0,
     soPremiumTz: 0,
+
     shareAcceptedPct: 0,
     saExposureTz: 0,
     saPremiumTz: 0,
+
     tanReRetentionPct: 0,
     tanReRetExposureTz: 0,
     tanReRetPremiumTz: 0,
+
     suRetroPct: 0,
     suRetroExposureTz: 0,
     suRetroPremiumTz: 0,
+
     facRetroPct: 0,
     facRetroExposureTz: 0,
     facRetroPremiumTz: 0,
@@ -283,289 +280,239 @@ const useOfferStore = create<OfferStore>((set, get) => ({
     loading: false,
     calculating: false,
     error: null,
-
-    //Calculation Status State
     calculationStatus: null,
     calculationMessage: null,
+
+    // state setters
+    setValues: (values) => set((s) => ({ ...s, ...values })),
+    setLoading: (loading) => set({ loading }),
+    setCalculating: (calculating) => set({ calculating }),
+    setError: (error) => set({ error }),
     setCalculationStatus: (status) => set({ calculationStatus: status }),
     setCalculationMessage: (message) => set({ calculationMessage: message }),
 
+    // initial values for Mantine form
+    getInitialValues: () => ({ ...get() }),
 
-    // Actions
-    setValues: (values: Partial<OfferFormData>) => set((state) => ({
-        ...state,
-        ...values
-    })),
-
-    setLoading: (loading: boolean) => set({ loading }),
-    setCalculating: (calculating: boolean) => set({ calculating }),
-    setError: (error: string | null) => set({ error }),
-
-    // Get initial values for Mantine form
-    getInitialValues: (): OfferFormData => {
-        const state = get();
-        return {
-            cedant: state.cedant,
-            dateTimeCreated: state.dateTimeCreated,
-            insured: state.insured,
-            occupation: state.occupation,
-            businessClassId: state.businessClassId,
-            contractTypeId: state.contractTypeId,
-            country: state.country,
-            periodFrom: state.periodFrom,
-            periodTo: state.periodTo,
-            currencyCode: state.currencyCode,
-            exchangeRate: state.exchangeRate,
-            sumInsuredOs: state.sumInsuredOs,
-            premiumOs: state.premiumOs,
-            sumInsuredTz: state.sumInsuredTz,
-            premiumTz: state.premiumTz,
-            shareOfferedPct: state.shareOfferedPct,
-            soExposureTz: state.soExposureTz,
-            soPremiumTz: state.soPremiumTz,
-            shareAcceptedPct: state.shareAcceptedPct,
-            saExposureTz: state.saExposureTz,
-            saPremiumTz: state.saPremiumTz,
-            tanReRetentionPct: state.tanReRetentionPct,
-            tanReRetExposureTz: state.tanReRetExposureTz,
-            tanReRetPremiumTz: state.tanReRetPremiumTz,
-            suRetroPct: state.suRetroPct,
-            suRetroExposureTz: state.suRetroExposureTz,
-            suRetroPremiumTz: state.suRetroPremiumTz,
-            facRetroPct: state.facRetroPct,
-            facRetroExposureTz: state.facRetroExposureTz,
-            facRetroPremiumTz: state.facRetroPremiumTz,
-        };
-    },
-
-    // Validation logic
-    validateForm: (values: OfferFormData): Record<string, string> => {
+    // validation
+    validateForm: (v) => {
         const errors: Record<string, string> = {};
-
-        if (!values.cedant) errors.cedant = 'Cedant is required';
-        if (!values.insured) errors.insured = 'Insured is required';
-        if (!values.occupation) errors.occupation = 'Occupation is required';
-        if (!values.businessClassId) errors.businessClassId = 'Business class is required';
-        if (!values.contractTypeId) errors.contractTypeId = 'Contract type is required';
-        if (!values.country) errors.country = 'Country is required';
-        if (!values.currencyCode) errors.currencyCode = 'Currency is required';
-        if (values.exchangeRate <= 0) errors.exchangeRate = 'Exchange rate must be greater than 0';
-        if (values.periodFrom >= values.periodTo) errors.periodTo = 'Period To must be after Period From';
-
+        if (!v.cedant) errors.cedant = 'Cedant is required';
+        if (!v.broker) errors.broker = 'Broker is required';
+        if (!v.insured) errors.insured = 'Insured is required';
+        if (!v.programId) errors.programId = 'Business class is required';
+        if (!v.contractTypeId) errors.contractTypeId = 'Contract type is required';
+        if (!v.country) errors.country = 'Country is required';
+        if (!v.currencyCode) errors.currencyCode = 'Currency is required';
+        if (v.exchangeRate <= 0) errors.exchangeRate = 'Exchange rate must be greater than 0';
+        if (v.periodFrom >= v.periodTo) errors.periodTo = 'Period To must be after Period From';
         return errors;
     },
 
-    // Calculate values using backend
+    // call backend to calculate analysis
     calculateValues: async () => {
-        const {
-            businessClassId,
-            contractTypeId,
-            periodFrom,
-            exchangeRate,
-            sumInsuredOs,
-            premiumOs,
-            shareOfferedPct,
-            shareAcceptedPct,
-            setCalculationStatus,
-            setCalculationMessage,
-            setCalculating,
-            setError,
-            setValues,
-        } = get();
-
-        setCalculating(true);
-        setError(null);
-
-        // Build the request DTO
-        const payload: Record<string, unknown> = {
-            businessClassId:   Number(businessClassId),
-            contractTypeId:    Number(contractTypeId),
-            periodFrom:        periodFrom.toISOString().slice(0, 10), // "YYYY-MM-DD"
-            exchangeRate,
-            sumInsuredOs,
-            premiumOs,
-            shareOfferedPct,
-            shareAcceptedPct,
+        const s = get();
+        const payload = {
+            // mappings to backend DTO
+            // programId: Number(s.programId), // program
+            programId: Number(s.programId), // program
+            contractTypeId: Number(s.contractTypeId),
+            retroYear: s.periodFrom.getFullYear(),
+            periodFrom: s.periodFrom.toISOString().slice(0, 10),
+            exchangeRate: s.exchangeRate,
+            sumInsuredOs: s.sumInsuredOs,
+            premiumOs: s.premiumOs,
+            shareOfferedPct: s.shareOfferedPct,
+            shareAcceptedPct: s.shareAcceptedPct,
+            currency: s.currencyCode,
+            country: s.country,
+            insured: s.insured,
+            broker: s.broker,
+            cedant: s.cedant,
         };
 
+        set({ calculating: true, error: null });
         try {
             const res = await apiFetch<FacultativeOfferCalcResponseDto>(
-                '/api/facultative-offer-analysis/calculate',
+                '/api/facultative-offers/analyze',
                 {
-                    method:  'POST',
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body:    payload,
+                    body: payload,
                 }
             );
 
-            console.log('Calculate Response:', res);
+            console.log('This is the retention:', res);
 
+            // map response into form state
+            const updated: Partial<OfferFormData> = {
+                sumInsuredTz: res.exposureOffered, // or res.sumInsuredOs, depending on what you want
+                premiumTz: res.premiumTzs, // Note the 's' at the end
 
-            // Update all calculated values in the store
-            const updatedValues: Partial<OfferFormData> = {
-                // Converted amounts
-                sumInsuredTz: res.sumInsuredTz,
-                premiumTz: res.premiumTz,
+                soExposureTz: res.exposureOffered,
+                soPremiumTz: res.premiumOffered,
+                saExposureTz: res.exposureAccepted,
+                saPremiumTz: res.premiumAccepted,
 
-                // Share calculations
-                soExposureTz: res.soExposureTz,
-                soPremiumTz: res.soPremiumTz,
-                saExposureTz: res.saExposureTz,
-                saPremiumTz: res.saPremiumTz,
+                // Calculate percentages since they're not in the API response
+                tanReRetentionPct: res.totalExposure ? (res.retentionExposure / res.totalExposure) * 100 : 0,
+                tanReRetExposureTz: res.retentionExposure,
+                tanReRetPremiumTz: res.retentionPremium,
 
-                // TAN-RE retention
-                tanReRetentionPct: res.tanReRetentionPct,
-                tanReRetExposureTz: res.tanReRetExposureTz,
-                tanReRetPremiumTz: res.tanReRetPremiumTz,
+                suRetroPct: res.totalExposure ? (res.surplusExposure / res.totalExposure) * 100 : 0,
+                suRetroExposureTz: res.surplusExposure,
+                suRetroPremiumTz: res.surplusPremium,
 
-                // Surplus retro
-                suRetroPct: res.suRetroPct,
-                suRetroExposureTz: res.suRetroExposureTz,
-                suRetroPremiumTz: res.suRetroPremiumTz,
-
-                // Facultative retro
-                facRetroPct: res.facRetroPct,
-                facRetroExposureTz: res.facRetroExposureTz,
-                facRetroPremiumTz: res.facRetroPremiumTz,
+                facRetroPct: res.totalExposure ? (res.facRetroExposure / res.totalExposure) * 100 : 0,
+                facRetroExposureTz: res.facRetroExposure,
+                facRetroPremiumTz: res.facRetroPremium,
             };
 
-            // Update the store
-            setValues(updatedValues);
-
-            // Store calculation status and message
-            setCalculationStatus(res.calculationStatus);
-            setCalculationMessage(res.message);
-
-        } catch (err: any) {
-            setError(err.message);
+            set((st) => ({
+                ...st,
+                ...updated,
+                calculationStatus: res.calculationStatus,
+                calculationMessage: res.message,
+            }));
+        } catch (e: any) {
+            set({ error: e?.message || 'Calculation failed' });
         } finally {
-            setCalculating(false);
+            set({ calculating: false });
         }
     },
 
-    // Submit form
-    submitForm: async (values: OfferFormData): Promise<boolean> => {
-        const { setLoading, setError, setValues } = get();
-
-        setLoading(true);
-        setError(null);
-
-        const payload: Record<string, unknown> = {
-            // raw inputs
-            cedant:           values.cedant,
-            dateTimeCreated:  values.dateTimeCreated.toISOString(),
-            insured:          values.insured,
-            occupation:       values.occupation,
-            businessClassId:  Number(values.businessClassId),
-            contractTypeId:   Number(values.contractTypeId),
-            country:          values.country,
-            periodFrom:       values.periodFrom.toISOString().slice(0,10),
-            periodTo:         values.periodTo.toISOString().slice(0,10),
-            currencyCode:     values.currencyCode,
-            exchangeRate:     values.exchangeRate,
-            sumInsuredOs:     values.sumInsuredOs,
-            premiumOs:        values.premiumOs,
-            shareOfferedPct:  values.shareOfferedPct,
-            shareAcceptedPct: values.shareAcceptedPct,
-
-            // computed fields
-            sumInsuredTz:         values.sumInsuredTz,
-            premiumTz:            values.premiumTz,
-            soExposureTz:         values.soExposureTz,
-            soPremiumTz:          values.soPremiumTz,
-            saExposureTz:         values.saExposureTz,
-            saPremiumTz:          values.saPremiumTz,
-            tanReRetentionPct:    values.tanReRetentionPct,
-            tanReRetExposureTz:   values.tanReRetExposureTz,
-            tanReRetPremiumTz:    values.tanReRetPremiumTz,
-            suRetroPct:           values.suRetroPct,
-            suRetroExposureTz:    values.suRetroExposureTz,
-            suRetroPremiumTz:     values.suRetroPremiumTz,
-            facRetroPct:          values.facRetroPct,
-            facRetroExposureTz:   values.facRetroExposureTz,
-            facRetroPremiumTz:    values.facRetroPremiumTz,
-        };
-
+    // submit (persist) analysis/offer
+    submitForm: async (v): Promise<boolean> => {
+        set({ loading: true, error: null });
         try {
-            // Update store with form values
-            setValues(values);
 
-            const res = await apiFetch('/api/facultative-offer-analysis', {
-                method: "POST",
+            const payload = {
+                // inputs
+                programId: Number(v.programId),
+                contractTypeId: Number(v.contractTypeId),
+                retroYear: v.periodFrom.getFullYear(),
+                periodFrom: v.periodFrom.toISOString().slice(0, 10),
+                periodTo: v.periodTo.toISOString().slice(0, 10),
+                currency: v.currencyCode,
+                exchangeRate: v.exchangeRate,
+                offerReceivedDate :v.offerReceivedDate,
+                cedant: v.cedant,
+                broker: v.broker,
+                insured: v.insured,
+                occupation: v.occupation,
+                country: v.country,
+                sumInsuredOs: v.sumInsuredOs,
+                premiumOs: v.premiumOs,
+                shareOfferedPct: v.shareOfferedPct,
+                shareAcceptedPct: v.shareAcceptedPct,
+                notes: v.notes,
+
+                // computed snapshot (optional)
+                sumInsuredTz: v.sumInsuredTz,
+                premiumTz: v.premiumTz,
+                soExposureTz: v.soExposureTz,
+                soPremiumTz: v.soPremiumTz,
+                saExposureTz: v.saExposureTz,
+                saPremiumTz: v.saPremiumTz,
+                tanReRetentionPct: v.tanReRetentionPct,
+                tanReRetExposureTz: v.tanReRetExposureTz,
+                tanReRetPremiumTz: v.tanReRetPremiumTz,
+                suRetroPct: v.suRetroPct,
+                suRetroExposureTz: v.suRetroExposureTz,
+                suRetroPremiumTz: v.suRetroPremiumTz,
+                facRetroPct: v.facRetroPct,
+                facRetroExposureTz: v.facRetroExposureTz,
+                facRetroPremiumTz: v.facRetroPremiumTz,
+            };
+
+
+            // await apiFetch('/api/facultative-offers/save', {
+            //     method: 'POST',
+            //     body: payload,
+            //     headers: { 'Content-Type': 'application/json' },
+            //     requiresAuth: true,
+            // });
+
+            await apiFetch('/api/facultative-offers/process/start', {
+                method: 'POST',
                 body: payload,
-                requiresAuth: true
+                headers: { 'Content-Type': 'application/json' },
+                requiresAuth: true,
             });
 
-            if (!res.ok) {
-                throw new Error('Failed to save offer analysis');
-            }
-
             return true;
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Failed to save offer analysis';
-            setError(errorMessage);
+        } catch (e: any) {
+            set({ error: e?.message || 'Failed to save offer analysis' });
             return false;
         } finally {
-            setLoading(false);
+            set({ loading: false });
         }
     },
 
-    // Reset form to initial state
-    resetForm: () => set({
-        cedant: '',
-        dateTimeCreated: new Date(),
-        insured: '',
-        occupation: '',
-        businessClassId: '',
-        contractTypeId: '',
-        country: '',
-        periodFrom: new Date(),
-        periodTo: new Date(),
-        currencyCode: '',
-        exchangeRate: 1,
-        sumInsuredOs: 0,
-        premiumOs: 0,
-        sumInsuredTz: 0,
-        premiumTz: 0,
-        shareOfferedPct: 0,
-        soExposureTz: 0,
-        soPremiumTz: 0,
-        shareAcceptedPct: 0,
-        saExposureTz: 0,
-        saPremiumTz: 0,
-        tanReRetentionPct: 0,
-        tanReRetExposureTz: 0,
-        tanReRetPremiumTz: 0,
-        suRetroPct: 0,
-        suRetroExposureTz: 0,
-        suRetroPremiumTz: 0,
-        facRetroPct: 0,
-        facRetroExposureTz: 0,
-        facRetroPremiumTz: 0,
-        loading: false,
-        calculating: false,
-        error: null,
-    }),
-
+    // pick currency + set rate
     updateCurrencyAndExchangeRate: (currencyCode: string) => {
         const { currencies } = useDropdownStore.getState();
-        const selectedCurrency = currencies.find(curr => curr.code === currencyCode);
+        const selected = currencies.find((c) => c.code === currencyCode);
+        if (!selected) return;
 
-        console.log('Full currency object:', selectedCurrency); // Let's see the complete object structure
+        // tolerate different API shapes
+        const rate =
+            (selected.exchange_rate ?? selected.exchangeRate ?? selected.rate ?? 1) as number;
 
-        if (selectedCurrency) {
-            // The property might be named differently, like 'rate', 'value', or 'exchangeRate'
-            console.log('Currency object keys:', Object.keys(selectedCurrency));
+        set((st) => ({
+            ...st,
+            currencyCode,
+            exchangeRate: Number(rate) || 1,
+        }));
+    },
 
-            set(state => ({
-                ...state,
-                currencyCode,
-                exchangeRate: Number(selectedCurrency.exchange_rate) // We'll adjust this based on the actual property name
-            }));
-        }
-    }
+    // reset
+    resetForm: () =>
+        set({
+            cedant: '',
+            broker: '',
+            offerReceivedDate: new Date(),
+            insured: '',
+            occupation: '',
+            programId: '',
+            contractTypeId: '',
+            country: '',
+            periodFrom: new Date(),
+            periodTo: new Date(),
+            currencyCode: '',
+            exchangeRate: 1,
 
+            sumInsuredOs: 0,
+            premiumOs: 0,
+            sumInsuredTz: 0,
+            premiumTz: 0,
 
+            shareOfferedPct: 0,
+            soExposureTz: 0,
+            soPremiumTz: 0,
+
+            shareAcceptedPct: 0,
+            saExposureTz: 0,
+            saPremiumTz: 0,
+
+            tanReRetentionPct: 0,
+            tanReRetExposureTz: 0,
+            tanReRetPremiumTz: 0,
+
+            suRetroPct: 0,
+            suRetroExposureTz: 0,
+            suRetroPremiumTz: 0,
+
+            facRetroPct: 0,
+            facRetroExposureTz: 0,
+            facRetroPremiumTz: 0,
+
+            loading: false,
+            calculating: false,
+            error: null,
+            calculationStatus: null,
+            calculationMessage: null,
+        }),
 }));
 
 export { useDropdownStore, useOfferStore };

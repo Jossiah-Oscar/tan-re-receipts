@@ -29,7 +29,7 @@ export default function ProcessingPayments() {
     const router = useRouter();
 
     const {
-        items,
+        processingPaymentItems,
         loading,
         popFile,
         modalStates,
@@ -84,7 +84,7 @@ export default function ProcessingPayments() {
                         </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
-                        {items.map((it) => (
+                        {processingPaymentItems.map((it) => (
                             <Table.Tr key={it.claimDocuments.id}>
                                 <Table.Td>{it.claimDocuments.claimNumber}</Table.Td>
                                 <Table.Td>{it.claimDocuments.contractNumber}</Table.Td>

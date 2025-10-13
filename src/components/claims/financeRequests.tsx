@@ -21,6 +21,7 @@ import {useRouter} from "next/navigation";
 import useFinanceRequestStore from "@/store/useFinanceRequestStore";
 import PendingAllocation from "@/components/claims/awaitingAllocation";
 import CompletePaymentTable from "@/components/claims/completedPaymentsTab";
+import useClaimPaymentStore from "@/store/useClaimPaymentStore";
 
 
 export interface ClaimDocument {
@@ -78,6 +79,10 @@ export default function ClaimsPaymentTable() {
         changeFinanceStatus
     } = useFinanceRequestStore()
 
+    const {
+        processingPaymentItems,
+    } = useClaimPaymentStore ();
+
     useEffect(() => {
         fetchItems()
     }, [fetchItems]);
@@ -98,6 +103,8 @@ export default function ClaimsPaymentTable() {
     const pendingDocs = items.filter((d) => d.status.name === 'PENDING_PAYMENT');
     const pendingAllocation = items.filter((d) => d.status.name === 'PENDING_ALLOCATION')
     const completed = items.filter((d) => d.status.name === 'COMPLETED')
+    const processingPayment = items.filter((d) => d.status.name === 'PROCESSING_PAYMENT')
+
 
 
     return (
@@ -121,9 +128,9 @@ export default function ClaimsPaymentTable() {
                             <Avatar></Avatar>
                             <Stack >
                                 <Text size="sm">
-                                    Processing Documents
+                                    Processing Payment
                                 </Text>
-                                <Text size="lg">{items.length}</Text>
+                                <Text size="lg">{processingPaymentItems.length}</Text>
 
                             </Stack>
                         </Group>

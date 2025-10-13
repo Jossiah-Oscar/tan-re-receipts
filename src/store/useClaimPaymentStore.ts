@@ -41,7 +41,7 @@ export interface ClaimFinanceDocStatus {
 }
 
 interface ClaimPaymentState {
-    items: ClaimFinanceDocStatus[]
+    processingPaymentItems: ClaimFinanceDocStatus[]
     financeStatuses: FinanceStatus[]
     loading: boolean
     error: string | null
@@ -68,7 +68,7 @@ interface ClaimPaymentState {
 }
 
 const useClaimPaymentStore = create<ClaimPaymentState>((set, get) => ({
-    items: [],
+    processingPaymentItems: [],
     financeStatuses: [],
     loading: false,
     error: null,
@@ -97,7 +97,7 @@ const useClaimPaymentStore = create<ClaimPaymentState>((set, get) => ({
         set({ loading: true, error: null })
         try {
             const data = await apiFetch<ClaimFinanceDocStatus[]>('/api/claim-documents/claim-process-payments')
-            set({ items: data, loading: false })
+            set({ processingPaymentItems: data, loading: false })
         } catch (error) {
             set({ error: (error as Error).message, loading: false })
             showNotification({ title: 'Error', message: (error as Error).message, color: 'red' })
