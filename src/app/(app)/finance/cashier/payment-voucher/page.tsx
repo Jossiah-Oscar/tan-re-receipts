@@ -242,15 +242,15 @@ export default function PaymentVoucherFormMantine() {
 
         // Calculate totals directly
         const totalKshs = formData.accountEntries.reduce((total, entry) => {
-            return total + (parseFloat(entry.kshs) || 0);
+            return total + (entry.kshs || 0);
         }, 0);
 
         const totalTsh = formData.accountEntries.reduce((total, entry) => {
-            return total + (parseFloat(entry.amountInTSH) || 0);
+            return total + (entry.amountInTSH || 0);
         }, 0);
 
         // Generate amount in words
-        const numberToWords = (num) => {
+        const numberToWords = (num: number): string => {
             const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
             const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
             const teens = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
