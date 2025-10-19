@@ -11,21 +11,21 @@ import {
     Text,
     Button,
     ThemeIcon,
-
+    Stack,
+    Badge,
+    Loader,
+    Center,
+    Paper,
 } from '@mantine/core';
 import {
     IconArrowRight,
+    IconFileCheck,
+    IconAlertCircle,
+    IconRefresh,
+    IconClipboardList,
 } from '@tabler/icons-react';
 import {apiFetch} from "@/config/api";
 import {useRouter} from "next/navigation";
-
-type TaskCard = {
-    title: string;
-    description: string;
-    color: string;
-    count: number;
-    // icon: React.FC<React.ComponentProps<'svg'>>;
-};
 
 type FlowableProcessDefinition = {
     id: string;
@@ -37,14 +37,27 @@ type FlowableProcessDefinition = {
     activeTaskCount: number;
 };
 
-const TASKS: TaskCard[] = [
-    { title: 'Review Documents', description: 'These tasks are related to document verification and approval.', color: 'brand', count: 5  },
-    { title: 'Approve Expenses', description: 'Review and approve employee Memos and Financial Requests.', color: 'green', count: 3  },
-    { title: 'Customer Onboarding', description: 'Complete the onboarding process for new customers.', color: 'violet', count: 2 },
-];
+// Map process keys to icons and colors
+const PROCESS_CONFIG: Record<string, { icon: React.ElementType; color: string; description: string }> = {
+    'OFFER_ANALYSIS_APPROVAL': {
+        icon: IconFileCheck,
+        color: 'blue',
+        description: 'Review and approve facultative offer analyses'
+    },
+    'TRAVEL_APPROVAL': {
+        icon: IconClipboardList,
+        color: 'teal',
+        description: 'Approve employee travel requests'
+    },
+    'DEFAULT': {
+        icon: IconClipboardList,
+        color: 'gray',
+        description: 'Process approval tasks'
+    }
+};
 
-export default function PendingTasks() {
-    const router = useRouter(); // Use Next.js router instead of useNavigate
+export default function PendingApprovals() {
+    const router = useRouter();
     const [processes, setProcesses] = useState<FlowableProcessDefinition[]>([]);
     const [processesLoading, setProcessesLoading] = useState(false);
 
@@ -55,85 +68,180 @@ export default function PendingTasks() {
     const fetchProcesses = async () => {
         setProcessesLoading(true);
         try {
-            // apiFetch returns the JSON body directly
             const data = await apiFetch<FlowableProcessDefinition[]>(
                 '/api/approvals/process-definitions',
                 { cache: 'no-store' }
             );
 
-            const mappedProcesses: FlowableProcessDefinition[] = data.map(proc => ({
-                id: proc.id,
-                key: proc.key,
-                name: proc.name,
-                version: proc.version,
-                deploymentId: proc.deploymentId,
-                suspended: proc.suspended,
-                activeTaskCount: proc.activeTaskCount,
-            }));
-
-            setProcesses(mappedProcesses);
+            setProcesses(data || []);
         } catch (error) {
             console.error('Error fetching processes:', error);
-            // Optionally show a toast here
         } finally {
             setProcessesLoading(false);
         }
     };
 
     const viewTasks = (processKey: string, processName: string) => {
-        router.push(`/travel/tasks-list-2/${processKey}`); // Use router.push instead of navigate
+        router.push(`/travel/tasks-list-2/${processKey}`);
         localStorage.setItem('processName', processName);
     };
 
+    const getProcessConfig = (key: string) => {
+        return PROCESS_CONFIG[key] || PROCESS_CONFIG['DEFAULT'];
+    };
+
+    const totalPendingTasks = processes.reduce((sum, p) => sum + p.activeTaskCount, 0);
+
+    if (processesLoading) {
+        return (
+            <Container size="lg" py="xl">
+                <Center style={{ minHeight: '400px' }}>
+                    <Stack align="center" gap="md">
+                        <Loader size="lg" />
+                        <Text c="dimmed">Loading approval workflows...</Text>
+                    </Stack>
+                </Center>
+            </Container>
+        );
+    }
 
     return (
         <Container size="lg" py="xl">
-            <Group justify="space-between" mb="lg">
-                <Title order={2}>Pending Approvals</Title>
-            </Group>
-
-            <Grid>
-                {processes.map((t) => {
-                    // const Icon = t.icon;
-                    return (
-                        <Grid.Col key={t.id} span={{ base: 12, sm: 6, lg: 4 }}>
-                            <Card
-                                padding="lg"
-                                radius="md"
-                                withBorder
-                                shadow="sm"
-                                style={{ transition: 'box-shadow 150ms ease' }}
-                                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--mantine-shadow-md)'; }}
-                                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--mantine-shadow-sm)'; }}
+            {/* Header */}
+            <Stack gap="xl">
+                <Paper p="lg" withBorder radius="md" bg="blue.0">
+                    <Group justify="space-between" align="center" wrap="wrap">
+                        <Stack gap={4}>
+                            <Title order={2}>My Pending Approvals</Title>
+                            <Text c="dimmed" size="sm">
+                                Review and action items requiring your approval
+                            </Text>
+                        </Stack>
+                        <Group gap="md">
+                            <Badge size="xl" variant="filled" color="blue">
+                                {totalPendingTasks} Total Tasks
+                            </Badge>
+                            <Button
+                                variant="light"
+                                leftSection={<IconRefresh size={16} />}
+                                onClick={fetchProcesses}
+                                loading={processesLoading}
                             >
-                                <Group align="start" mb="md">
-                                    <ThemeIcon variant="light" radius="xl" size={40} >
-                                        {/*<Icon size={20} />*/}
-                                    </ThemeIcon>
-                                    <Title order={4}>{t.name}</Title>
-                                </Group>
+                                Refresh
+                            </Button>
+                        </Group>
+                    </Group>
+                </Paper>
 
-                                <Text c="dimmed" size="sm" mb="lg">
-                                    {t.key}
+                {/* Process Cards */}
+                {processes.length === 0 ? (
+                    <Paper p="xl" withBorder radius="md">
+                        <Center>
+                            <Stack align="center" gap="md">
+                                <ThemeIcon size={64} radius="xl" variant="light" color="gray">
+                                    <IconAlertCircle size={32} />
+                                </ThemeIcon>
+                                <Title order={3} c="dimmed">No Pending Approvals</Title>
+                                <Text c="dimmed" size="sm">
+                                    You don't have any pending approval tasks at the moment.
                                 </Text>
+                            </Stack>
+                        </Center>
+                    </Paper>
+                ) : (
+                    <Grid>
+                        {processes.map((process) => {
+                            const config = getProcessConfig(process.key);
+                            const Icon = config.icon;
+                            const hasTasks = process.activeTaskCount > 0;
 
-                                <Group justify="space-between" align="center">
-                                    <Text fw={500}>
-                                        <Text component="span" fw={800} size="xl" mr={4}>
-                                            {t.activeTaskCount}
-                                        </Text>
-                                        pending tasks
-                                    </Text>
+                            return (
+                                <Grid.Col key={process.id} span={{ base: 12, sm: 6, lg: 4 }}>
+                                    <Card
+                                        padding="lg"
+                                        radius="md"
+                                        withBorder
+                                        shadow="sm"
+                                        style={{
+                                            transition: 'all 150ms ease',
+                                            cursor: 'pointer',
+                                            height: '100%'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--mantine-shadow-md)';
+                                            (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--mantine-shadow-sm)';
+                                            (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
+                                        }}
+                                        onClick={() => viewTasks(process.key, process.name)}
+                                    >
+                                        <Stack gap="md" style={{ height: '100%' }}>
+                                            {/* Icon and Title */}
+                                            <Group gap="md" wrap="nowrap">
+                                                <ThemeIcon
+                                                    variant="light"
+                                                    radius="xl"
+                                                    size={48}
+                                                    color={config.color}
+                                                >
+                                                    <Icon size={24} />
+                                                </ThemeIcon>
+                                                <div style={{ flex: 1 }}>
+                                                    <Title order={4} lineClamp={2}>
+                                                        {process.name}
+                                                    </Title>
+                                                    <Badge
+                                                        size="xs"
+                                                        variant="dot"
+                                                        color={process.suspended ? 'red' : 'green'}
+                                                        mt={4}
+                                                    >
+                                                        {process.suspended ? 'Suspended' : 'Active'}
+                                                    </Badge>
+                                                </div>
+                                            </Group>
 
-                                    <Button onClick={() =>  viewTasks(t.key,t.name)} component="a" rightSection={<IconArrowRight size={16} />} >
-                                        View Pending
-                                    </Button>
-                                </Group>
-                            </Card>
-                        </Grid.Col>
-                    );
-                })}
-            </Grid>
+                                            {/* Description */}
+                                            <Text c="dimmed" size="sm" lineClamp={2} style={{ flex: 1 }}>
+                                                {config.description}
+                                            </Text>
+
+                                            {/* Task Count and Button */}
+                                            <Group justify="space-between" align="center" mt="auto">
+                                                <div>
+                                                    <Text
+                                                        component="span"
+                                                        fw={700}
+                                                        size="2rem"
+                                                        c={hasTasks ? config.color : 'dimmed'}
+                                                    >
+                                                        {process.activeTaskCount}
+                                                    </Text>
+                                                    <Text component="span" size="sm" c="dimmed" ml={4}>
+                                                        {process.activeTaskCount === 1 ? 'task' : 'tasks'}
+                                                    </Text>
+                                                </div>
+
+                                                {hasTasks && (
+                                                    <Button
+                                                        variant="light"
+                                                        color={config.color}
+                                                        rightSection={<IconArrowRight size={16} />}
+                                                    >
+                                                        Review
+                                                    </Button>
+                                                )}
+                                            </Group>
+                                        </Stack>
+                                    </Card>
+                                </Grid.Col>
+                            );
+                        })}
+                    </Grid>
+                )}
+            </Stack>
         </Container>
     );
 }

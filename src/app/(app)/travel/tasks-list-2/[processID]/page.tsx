@@ -1,11 +1,47 @@
 "use client";
 
-import {ActionIcon, Badge, Button, Card, Chip, Divider, Group, Loader, Menu, Modal, Paper, ScrollArea, Stack, Table, Tabs, Text, Textarea, TextInput, ThemeIcon, Title} from "@mantine/core";
-import {IconAlertCircle, IconArrowDown, IconArrowsSort, IconArrowUp, IconBuilding, IconCalendarEvent, IconClock, IconEye, IconFilter, IconRefresh, IconSearch, IconUser} from "@tabler/icons-react";
-import React, {useEffect, useState} from "react";
-import {apiFetch} from "@/config/api";
-import {useDisclosure} from "@mantine/hooks";
-import {useParams} from "next/navigation";
+import {
+    ActionIcon,
+    Badge,
+    Button,
+    Card,
+    Group,
+    Loader,
+    Modal,
+    Paper,
+    Stack,
+    Table,
+    Text,
+    Textarea,
+    ThemeIcon,
+    Title,
+    Center,
+    Divider,
+    Alert,
+    Tabs,
+    SimpleGrid,
+} from "@mantine/core";
+import {
+    IconAlertCircle,
+    IconArrowLeft,
+    IconCalendarEvent,
+    IconCheck,
+    IconClock,
+    IconEye,
+    IconRefresh,
+    IconUser,
+    IconX,
+    IconArrowBack,
+    IconFileCheck,
+    IconInfoCircle,
+    IconBuildingBank,
+    IconCoin,
+    IconPercentage,
+} from "@tabler/icons-react";
+import React, { useEffect, useState } from "react";
+import { apiFetch } from "@/config/api";
+import { useDisclosure } from "@mantine/hooks";
+import { useParams, useRouter } from "next/navigation";
 
 type FlowableTask = {
     id: string;
@@ -20,97 +56,166 @@ type FlowableTask = {
     variables?: Record<string, any>;
 };
 
-const DEFAULT_TASKS: FlowableTask[] = [
-    {
-        id: "task-001",
-        name: "Review Purchase Request",
-        assignee: "john.doe",
-        createTime: "2024-09-14T10:30:00Z",
-        dueDate: "2024-09-16T17:00:00Z",
-        priority: "high",
-        processInstanceId: "purchase-approval",
-        processDefinitionName: "Purchase Approval Process",
-        description: "Review and approve purchase request for office equipment",
-        variables: { requestAmount: 2500, department: "IT" },
-    },
-    {
-        id: "task-002",
-        name: "Approve Leave Request",
-        assignee: "jane.smith",
-        createTime: "2024-09-13T14:20:00Z",
-        dueDate: "2024-09-15T12:00:00Z",
-        priority: "medium",
-        processInstanceId: "leave-management",
-        processDefinitionName: "Leave Management Process",
-        description: "Approve employee leave request for vacation",
-        variables: { employeeName: "Bob Wilson", leaveType: "Annual Leave" },
-        // actions: ["approve", "reject"]
-    },
-    ]
+type OfferAnalysisData = {
+    offer: {
+        id: number;
+        rmsNumber: string;
+        cedant: string;
+        insured: string;
+        broker: string;
+        country: string;
+        occupation: string;
+        currencyCode: string;
+        exchangeRate: number;
+        periodFrom: string;
+        periodTo: string;
+        offerReceivedDate: string;
+        sumInsured: number;
+        premium: number;
+        rateDecimal: number;
+        shareOfferedPct: number;
+        notes: string;
+    };
+    analysis: {
+        id: number;
+        tanreSharePercent: number;
+        tanreExposure: number;
+        tanrePremium: number;
+        acceptedSharePercent: number;
+        acceptedExposure: number;
+        acceptedPremium: number;
+        retentionSharePercent: number;
+        retentionExposure: number;
+        retentionPremium: number;
+        surplusSharePercent: number;
+        surplusExposure: number;
+        surplusPremium: number;
+        facRetroPercent: number;
+        facRetroExposure: number;
+        facRetroPremium: number;
+        totalExposure: number;
+        totalPremium: number;
+    };
+};
 
 export default function FlowableTasksCenter() {
     const [loading, setLoading] = useState(false);
-    const [tasks, setTasks] = useState<FlowableTask[]>(DEFAULT_TASKS);
+    const [tasks, setTasks] = useState<FlowableTask[]>([]);
+    const [actionLoading, setActionLoading] = useState(false);
     const params = useParams();
+    const router = useRouter();
     const processID = params?.processID as string;
     const [processName, setProcessName] = useState<string>("");
-
-
-    useEffect(() => {
-        fetchTasks();
-        const processName = localStorage.getItem('processName');
-        if (processName) setProcessName(processName);
-    },[processID])
-
-    const fetchTasks = async () => {
-        setLoading(true);
-        try {
-            const res = await apiFetch<FlowableTask[]>(`/api/approvals/tasks/${processID}`, { cache: "no-store" });
-            setTasks(res);
-        } catch (error) {
-            console.error('Error fetching tasks:', error);
-            // Keep defaults on error
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    async function approve(comment : string, taskId : string) {
-        const userId: string  = "jkibona"
-        await apiFetch(`/api/approvals/tasks/${taskId}/approve`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: {
-                userId,
-                comment
-            },
-            requiresAuth: true,
-        }).then(() => closeModal());
-        // setOpen(false); setActionFor(null); setComment(""); await load();
-    }
-
-    async function reject(comment : string, taskId : string) {
-        const userId: string  = "jkibona"
-        await apiFetch(`/api/approvals/tasks/${taskId}/reject`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: {
-                userId,
-                comment
-            },
-            requiresAuth: true,
-        }).then(() => closeModal());
-        // setOpen(false); setActionFor(null); setComment(""); await load();
-    }
 
     // Modal state
     const [selectedTask, setSelectedTask] = useState<FlowableTask | null>(null);
     const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
     const [taskComment, setTaskComment] = useState("");
+    const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+
+    // Offer analysis data
+    const [offerAnalysisData, setOfferAnalysisData] = useState<OfferAnalysisData | null>(null);
+    const [offerDataLoading, setOfferDataLoading] = useState(false);
+
+    useEffect(() => {
+        fetchTasks();
+        const processName = localStorage.getItem('processName');
+        if (processName) setProcessName(processName);
+    }, [processID]);
+
+    const fetchTasks = async () => {
+        setLoading(true);
+        try {
+            const res = await apiFetch<FlowableTask[]>(`/api/approvals/tasks/${processID}`, { cache: "no-store" });
+            setTasks(res || []);
+        } catch (error) {
+            console.error('Error fetching tasks:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    async function handleApprove() {
+        if (!selectedTask) return;
+
+        setActionLoading(true);
+        try {
+            await apiFetch(`/api/approvals/tasks/${selectedTask.id}/approve`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: {
+                    userId: "jkibona",
+                    comment: taskComment || "Approved"
+                },
+                requiresAuth: true,
+            });
+
+            closeModal();
+            setTaskComment("");
+            setSelectedTask(null);
+            setActionType(null);
+            await fetchTasks(); // Refresh task list
+        } catch (error) {
+            console.error('Error approving task:', error);
+        } finally {
+            setActionLoading(false);
+        }
+    }
+
+    async function handleReject() {
+        if (!selectedTask) return;
+
+        setActionLoading(true);
+        try {
+            await apiFetch(`/api/approvals/tasks/${selectedTask.id}/reject`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: {
+                    userId: "jkibona",
+                    comment: taskComment || "Rejected"
+                },
+                requiresAuth: true,
+            });
+
+            closeModal();
+            setTaskComment("");
+            setSelectedTask(null);
+            setActionType(null);
+            await fetchTasks(); // Refresh task list
+        } catch (error) {
+            console.error('Error rejecting task:', error);
+        } finally {
+            setActionLoading(false);
+        }
+    }
+
+    async function fetchOfferAnalysisData(offerId: number) {
+        setOfferDataLoading(true);
+        try {
+            const data = await apiFetch<OfferAnalysisData>(
+                `/api/underwriting/facultative/offer/${offerId}`,
+                { cache: "no-store" }
+            );
+            setOfferAnalysisData(data);
+        } catch (error) {
+            console.error('Error fetching offer analysis data:', error);
+            setOfferAnalysisData(null);
+        } finally {
+            setOfferDataLoading(false);
+        }
+    }
 
     function openTaskDetails(task: FlowableTask) {
         setSelectedTask(task);
         setTaskComment("");
+        setActionType(null);
+        setOfferAnalysisData(null);
+
+        // If this is an offer analysis task, fetch the offer data
+        if (processID === 'OFFER_ANALYSIS_APPROVAL' && task.variables?.offerId) {
+            fetchOfferAnalysisData(task.variables.offerId);
+        }
+
         openModal();
     }
 
@@ -119,6 +224,7 @@ export default function FlowableTasksCenter() {
             return new Intl.DateTimeFormat("en-US", {
                 month: "short",
                 day: "numeric",
+                year: "numeric",
                 hour: "2-digit",
                 minute: "2-digit"
             }).format(new Date(iso));
@@ -127,343 +233,586 @@ export default function FlowableTasksCenter() {
         }
     }
 
+    function formatCurrency(value: number, currency: string = 'TZS') {
+        return new Intl.NumberFormat('en-US', {
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(value) + ` ${currency}`;
+    }
+
+    function formatPercentage(value: number) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'decimal',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(value) + '%';
+    }
+
+    function getPriorityColor(priority: string): string {
+        switch (priority?.toLowerCase()) {
+            case 'high':
+                return 'red';
+            case 'medium':
+                return 'yellow';
+            case 'low':
+                return 'blue';
+            default:
+                return 'gray';
+        }
+    }
+
+    function goBack() {
+        router.push('/travel/processes-overview');
+    }
+
+    if (loading) {
+        return (
+            <Container size="xl" py="xl">
+                <Center style={{ minHeight: '400px' }}>
+                    <Stack align="center" gap="md">
+                        <Loader size="lg" />
+                        <Text c="dimmed">Loading tasks...</Text>
+                    </Stack>
+                </Center>
+            </Container>
+        );
+    }
+
     return (
-        <Stack gap="md" p={{ base: "md", sm: "lg" }}>
+        <Stack gap="lg" p={{ base: "md", sm: "lg" }}>
             {/* Header */}
-            <Stack gap={4}>
-                <Group justify="space-between" align="center">
-                    <Title order={2}>{processName}</Title>
-                    <Group gap="xs">
-                        {/*<ActionIcon variant="light" onClick={refreshTasks} loading={loading || processesLoading}>*/}
-                        {/*    <IconRefresh size={16} />*/}
-                        {/*</ActionIcon>*/}
-                        <Badge variant="light" color="blue">
-                            {tasks.length} tasks
+            <Paper p="lg" withBorder radius="md" bg="blue.0">
+                <Group justify="space-between" align="center" wrap="wrap">
+                    <Group gap="md">
+                        <ActionIcon
+                            variant="light"
+                            size="lg"
+                            onClick={goBack}
+                        >
+                            <IconArrowLeft size={20} />
+                        </ActionIcon>
+                        <div>
+                            <Title order={2}>{processName || 'Approval Tasks'}</Title>
+                            <Text c="dimmed" size="sm">
+                                Review and action pending approval requests
+                            </Text>
+                        </div>
+                    </Group>
+                    <Group gap="md">
+                        <Badge size="lg" variant="filled" color="blue">
+                            {tasks.length} {tasks.length === 1 ? 'Task' : 'Tasks'}
                         </Badge>
+                        <Button
+                            variant="light"
+                            leftSection={<IconRefresh size={16} />}
+                            onClick={fetchTasks}
+                            loading={loading}
+                        >
+                            Refresh
+                        </Button>
                     </Group>
                 </Group>
-                <Text c="dimmed" size="sm">
-                    Manage tasks across all your process workflows
-                </Text>
-            </Stack>
+            </Paper>
 
-            {/* Process Overview */}
-            <Card withBorder radius="md" p="md">
-
-            </Card>
-
-            {/* Main Content */}
-            <Card withBorder radius="md" shadow="xs">
-                {/* Toolbar */}
-                <Group justify="space-between" align="center" p="md" gap="sm" wrap="wrap">
-                {/*    <TextInput*/}
-                {/*        value={query}*/}
-                {/*        onChange={(e) => setQuery(e.currentTarget.value)}*/}
-                {/*        placeholder="Search tasks, assignees, or processes..."*/}
-                {/*        leftSection={<IconSearch size={16} />}*/}
-                {/*        w={{ base: "100%", sm: 360 }}*/}
-                {/*    />*/}
-
-                    {/*<Group gap="xs" wrap="nowrap">*/}
-                    {/*    <Menu shadow="md" width={250}>*/}
-                    {/*        <Menu.Target>*/}
-                    {/*            <Button*/}
-                    {/*                variant="default"*/}
-                    {/*                leftSection={<IconFilter size={16} />}*/}
-                    {/*                rightSection={activeFiltersCount > 0 ? (*/}
-                    {/*                    <Badge size="xs" color="blue" variant="filled">*/}
-                    {/*                        {activeFiltersCount}*/}
-                    {/*                    </Badge>*/}
-                    {/*                ) : null}*/}
-                    {/*            >*/}
-                    {/*                Filters*/}
-                    {/*            </Button>*/}
-                    {/*        </Menu.Target>*/}
-                    {/*        <Menu.Dropdown>*/}
-                    {/*            <Menu.Label>Filter by Priority</Menu.Label>*/}
-                    {/*            <Group gap="xs" p="xs">*/}
-                    {/*                {['high', 'medium', 'low'].map(priority => (*/}
-                    {/*                    <Chip*/}
-                    {/*                        key={priority}*/}
-                    {/*                        checked={selectedPriorities.includes(priority)}*/}
-                    {/*                        onChange={() => {*/}
-                    {/*                            setSelectedPriorities(prev =>*/}
-                    {/*                                prev.includes(priority)*/}
-                    {/*                                    ? prev.filter(p => p !== priority)*/}
-                    {/*                                    : [...prev, priority]*/}
-                    {/*                            );*/}
-                    {/*                        }}*/}
-                    {/*                        color={getPriorityColor(priority)}*/}
-                    {/*                        size="xs"*/}
-                    {/*                    >*/}
-                    {/*                        {priority}*/}
-                    {/*                    </Chip>*/}
-                    {/*                ))}*/}
-                    {/*            </Group>*/}
-                    {/*            {activeFiltersCount > 0 && (*/}
-                    {/*                <>*/}
-                    {/*                    <Divider />*/}
-                    {/*                    <Menu.Item*/}
-                    {/*                        onClick={() => {*/}
-                    {/*                            setSelectedProcesses([]);*/}
-                    {/*                            setSelectedPriorities([]);*/}
-                    {/*                        }}*/}
-                    {/*                    >*/}
-                    {/*                        Clear all filters*/}
-                    {/*                    </Menu.Item>*/}
-                    {/*                </>*/}
-                    {/*            )}*/}
-                    {/*        </Menu.Dropdown>*/}
-                    {/*    </Menu>*/}
-
-                    {/*    <Button*/}
-                    {/*        variant="default"*/}
-                    {/*        leftSection={sortDir === "asc" ? <IconArrowUp size={16} /> : <IconArrowDown size={16} />}*/}
-                    {/*        onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}*/}
-                    {/*    >*/}
-                    {/*        {sortDir === "asc" ? "Asc" : "Desc"}*/}
-                    {/*    </Button>*/}
-
-                    {/*    <Button*/}
-                    {/*        variant="default"*/}
-                    {/*        leftSection={<IconArrowsSort size={16} />}*/}
-                    {/*        onClick={() => {*/}
-                    {/*            const order: SortKey[] = ["dueDate", "priority", "name", "assignee", "created"];*/}
-                    {/*            setSortKey(k => order[(order.indexOf(k) + 1) % order.length]);*/}
-                    {/*        }}*/}
-                    {/*    >*/}
-                    {/*        Sort: {sortKey}*/}
-                    {/*    </Button>*/}
-                    {/*</Group>*/}
-                </Group>
-
-                {/* Tasks Table */}
-                <ScrollArea>
-                    <Table highlightOnHover verticalSpacing="sm">
+            {/* Tasks Content */}
+            {tasks.length === 0 ? (
+                <Paper p="xl" withBorder radius="md">
+                    <Center>
+                        <Stack align="center" gap="md">
+                            <ThemeIcon size={64} radius="xl" variant="light" color="gray">
+                                <IconFileCheck size={32} />
+                            </ThemeIcon>
+                            <Title order={3} c="dimmed">No Pending Tasks</Title>
+                            <Text c="dimmed" size="sm" ta="center">
+                                All approval tasks for this workflow have been completed.
+                            </Text>
+                            <Button variant="light" onClick={goBack} leftSection={<IconArrowBack size={16} />}>
+                                Back to Workflows
+                            </Button>
+                        </Stack>
+                    </Center>
+                </Paper>
+            ) : (
+                <Card withBorder radius="md" shadow="sm" padding={0}>
+                    <Table highlightOnHover verticalSpacing="md">
                         <Table.Thead>
-                            <Table.Tr>
-                                <Table.Th>Task Details</Table.Th>
+                            <Table.Tr style={{ backgroundColor: 'var(--mantine-color-gray-0)' }}>
+                                <Table.Th>
+                                    <Group gap={6}>
+                                        <IconFileCheck size={16} />
+                                        <Text fw={600}>Task Details</Text>
+                                    </Group>
+                                </Table.Th>
                                 <Table.Th>
                                     <Group gap={6}>
                                         <IconUser size={16} />
-                                        Assignee
+                                        <Text fw={600}>Assignee</Text>
                                     </Group>
                                 </Table.Th>
                                 <Table.Th>
                                     <Group gap={6}>
                                         <IconCalendarEvent size={16} />
-                                        Created Date
+                                        <Text fw={600}>Created</Text>
                                     </Group>
                                 </Table.Th>
-                                {/*<Table.Th>Process</Table.Th>*/}
-                                <Table.Th>Actions</Table.Th>
+                                <Table.Th>
+                                    <Group gap={6}>
+                                        <Text fw={600}>Priority</Text>
+                                    </Group>
+                                </Table.Th>
+                                <Table.Th>
+                                    <Text fw={600}>Actions</Text>
+                                </Table.Th>
                             </Table.Tr>
                         </Table.Thead>
                         <Table.Tbody>
                             {tasks.map((task) => {
-                                // const overdue = isOverdue(task.dueDate);
-                                // const isActionLoading = actionLoading === task.id;
-
                                 return (
-                                    <Table.Tr key={task.id}>
+                                    <Table.Tr key={task.id} style={{ cursor: 'pointer' }} onClick={() => openTaskDetails(task)}>
                                         <Table.Td>
                                             <Stack gap={4}>
-                                                <Group gap="xs" align="flex-start">
-                                                    <div>
-                                                        <Text fw={500} size="sm">{task.name}</Text>
-                                                        {task.description && (
-                                                            <Text size="xs" lineClamp={1}>
-                                                                {task.description}
-                                                            </Text>
-                                                        )}
-                                                    </div>
-                                                    <Badge
-                                                        size="xs"
-                                                        color="blue"
-                                                        variant="light"
-                                                    >
-                                                        {task.priority}
-                                                    </Badge>
-                                                </Group>
+                                                <Text fw={600} size="sm">{task.name}</Text>
+                                                {task.description && (
+                                                    <Text size="xs" c="dimmed" lineClamp={1}>
+                                                        {task.description}
+                                                    </Text>
+                                                )}
                                             </Stack>
                                         </Table.Td>
 
                                         <Table.Td>
                                             <Group gap="xs">
-                                                <IconUser size={14} />
-                                                <Text size="sm" c="blue" fw={700}>{task.assignee}</Text>
+                                                <ThemeIcon size="sm" variant="light" color="blue">
+                                                    <IconUser size={12} />
+                                                </ThemeIcon>
+                                                <Text size="sm" fw={500}>{task.assignee || 'Unassigned'}</Text>
                                             </Group>
                                         </Table.Td>
 
                                         <Table.Td>
                                             <Group gap="xs">
                                                 <IconClock size={14} />
-                                                <Text  size="sm">
+                                                <Text size="sm">
                                                     {formatDate(task.createTime)}
                                                 </Text>
                                             </Group>
                                         </Table.Td>
 
                                         <Table.Td>
+                                            <Badge
+                                                size="sm"
+                                                color={getPriorityColor(task.priority)}
+                                                variant="light"
+                                            >
+                                                {task.priority || 'normal'}
+                                            </Badge>
+                                        </Table.Td>
+
+                                        <Table.Td>
                                             <Group gap="xs" wrap="nowrap">
                                                 <ActionIcon
                                                     variant="light"
-                                                    size="sm"
-                                                    onClick={() => openTaskDetails(task)}
+                                                    color="blue"
+                                                    size="lg"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openTaskDetails(task);
+                                                    }}
                                                 >
-                                                    <IconEye size={14} />
+                                                    <IconEye size={18} />
                                                 </ActionIcon>
-
-                                                {/*{task.actions.slice(0, 2).map(action => (*/}
-                                                {/*    <ActionIcon*/}
-                                                {/*        key={action}*/}
-                                                {/*        variant="light"*/}
-                                                {/*        color={getActionColor(action)}*/}
-                                                {/*        size="sm"*/}
-                                                {/*        loading={isActionLoading}*/}
-                                                {/*        onClick={() => handleTaskAction(task.id, action)}*/}
-                                                {/*        disabled={isActionLoading}*/}
-                                                {/*    >*/}
-                                                {/*        {getActionIcon(action)}*/}
-                                                {/*    </ActionIcon>*/}
-                                                {/*))}*/}
-
-                                                {/*{task.actions.length > 2 && (*/}
-                                                {/*    <Menu shadow="md">*/}
-                                                {/*        <Menu.Target>*/}
-                                                {/*            <ActionIcon variant="light" size="sm">*/}
-                                                {/*                <IconDots size={14} />*/}
-                                                {/*            </ActionIcon>*/}
-                                                {/*        </Menu.Target>*/}
-                                                {/*        <Menu.Dropdown>*/}
-                                                {/*            {task.actions.slice(2).map(action => (*/}
-                                                {/*                <Menu.Item*/}
-                                                {/*                    key={action}*/}
-                                                {/*                    leftSection={getActionIcon(action)}*/}
-                                                {/*                    onClick={() => handleTaskAction(task.id, action)}*/}
-                                                {/*                    disabled={isActionLoading}*/}
-                                                {/*                >*/}
-                                                {/*                    {action.replace('-', ' ')}*/}
-                                                {/*                </Menu.Item>*/}
-                                                {/*            ))}*/}
-                                                {/*        </Menu.Dropdown>*/}
-                                                {/*    </Menu>*/}
-                                                {/*)}*/}
                                             </Group>
                                         </Table.Td>
                                     </Table.Tr>
                                 );
                             })}
-
-                            {tasks.length === 0 && (
-                                <Table.Tr>
-                                    <Table.Td colSpan={5}>
-                                        <Stack align="center" gap="sm" py="xl">
-                                            {loading ? (
-                                                <Loader size="sm" />
-                                            ) : (
-                                                <IconAlertCircle size={32} color="gray" />
-                                            )}
-                                            <Text c="dimmed">
-                                                {loading ? "Loading tasks…" : "No tasks found matching your criteria"}
-                                            </Text>
-                                        </Stack>
-                                    </Table.Td>
-                                </Table.Tr>
-                            )}
                         </Table.Tbody>
                     </Table>
-                </ScrollArea>
-            </Card>
+                </Card>
+            )}
 
             {/* Task Detail Modal */}
             <Modal
                 opened={modalOpened}
-                onClose={closeModal}
-                title="Task Details"
-                size="lg"
+                onClose={() => {
+                    closeModal();
+                    setActionType(null);
+                    setTaskComment("");
+                    setOfferAnalysisData(null);
+                }}
+                title={
+                    <Group gap="xs">
+                        <ThemeIcon variant="light" size="lg">
+                            <IconInfoCircle size={20} />
+                        </ThemeIcon>
+                        <Text fw={600} size="lg">
+                            {processID === 'OFFER_ANALYSIS_APPROVAL' ? 'Offer Analysis Approval' : 'Task Details'}
+                        </Text>
+                    </Group>
+                }
+                size={processID === 'OFFER_ANALYSIS_APPROVAL' ? 'xl' : 'lg'}
             >
                 {selectedTask && (
                     <Stack gap="md">
                         {/* Task Info */}
-                        <Paper p="md" withBorder>
+                        <Paper p="md" withBorder radius="md" bg="gray.0">
                             <Stack gap="sm">
                                 <Group justify="space-between" align="flex-start">
-                                    <div>
-                                        <Text fw={600} size="lg">{selectedTask.name}</Text>
-                                        <Text c="dimmed" size="sm">{selectedTask.description}</Text>
+                                    <div style={{ flex: 1 }}>
+                                        <Text fw={700} size="lg">{selectedTask.name}</Text>
+                                        {selectedTask.description && (
+                                            <Text c="dimmed" size="sm" mt={4}>
+                                                {selectedTask.description}
+                                            </Text>
+                                        )}
                                     </div>
-                                    <Group gap="xs">
-                                        <Badge >
-                                            {selectedTask.processDefinitionName}
-                                        </Badge>
-                                        <Badge >
-                                            {selectedTask.priority} priority
-                                        </Badge>
-                                    </Group>
+                                    <Badge
+                                        size="lg"
+                                        color={getPriorityColor(selectedTask.priority)}
+                                        variant="filled"
+                                    >
+                                        {selectedTask.priority || 'normal'} priority
+                                    </Badge>
                                 </Group>
 
-                                <Group gap="xl">
+                                <Divider my="xs" />
+
+                                <Group gap="xl" grow>
                                     <div>
-                                        <Text size="xs" c="dimmed">Assignee</Text>
-                                        <Text size="sm" fw={500}>{selectedTask.assignee}</Text>
+                                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Assignee</Text>
+                                        <Group gap="xs" mt={4}>
+                                            <IconUser size={16} />
+                                            <Text size="sm" fw={500}>{selectedTask.assignee || 'Unassigned'}</Text>
+                                        </Group>
                                     </div>
                                     <div>
-                                        <Text size="xs" c="dimmed">Due Date</Text>
-                                        <Text size="sm" fw={500}>
-                                            {formatDate(selectedTask.dueDate)}
-                                        </Text>
-                                    </div>
-                                    <div>
-                                        <Text size="xs" c="dimmed">Created</Text>
-                                        <Text size="sm" fw={500}>{formatDate(selectedTask.createTime)}</Text>
+                                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>Created</Text>
+                                        <Group gap="xs" mt={4}>
+                                            <IconClock size={16} />
+                                            <Text size="sm" fw={500}>
+                                                {formatDate(selectedTask.createTime)}
+                                            </Text>
+                                        </Group>
                                     </div>
                                 </Group>
 
                                 {/* Process Variables */}
                                 {selectedTask.variables && Object.keys(selectedTask.variables).length > 0 && (
-                                    <div>
-                                        <Text size="sm" fw={500} mb="xs">Process Information</Text>
-                                        <Paper p="sm" bg="gray.1">
+                                    <>
+                                        <Divider my="xs" />
+                                        <div>
+                                            <Text size="sm" fw={600} mb="xs">Process Information</Text>
                                             <Stack gap="xs">
                                                 {Object.entries(selectedTask.variables).map(([key, value]) => (
-                                                    <Group key={key} justify="space-between">
-                                                        <Text size="xs" fw={500} tt="capitalize">
+                                                    <Group key={key} justify="space-between" gap="md">
+                                                        <Text size="sm" c="dimmed" tt="capitalize">
                                                             {key.replace(/([A-Z])/g, ' $1').trim()}:
                                                         </Text>
-                                                        <Text size="xs" c="dimmed">
+                                                        <Text size="sm" fw={500}>
                                                             {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                                                         </Text>
                                                     </Group>
                                                 ))}
                                             </Stack>
-                                        </Paper>
-                                    </div>
+                                        </div>
+                                    </>
                                 )}
                             </Stack>
                         </Paper>
 
-                        {/* Comment Field */}
-                        <Textarea
-                            label="Comments (Optional)"
-                            placeholder="Add any comments or notes..."
-                            value={taskComment}
-                            onChange={(e) => setTaskComment(e.currentTarget.value)}
-                            rows={3}
-                        />
+                        {/* Offer Analysis Details - Only for OFFER_ANALYSIS_APPROVAL */}
+                        {processID === 'OFFER_ANALYSIS_APPROVAL' && (
+                            <>
+                                {offerDataLoading ? (
+                                    <Paper p="md" withBorder>
+                                        <Center>
+                                            <Stack align="center" gap="sm">
+                                                <Loader size="sm" />
+                                                <Text size="sm" c="dimmed">Loading offer details...</Text>
+                                            </Stack>
+                                        </Center>
+                                    </Paper>
+                                ) : offerAnalysisData ? (
+                                    <Stack gap="md">
+                                        {/* Offer Information */}
+                                        <Paper p="md" withBorder radius="md" bg="blue.0">
+                                            <Stack gap="sm">
+                                                <Group justify="space-between">
+                                                    <Group gap="xs">
+                                                        <ThemeIcon variant="light" color="blue">
+                                                            <IconBuildingBank size={18} />
+                                                        </ThemeIcon>
+                                                        <Text fw={700} size="md">Offer Information</Text>
+                                                    </Group>
+                                                    <Badge size="lg" variant="filled">
+                                                        {offerAnalysisData.offer.currencyCode}
+                                                    </Badge>
+                                                </Group>
+
+                                                <Divider />
+
+                                                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                                                    <div>
+                                                        <Text size="xs" c="dimmed" tt="uppercase">Cedant</Text>
+                                                        <Text fw={600}>{offerAnalysisData.offer.cedant}</Text>
+                                                    </div>
+                                                    <div>
+                                                        <Text size="xs" c="dimmed" tt="uppercase">Insured</Text>
+                                                        <Text fw={600}>{offerAnalysisData.offer.insured}</Text>
+                                                    </div>
+                                                    <div>
+                                                        <Text size="xs" c="dimmed" tt="uppercase">Country</Text>
+                                                        <Text fw={600}>{offerAnalysisData.offer.country}</Text>
+                                                    </div>
+                                                    <div>
+                                                        <Text size="xs" c="dimmed" tt="uppercase">Broker</Text>
+                                                        <Text fw={600}>{offerAnalysisData.offer.broker || 'N/A'}</Text>
+                                                    </div>
+                                                    <div>
+                                                        <Text size="xs" c="dimmed" tt="uppercase">Sum Insured</Text>
+                                                        <Text fw={600}>{formatCurrency(offerAnalysisData.offer.sumInsured, offerAnalysisData.offer.currencyCode)}</Text>
+                                                    </div>
+                                                    <div>
+                                                        <Text size="xs" c="dimmed" tt="uppercase">Premium</Text>
+                                                        <Text fw={600}>{formatCurrency(offerAnalysisData.offer.premium, offerAnalysisData.offer.currencyCode)}</Text>
+                                                    </div>
+                                                    <div>
+                                                        <Text size="xs" c="dimmed" tt="uppercase">Period</Text>
+                                                        <Text fw={600}>
+                                                            {new Date(offerAnalysisData.offer.periodFrom).toLocaleDateString()} - {new Date(offerAnalysisData.offer.periodTo).toLocaleDateString()}
+                                                        </Text>
+                                                    </div>
+                                                    <div>
+                                                        <Text size="xs" c="dimmed" tt="uppercase">Exchange Rate</Text>
+                                                        <Text fw={600}>{offerAnalysisData.offer.exchangeRate.toFixed(6)}</Text>
+                                                    </div>
+                                                </SimpleGrid>
+                                            </Stack>
+                                        </Paper>
+
+                                        {/* Analysis Breakdown */}
+                                        {offerAnalysisData.analysis && (
+                                            <Paper p="md" withBorder radius="md" bg="green.0">
+                                                <Stack gap="sm">
+                                                    <Group gap="xs">
+                                                        <ThemeIcon variant="light" color="green">
+                                                            <IconCoin size={18} />
+                                                        </ThemeIcon>
+                                                        <Text fw={700} size="md">Analysis Breakdown</Text>
+                                                    </Group>
+
+                                                    <Divider />
+
+                                                    {/* TAN-RE Share */}
+                                                    <Paper p="sm" withBorder bg="white">
+                                                        <Stack gap="xs">
+                                                            <Text fw={700} size="sm" c="blue">TAN-RE Share Offered</Text>
+                                                            <SimpleGrid cols={3} spacing="xs">
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Share %</Text>
+                                                                    <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.tanreSharePercent)}</Text>
+                                                                </div>
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Exposure</Text>
+                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.tanreExposure, 'TZS')}</Text>
+                                                                </div>
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Premium</Text>
+                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.tanrePremium, 'TZS')}</Text>
+                                                                </div>
+                                                            </SimpleGrid>
+                                                        </Stack>
+                                                    </Paper>
+
+                                                    {/* Accepted Share */}
+                                                    <Paper p="sm" withBorder bg="white">
+                                                        <Stack gap="xs">
+                                                            <Text fw={700} size="sm" c="teal">Share Accepted by TAN-RE</Text>
+                                                            <SimpleGrid cols={3} spacing="xs">
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Share %</Text>
+                                                                    <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.acceptedSharePercent)}</Text>
+                                                                </div>
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Exposure</Text>
+                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.acceptedExposure, 'TZS')}</Text>
+                                                                </div>
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Premium</Text>
+                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.acceptedPremium, 'TZS')}</Text>
+                                                                </div>
+                                                            </SimpleGrid>
+                                                        </Stack>
+                                                    </Paper>
+
+                                                    <Divider label="Breakdown of Accepted Share" labelPosition="center" />
+
+                                                    {/* Retention */}
+                                                    <Paper p="sm" withBorder bg="white">
+                                                        <Stack gap="xs">
+                                                            <Text fw={700} size="sm" c="violet">TAN-RE Retention</Text>
+                                                            <SimpleGrid cols={3} spacing="xs">
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Share %</Text>
+                                                                    <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.retentionSharePercent)}</Text>
+                                                                </div>
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Exposure</Text>
+                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.retentionExposure, 'TZS')}</Text>
+                                                                </div>
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Premium</Text>
+                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.retentionPremium, 'TZS')}</Text>
+                                                                </div>
+                                                            </SimpleGrid>
+                                                        </Stack>
+                                                    </Paper>
+
+                                                    {/* Surplus */}
+                                                    <Paper p="sm" withBorder bg="white">
+                                                        <Stack gap="xs">
+                                                            <Text fw={700} size="sm" c="orange">Surplus Retro</Text>
+                                                            <SimpleGrid cols={3} spacing="xs">
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Share %</Text>
+                                                                    <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.surplusSharePercent)}</Text>
+                                                                </div>
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Exposure</Text>
+                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.surplusExposure, 'TZS')}</Text>
+                                                                </div>
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Premium</Text>
+                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.surplusPremium, 'TZS')}</Text>
+                                                                </div>
+                                                            </SimpleGrid>
+                                                        </Stack>
+                                                    </Paper>
+
+                                                    {/* Fac Retro */}
+                                                    <Paper p="sm" withBorder bg="white">
+                                                        <Stack gap="xs">
+                                                            <Text fw={700} size="sm" c="red">Facultative Retro</Text>
+                                                            <SimpleGrid cols={3} spacing="xs">
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Share %</Text>
+                                                                    <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.facRetroPercent)}</Text>
+                                                                </div>
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Exposure</Text>
+                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.facRetroExposure, 'TZS')}</Text>
+                                                                </div>
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed">Premium</Text>
+                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.facRetroPremium, 'TZS')}</Text>
+                                                                </div>
+                                                            </SimpleGrid>
+                                                        </Stack>
+                                                    </Paper>
+
+                                                    <Divider />
+
+                                                    {/* Total */}
+                                                    <Paper p="sm" withBorder bg="gray.1">
+                                                        <Group justify="space-between">
+                                                            <Text fw={700} size="md">Total</Text>
+                                                            <Group gap="xl">
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed" ta="right">Total Exposure</Text>
+                                                                    <Text fw={700} size="lg">{formatCurrency(offerAnalysisData.analysis.totalExposure, 'TZS')}</Text>
+                                                                </div>
+                                                                <div>
+                                                                    <Text size="xs" c="dimmed" ta="right">Total Premium</Text>
+                                                                    <Text fw={700} size="lg">{formatCurrency(offerAnalysisData.analysis.totalPremium, 'TZS')}</Text>
+                                                                </div>
+                                                            </Group>
+                                                        </Group>
+                                                    </Paper>
+                                                </Stack>
+                                            </Paper>
+                                        )}
+                                    </Stack>
+                                ) : null}
+                            </>
+                        )}
+
+                        {/* Action Selection */}
+                        {!actionType ? (
+                            <Alert icon={<IconInfoCircle size={16} />} color="blue">
+                                Please select an action to proceed with this task
+                            </Alert>
+                        ) : (
+                            <>
+                                {/* Comment Field */}
+                                <Textarea
+                                    label={actionType === 'approve' ? 'Approval Comments (Optional)' : 'Rejection Comments (Required)'}
+                                    placeholder={actionType === 'approve'
+                                        ? 'Add any comments or notes about your approval...'
+                                        : 'Please provide a reason for rejection...'
+                                    }
+                                    value={taskComment}
+                                    onChange={(e) => setTaskComment(e.currentTarget.value)}
+                                    rows={4}
+                                    required={actionType === 'reject'}
+                                />
+                            </>
+                        )}
 
                         {/* Action Buttons */}
-
-                        <Group justify="flex-end" gap="sm">
-                            <Button variant="default" onClick={() => approve(taskComment, selectedTask?.id)}>
-                                Approve
-                            </Button>
-                            <Button variant="default" onClick={() => reject(taskComment, selectedTask?.id)}>
-                                Reject
-                            </Button>
-                            <Button variant="default" onClick={closeModal}>
-                                Cancel
-                            </Button>
+                        <Group justify="flex-end" gap="sm" mt="md">
+                            {!actionType ? (
+                                <>
+                                    <Button
+                                        variant="light"
+                                        color="green"
+                                        leftSection={<IconCheck size={16} />}
+                                        onClick={() => setActionType('approve')}
+                                    >
+                                        Approve Task
+                                    </Button>
+                                    <Button
+                                        variant="light"
+                                        color="red"
+                                        leftSection={<IconX size={16} />}
+                                        onClick={() => setActionType('reject')}
+                                    >
+                                        Reject Task
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    <Button
+                                        variant="subtle"
+                                        onClick={() => {
+                                            setActionType(null);
+                                            setTaskComment("");
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    {actionType === 'approve' ? (
+                                        <Button
+                                            color="green"
+                                            leftSection={<IconCheck size={16} />}
+                                            onClick={handleApprove}
+                                            loading={actionLoading}
+                                        >
+                                            Confirm Approval
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            color="red"
+                                            leftSection={<IconX size={16} />}
+                                            onClick={handleReject}
+                                            loading={actionLoading}
+                                            disabled={!taskComment.trim()}
+                                        >
+                                            Confirm Rejection
+                                        </Button>
+                                    )}
+                                </>
+                            )}
                         </Group>
                     </Stack>
                 )}
@@ -471,3 +820,6 @@ export default function FlowableTasksCenter() {
         </Stack>
     );
 }
+
+// Add missing import
+import { Container } from "@mantine/core";

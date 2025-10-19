@@ -36,6 +36,19 @@ export interface User {
     username: string;
 }
 
+export interface LineOfBusiness {
+    id: number;
+    name: string;
+}
+
+export interface RetroType {
+    id: number;
+    name: string;
+    description: string;
+    lobId: number;
+    businessTypeId: number;
+}
+
 
 
 
@@ -48,6 +61,8 @@ interface DropdownStore {
     currencies: Currency[];
     contractTypes: ContractType[];
     users: User[];
+    lineOfBusinesses: LineOfBusiness[];
+    retroTypes: RetroType[];
     loading: boolean;
     error: string | null;
 
@@ -55,6 +70,8 @@ interface DropdownStore {
     setUsers: (types: User[]) => void;
     setCurrencies: (curr: Currency[]) => void;
     setContractTypes: (types: ContractType[]) => void;
+    setLineOfBusinesses: (lobs: LineOfBusiness[]) => void;
+    setRetroTypes: (types: RetroType[]) => void;
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
 
@@ -64,47 +81,69 @@ interface DropdownStore {
     getUserSelectionData: () => { value: string; label: string }[];
     getCurrencySelectData: () => { value: string; label: string }[];
     getContractTypeSelectData: () => { value: string; label: string }[];
+    getLineOfBusinessSelectData: () => { value: string; label: string }[];
+    getRetroTypeSelectData: (lobId?: number) => { value: string; label: string }[];
 }
 
 const useDropdownStore = create<DropdownStore>((set, get) => ({
     programs: [],
-    currencies: [],
+    currencies: [
+        { code: 'TZS', name: 'Tanzanian Shilling', exchangeRate: 1 },
+        { code: 'USD', name: 'US Dollar', exchangeRate: 2500 },
+        { code: 'EUR', name: 'Euro', exchangeRate: 2750 },
+        { code: 'GBP', name: 'British Pound', exchangeRate: 3200 },
+    ],
     contractTypes: [],
     users: [],
-    cedants: [],
-    broker: [],
+    lineOfBusinesses: [
+        { id: 1, name: 'Fire' },
+        { id: 2, name: 'Engineering' },
+        { id: 3, name: 'Energy' },
+    ],
+    retroTypes: [
+        { id: 1, name: 'Fire & Engineering', description: 'Fire and Engineering', lobId: 1, businessTypeId: 2 },
+        { id: 2, name: 'Fire', description: 'Fire', lobId: 1, businessTypeId: 1 },
+        { id: 3, name: 'Fire & Engineering - Prop', description: 'Fire and Engineering Proportional Treaty', lobId: 1, businessTypeId: 2 },
+        { id: 4, name: 'Fire & Engineering - Non-Prop', description: 'Fire and Engineering Non Proportional Treaty', lobId: 1, businessTypeId: 2 },
+    ],
     loading: false,
     error: null,
 
     setProgram: (cls) => set({ programs: cls }),
     setCurrencies: (curr) => set({ currencies: curr }),
     setContractTypes: (types) => set({ contractTypes: types }),
-    setUsers: (users) => set({users: users}),
+    setUsers: (users) => set({ users: users }),
+    setLineOfBusinesses: (lobs) => set({ lineOfBusinesses: lobs }),
+    setRetroTypes: (types) => set({ retroTypes: types }),
     setLoading: (loading) => set({ loading }),
     setError: (error) => set({ error }),
 
     loadDropdownData: async () => {
-        const { setLoading, setError, setProgram, setCurrencies, setContractTypes, setUsers } = get();
+        const { setLoading, setError, setProgram, setCurrencies, setContractTypes, setUsers, setLineOfBusinesses, setRetroTypes } = get();
         setLoading(true);
         setError(null);
         try {
             // Load all dropdown data concurrently
-            const [contractTypes, currencies, classes, users] = await Promise.all([
-                apiFetch<ContractType[]>(`/api/contract-types`),
-                apiFetch<Currency[]>('/api/currencies'),
-                apiFetch<Program[]>('/api/program'),
-                apiFetch<User[]>('/admin/users/list')
+            const [contractTypes, currencies, classes, users, lobs, retroTypes] = await Promise.all([
+                apiFetch<ContractType[]>(`/api/contract-types`).catch(() => []),
+                apiFetch<Currency[]>('/api/currencies').catch(() => get().currencies), // Keep default currencies if API fails
+                apiFetch<Program[]>('/api/program').catch(() => []),
+                apiFetch<User[]>('/admin/users/list').catch(() => []),
+                apiFetch<LineOfBusiness[]>('/api/underwriting/line-of-business').catch(() => get().lineOfBusinesses), // Keep default LOBs if API fails
+                apiFetch<RetroType[]>('/api/underwriting/retro-types').catch(() => get().retroTypes) // Keep default retro types if API fails
             ]);
 
             setContractTypes(contractTypes || []);
-            setCurrencies(currencies || []);
+            // Only update if API returned data, otherwise keep defaults
+            if (currencies && currencies.length > 0) setCurrencies(currencies);
             setProgram(classes || []);
             setUsers(users || []);
-
+            if (lobs && lobs.length > 0) setLineOfBusinesses(lobs);
+            if (retroTypes && retroTypes.length > 0) setRetroTypes(retroTypes);
 
         } catch (err: any) {
             setError(err?.message || 'Unknown error loading dropdowns');
-            throw err;
+            // Don't throw - we have fallback data
         } finally {
             setLoading(false);
         }
@@ -120,6 +159,23 @@ const useDropdownStore = create<DropdownStore>((set, get) => ({
         return contractTypes.map(contractType => ({
             value:String(contractType.contractTypeId || contractType.contractTypesId),
             label: contractType.typeName
+        }));
+    },
+
+    getLineOfBusinessSelectData: () =>
+        get().lineOfBusinesses.map((lob) => ({
+            value: String(lob.id),
+            label: lob.name
+        })),
+
+    getRetroTypeSelectData: (lobId?: number) => {
+        const { retroTypes } = get();
+        const filtered = lobId
+            ? retroTypes.filter(rt => rt.lobId === lobId)
+            : retroTypes;
+        return filtered.map((rt) => ({
+            value: String(rt.id),
+            label: rt.name
         }));
     }
 
@@ -173,12 +229,15 @@ export interface FacultativeOfferCalcResponseDto {
 
 export interface OfferFormData {
     cedant: string;
-    broker: string; // added
+    broker: string;
     offerReceivedDate: Date;
     insured: string;
     occupation: string;
-    programId: string; // maps to programId
-    contractTypeId: string;
+    programId: string; // Keep for backend compatibility
+    contractTypeId: string; // Keep for backend compatibility
+    lineOfBusinessId: string; // For UI selection
+    retroTypeId: string; // For calculations
+    retroYear: number; // Retro year for filtering and submission
     country: string;
     periodFrom: Date;
     periodTo: Date;
@@ -242,8 +301,11 @@ const useOfferStore = create<OfferStore>((set, get) => ({
     offerReceivedDate: new Date(),
     insured: '',
     occupation: '',
-    programId: '',
-    contractTypeId: '',
+    programId: '1', // Default to avoid validation errors
+    contractTypeId: '1', // Default to avoid validation errors
+    lineOfBusinessId: '',
+    retroTypeId: '',
+    retroYear: new Date().getFullYear(), // Default to current year
     country: '',
     periodFrom: new Date(),
     periodTo: new Date(),
@@ -298,11 +360,9 @@ const useOfferStore = create<OfferStore>((set, get) => ({
     validateForm: (v) => {
         const errors: Record<string, string> = {};
         if (!v.cedant) errors.cedant = 'Cedant is required';
-        if (!v.broker) errors.broker = 'Broker is required';
         if (!v.insured) errors.insured = 'Insured is required';
-        if (!v.programId) errors.programId = 'Business class is required';
-        if (!v.contractTypeId) errors.contractTypeId = 'Contract type is required';
-        if (!v.country) errors.country = 'Country is required';
+        if (!v.lineOfBusinessId) errors.lineOfBusinessId = 'Line of Business is required';
+        if (!v.retroTypeId) errors.retroTypeId = 'Retro Type is required';
         if (!v.currencyCode) errors.currencyCode = 'Currency is required';
         if (v.exchangeRate <= 0) errors.exchangeRate = 'Exchange rate must be greater than 0';
         if (v.periodFrom >= v.periodTo) errors.periodTo = 'Period To must be after Period From';
@@ -314,27 +374,20 @@ const useOfferStore = create<OfferStore>((set, get) => ({
         const s = get();
         const payload = {
             // mappings to backend DTO
-            // programId: Number(s.programId), // program
-            programId: Number(s.programId), // program
-            contractTypeId: Number(s.contractTypeId),
-            retroYear: s.periodFrom.getFullYear(),
-            periodFrom: s.periodFrom.toISOString().slice(0, 10),
+            retroTypeId: Number(s.retroTypeId),
+            year: s.retroYear, // Use the retroYear field from the form
+            currency: s.currencyCode,
             exchangeRate: s.exchangeRate,
             sumInsuredOs: s.sumInsuredOs,
             premiumOs: s.premiumOs,
             shareOfferedPct: s.shareOfferedPct,
             shareAcceptedPct: s.shareAcceptedPct,
-            currency: s.currencyCode,
-            country: s.country,
-            insured: s.insured,
-            broker: s.broker,
-            cedant: s.cedant,
         };
 
         set({ calculating: true, error: null });
         try {
             const res = await apiFetch<FacultativeOfferCalcResponseDto>(
-                '/api/facultative-offers/analyze',
+                '/api/underwriting/facultative/analyze',
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -387,25 +440,29 @@ const useOfferStore = create<OfferStore>((set, get) => ({
         try {
 
             const payload = {
-                // inputs
-                programId: Number(v.programId),
-                contractTypeId: Number(v.contractTypeId),
-                retroYear: v.periodFrom.getFullYear(),
+                // Required by backend model
+                programId: Number(v.programId) || 1,
+                contractTypeId: Number(v.contractTypeId) || 1,
+                retroYear: v.retroYear, // Use the retroYear field from the form
                 periodFrom: v.periodFrom.toISOString().slice(0, 10),
                 periodTo: v.periodTo.toISOString().slice(0, 10),
                 currency: v.currencyCode,
                 exchangeRate: v.exchangeRate,
-                offerReceivedDate :v.offerReceivedDate,
+                offerReceivedDate: v.offerReceivedDate.toISOString().slice(0, 10),
                 cedant: v.cedant,
-                broker: v.broker,
+                broker: v.broker || '',
                 insured: v.insured,
-                occupation: v.occupation,
+                occupation: v.occupation || '',
                 country: v.country,
                 sumInsuredOs: v.sumInsuredOs,
                 premiumOs: v.premiumOs,
                 shareOfferedPct: v.shareOfferedPct,
                 shareAcceptedPct: v.shareAcceptedPct,
                 notes: v.notes,
+
+                // Additional fields for new structure
+                retroTypeId: Number(v.retroTypeId),
+                lineOfBusinessId: Number(v.lineOfBusinessId),
 
                 // computed snapshot (optional)
                 sumInsuredTz: v.sumInsuredTz,
@@ -425,20 +482,22 @@ const useOfferStore = create<OfferStore>((set, get) => ({
                 facRetroPremiumTz: v.facRetroPremiumTz,
             };
 
-
-            // await apiFetch('/api/facultative-offers/save', {
-            //     method: 'POST',
-            //     body: payload,
-            //     headers: { 'Content-Type': 'application/json' },
-            //     requiresAuth: true,
-            // });
-
-            await apiFetch('/api/facultative-offers/process/start', {
+            // Use new endpoint for workflow submission
+            const response = await apiFetch<{
+                offerId: number;
+                analysisId: number;
+                processInstanceId: string;
+                businessKey: string;
+                status: string;
+                message: string;
+            }>('/api/underwriting/facultative/submit', {
                 method: 'POST',
                 body: payload,
                 headers: { 'Content-Type': 'application/json' },
                 requiresAuth: true,
             });
+
+            console.log('Submission successful:', response);
 
             return true;
         } catch (e: any) {
@@ -474,8 +533,11 @@ const useOfferStore = create<OfferStore>((set, get) => ({
             offerReceivedDate: new Date(),
             insured: '',
             occupation: '',
-            programId: '',
-            contractTypeId: '',
+            programId: '1',
+            contractTypeId: '1',
+            lineOfBusinessId: '',
+            retroTypeId: '',
+            retroYear: new Date().getFullYear(),
             country: '',
             periodFrom: new Date(),
             periodTo: new Date(),

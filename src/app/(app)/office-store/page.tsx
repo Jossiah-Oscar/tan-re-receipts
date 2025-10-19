@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-    Group,
+    Container,
     Title,
     Tabs,
     Button,
@@ -14,351 +14,567 @@ import {
     NumberInput,
     ActionIcon,
     Select,
+    Paper,
+    Badge,
+    Stack,
+    Center,
+    Tooltip,
+    Card,
+    SimpleGrid,
+    ThemeIcon,
+    Group,
 } from "@mantine/core";
-import { showNotification } from "@mantine/notifications";
-import { IconPlus, IconTrash } from "@tabler/icons-react";
-import { apiFetch } from "@/config/api";
-import {useAuth} from "@/context/AuthContext";
-
-//
-// ——— Types
-//
-type Item = {
-    id: number;
-    name: string;
-    quantity: number;
-};
-
-type RequestLine = {
-    itemId?: number;
-    quantity?: number;
-    reason?: string;
-};
-
-type RequestDTO = {
-    id: number;
-    createdBy: string;
-    createdAt: string;
-    lines: {
-        itemName: string;
-        quantity: number;
-        reason?: string;
-    }[];
-};
+import { modals } from "@mantine/modals";
+import {
+    IconPlus,
+    IconTrash,
+    IconPackage,
+    IconFileDescription,
+    IconAlertCircle,
+    IconBox,
+    IconShoppingCart,
+} from "@tabler/icons-react";
+import { useAuth } from "@/context/AuthContext";
+import useOfficeStoreInventory, { RequestLine } from "@/store/useOfficeStoreInventory";
 
 export default function InventoryPage() {
-    //AUTH
-    const {username, roles} = useAuth();
+    const { roles } = useAuth();
     const isOfficeAssistant = roles.includes("OFFICE-ASSISTANT");
 
-    // ——— State for stock
-    const [items, setItems] = useState<Item[]>([]);
-    const [itemsLoading, setItemsLoading] = useState(true);
+    // Zustand store
+    const {
+        items,
+        itemsLoading,
+        requests,
+        requestsLoading,
+        fetchItems,
+        fetchRequests,
+        addItem,
+        deleteItem,
+        submitRequest,
+    } = useOfficeStoreInventory();
 
-    // ——— State for requests
-    const [requests, setRequests] = useState<RequestDTO[]>([]);
-    const [reqLoading, setReqLoading] = useState(true);
-
-    // ——— “Add Item” modal
+    // Modal states
     const [addModalOpen, setAddModalOpen] = useState(false);
+    const [reqModalOpen, setReqModalOpen] = useState(false);
+
+    // Add Item form
     const [newName, setNewName] = useState("");
     const [newQty, setNewQty] = useState<number | string>("");
 
-
-    // ——— “Request Items” modal
-    const [reqModalOpen, setReqModalOpen] = useState(false);
+    // Request Items form
     const [rows, setRows] = useState<RequestLine[]>([{}]);
 
-
+    // Load data on mount
     useEffect(() => {
         fetchItems();
         fetchRequests();
-    }, []);
+    }, [fetchItems, fetchRequests]);
 
-    async function fetchItems() {
-        setItemsLoading(true);
-        try {
-            const data = await apiFetch<Item[]>("/api/items");
-            setItems(data);
-        } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
-        } finally {
-            setItemsLoading(false);
-        }
-    }
-
-    async function fetchRequests() {
-        setReqLoading(true);
-        try {
-            const data = await apiFetch<RequestDTO[]>("/api/items/requests");
-            setRequests(data);
-        } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
-        } finally {
-            setReqLoading(false);
-        }
-    }
-
-    // ——— Add or update an Item
-    async function saveItem() {
+    // Add Item handler
+    const handleSaveItem = async () => {
         if (!newName || newQty === "") {
-            showNotification({ title: "Validation", message: "Name & qty required", color: "yellow" });
             return;
         }
-        try {
-            await apiFetch("/api/items", {
-                method: "POST",
-                body: { name: newName, quantity: Number(newQty) },
-            });
-            showNotification({ title: "Success", message: "Item saved", color: "green" });
+        const success = await addItem(newName, Number(newQty));
+        if (success) {
             setAddModalOpen(false);
             setNewName("");
             setNewQty("");
-            fetchItems();
-        } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
         }
-    }
+    };
 
-    // ——— Delete an Item
-    async function deleteItem(id: number) {
-        try {
-            await apiFetch(`/api/items/${id}`, { method: "DELETE" });
-            showNotification({ title: "Deleted", message: "Item removed", color: "blue" });
-            fetchItems();
-        } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
-        }
-    }
+    // Delete Item handler
+    const handleDeleteItem = (id: number, name: string) => {
+        modals.openConfirmModal({
+            title: "Delete Item",
+            centered: true,
+            children: (
+                <Stack gap="sm">
+                    <Group gap="xs">
+                        <IconAlertCircle size={20} color="var(--mantine-color-red-6)" />
+                        <Text size="sm">
+                            Are you sure you want to delete <strong>{name}</strong>?
+                        </Text>
+                    </Group>
+                    <Text size="sm" c="dimmed">
+                        This action cannot be undone.
+                    </Text>
+                </Stack>
+            ),
+            labels: { confirm: "Delete", cancel: "Cancel" },
+            confirmProps: { color: "red" },
+            onConfirm: () => deleteItem(id),
+        });
+    };
 
-    // ——— Multi-row Request form handlers
-    function addRow() {
-        setRows((r) => [...r, {}]);
-    }
-    function removeRow(idx: number) {
-        setRows((r) => r.filter((_, i) => i !== idx));
-    }
-    function updateRow(idx: number, field: keyof RequestLine, val: any) {
+    // Request form handlers
+    const addRow = () => setRows((r) => [...r, {}]);
+    const removeRow = (idx: number) => setRows((r) => r.filter((_, i) => i !== idx));
+    const updateRow = (idx: number, field: keyof RequestLine, val: any) => {
         setRows((r) => r.map((row, i) => (i === idx ? { ...row, [field]: val } : row)));
-    }
+    };
 
-    async function submitRequest() {
-        // validate
-        for (const row of rows) {
-            if (!row.itemId || !row.quantity) {
-                showNotification({ title: "Validation", message: "Each row needs item & qty", color: "yellow" });
-                return;
-            }
-        }
-        try {
-            await apiFetch("/api/items/requests", {
-                method: "POST",
-                body: rows,
-            });
-            showNotification({ title: "Requested", message: "Your request was saved", color: "green" });
+    const handleSubmitRequest = async () => {
+        const success = await submitRequest(rows);
+        if (success) {
             setReqModalOpen(false);
             setRows([{}]);
-            fetchItems();    // refresh stock balances
-            fetchRequests(); // refresh history
-        } catch (e: any) {
-            showNotification({ title: "Error", message: e.message, color: "red" });
         }
-    }
+    };
+
+    const getLowStockCount = () => items.filter((item) => item.quantity < 10).length;
 
     return (
-        <>
-            <Group justify="apart" mb="md">
-                <Title order={2}>Inventory Management</Title>
-            </Group>
-
-            <Tabs defaultValue="requests">
-                <Tabs.List>
-                    <Tabs.Tab value="requests">Requests</Tabs.Tab>
-
-                    {isOfficeAssistant && (
-
-                        <Tabs.Tab value="inventory">Stock</Tabs.Tab>
+        <Container size="xl" my="xl">
+            {/* Header */}
+            <Paper shadow="sm" p="lg" radius="md" mb="xl">
+                <Group justify="space-between" mb="xs">
+                    <div>
+                        <Title order={1}>Office Store</Title>
+                        <Text size="sm" c="dimmed" mt={4}>
+                            Manage inventory and submit requests for office supplies
+                        </Text>
+                    </div>
+                    <Group>
+                        <Badge
+                            size="lg"
+                            variant="light"
+                            color="blue"
+                            leftSection={<IconBox size={14} />}
+                        >
+                            {items.length} Items
+                        </Badge>
+                        {getLowStockCount() > 0 && (
+                            <Badge
+                                size="lg"
+                                variant="light"
+                                color="orange"
+                                leftSection={<IconAlertCircle size={14} />}
+                            >
+                                {getLowStockCount()} Low Stock
+                            </Badge>
                         )}
+                    </Group>
+                </Group>
+            </Paper>
+
+            {/* Tabs */}
+            <Tabs defaultValue="requests" variant="pills">
+                <Tabs.List mb="lg">
+                    <Tabs.Tab
+                        value="requests"
+                        leftSection={<IconFileDescription size={16} />}
+                    >
+                        My Requests
+                    </Tabs.Tab>
+                    {isOfficeAssistant && (
+                        <Tabs.Tab value="inventory" leftSection={<IconPackage size={16} />}>
+                            Inventory Management
+                        </Tabs.Tab>
+                    )}
                 </Tabs.List>
 
-                {/** — Requests Tab */}
-                <Tabs.Panel value="requests" pt="md">
-                    <Group justify="right" mb="md">
-                        <Button onClick={() => setReqModalOpen(true)}>Request Items</Button>
-                    </Group>
+                {/* Requests Tab */}
+                <Tabs.Panel value="requests">
+                    <Stack gap="md">
+                        <Paper shadow="xs" p="md" radius="md">
+                            <Group justify="space-between" mb="md">
+                                <div>
+                                    <Title order={3}>Item Requests</Title>
+                                    <Text size="sm" c="dimmed">
+                                        {requests.length} request{requests.length !== 1 ? "s" : ""} submitted
+                                    </Text>
+                                </div>
+                                <Button
+                                    leftSection={<IconShoppingCart size={18} />}
+                                    onClick={() => setReqModalOpen(true)}
+                                >
+                                    Request Items
+                                </Button>
+                            </Group>
 
-                    {reqLoading ? (
-                        <Loader />
-                    ) : requests.length === 0 ? (
-                        <Text>No requests made yet.</Text>
-                    ) : (
-                        <Table highlightOnHover striped verticalSpacing="md">
-                            <Table.Thead>
-                                <Table.Tr>
-                                    <Table.Th>ID</Table.Th>
-                                    <Table.Th>Requested By</Table.Th>
-                                    <Table.Th>Date</Table.Th>
-                                    <Table.Th>Items</Table.Th>
-                                </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                                {requests.map((req) => (
-                                    <Table.Tr key={req.id}>
-                                        <Table.Td>{req.id}</Table.Td>
-                                        <Table.Td>{req.createdBy}</Table.Td>
-                                        <Table.Td>{new Date(req.createdAt).toLocaleString()}</Table.Td>
-                                        <Table.Td>
-                                            {req.lines
-                                                .map((l) => `${l.quantity}×${l.itemName}`)
-                                                .join(", ")}
-                                        </Table.Td>
-                                    </Table.Tr>
-                                ))}
-                            </Table.Tbody>
-                        </Table>
-                    )}
+                            {requestsLoading ? (
+                                <Center h={200}>
+                                    <Loader size="lg" />
+                                </Center>
+                            ) : requests.length === 0 ? (
+                                <Paper p="xl" withBorder>
+                                    <Center>
+                                        <Stack align="center" gap="xs">
+                                            <IconFileDescription size={48} stroke={1.5} opacity={0.3} />
+                                            <Text c="dimmed">No requests submitted yet</Text>
+                                            <Button
+                                                variant="light"
+                                                size="sm"
+                                                leftSection={<IconShoppingCart size={16} />}
+                                                onClick={() => setReqModalOpen(true)}
+                                            >
+                                                Submit your first request
+                                            </Button>
+                                        </Stack>
+                                    </Center>
+                                </Paper>
+                            ) : (
+                                <Table.ScrollContainer minWidth={600}>
+                                    <Table highlightOnHover verticalSpacing="sm">
+                                        <Table.Thead>
+                                            <Table.Tr>
+                                                <Table.Th>Request ID</Table.Th>
+                                                <Table.Th>Date</Table.Th>
+                                                <Table.Th>Items</Table.Th>
+                                                <Table.Th>Status</Table.Th>
+                                            </Table.Tr>
+                                        </Table.Thead>
+                                        <Table.Tbody>
+                                            {requests.map((req) => (
+                                                <Table.Tr key={req.id}>
+                                                    <Table.Td>
+                                                        <Badge variant="light">#{req.id}</Badge>
+                                                    </Table.Td>
+                                                    <Table.Td>
+                                                        {new Date(req.createdAt).toLocaleDateString()}
+                                                    </Table.Td>
+                                                    <Table.Td>
+                                                        <Stack gap={4}>
+                                                            {req.lines.map((line, idx) => (
+                                                                <Text key={idx} size="sm">
+                                                                    {line.quantity}× {line.itemName}
+                                                                    {line.reason && (
+                                                                        <Text size="xs" c="dimmed" component="span">
+                                                                            {" "}
+                                                                            ({line.reason})
+                                                                        </Text>
+                                                                    )}
+                                                                </Text>
+                                                            ))}
+                                                        </Stack>
+                                                    </Table.Td>
+                                                    <Table.Td>
+                                                        <Badge color="blue" variant="light">
+                                                            Submitted
+                                                        </Badge>
+                                                    </Table.Td>
+                                                </Table.Tr>
+                                            ))}
+                                        </Table.Tbody>
+                                    </Table>
+                                </Table.ScrollContainer>
+                            )}
+                        </Paper>
+                    </Stack>
                 </Tabs.Panel>
 
-                {/** — Inventory Tab */}
+                {/* Inventory Tab (Office Assistant only) */}
                 {isOfficeAssistant && (
-                <Tabs.Panel value="inventory" pt="md">
-                    <Group justify="right" mb="md">
-                        <Button leftSection={<IconPlus />} onClick={() => setAddModalOpen(true)}>
-                            Add New Item
-                        </Button>
-                    </Group>
+                    <Tabs.Panel value="inventory">
+                        <Stack gap="md">
+                            <Paper shadow="xs" p="md" radius="md">
+                                <Group justify="space-between" mb="md">
+                                    <div>
+                                        <Title order={3}>Stock Management</Title>
+                                        <Text size="sm" c="dimmed">
+                                            Manage office inventory items
+                                        </Text>
+                                    </div>
+                                    <Button
+                                        leftSection={<IconPlus size={18} />}
+                                        onClick={() => setAddModalOpen(true)}
+                                    >
+                                        Add Item
+                                    </Button>
+                                </Group>
 
-                    {itemsLoading ? (
-                        <Loader />
-                    ) : items.length === 0 ? (
-                        <Text>No items in stock.</Text>
-                    ) : (
-                        <Table highlightOnHover striped verticalSpacing="md">
-                            <Table.Thead>
-                            <Table.Tr>
-                                <Table.Th>Name</Table.Th>
-                                <Table.Th>Quantity</Table.Th>
-                                <Table.Th>Actions</Table.Th>
-                            </Table.Tr>
-                            </Table.Thead>
-                            <Table.Tbody>
-                            {items.map((it) => (
-                                <Table.Tr key={it.id}>
-                                    <Table.Td>{it.name}</Table.Td>
-                                    <Table.Td>{it.quantity}</Table.Td>
-                                    <Table.Td>
-                                        <Group justify="flex-end">
-                                        <ActionIcon color="red" onClick={() => deleteItem(it.id)}>
-                                            <IconTrash size={16} />
-                                        </ActionIcon>
-                                        </Group>
-                                    </Table.Td>
-                                </Table.Tr>
-                            ))}
-                            </Table.Tbody>
-                        </Table>
-                    )}
-                </Tabs.Panel>
-                )
-                }
+                                {itemsLoading ? (
+                                    <Center h={200}>
+                                        <Loader size="lg" />
+                                    </Center>
+                                ) : items.length === 0 ? (
+                                    <Paper p="xl" withBorder>
+                                        <Center>
+                                            <Stack align="center" gap="xs">
+                                                <IconPackage size={48} stroke={1.5} opacity={0.3} />
+                                                <Text c="dimmed">No items in inventory</Text>
+                                                <Button
+                                                    variant="light"
+                                                    size="sm"
+                                                    leftSection={<IconPlus size={16} />}
+                                                    onClick={() => setAddModalOpen(true)}
+                                                >
+                                                    Add your first item
+                                                </Button>
+                                            </Stack>
+                                        </Center>
+                                    </Paper>
+                                ) : (
+                                    <>
+                                        {/* Card Grid View */}
+                                        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md" mb="lg">
+                                            {items.map((item) => {
+                                                const isLowStock = item.quantity < 10;
+                                                const isOutOfStock = item.quantity === 0;
+                                                return (
+                                                    <Card
+                                                        key={item.id}
+                                                        shadow="sm"
+                                                        padding="lg"
+                                                        radius="md"
+                                                        withBorder
+                                                    >
+                                                        <Group justify="space-between" mb="xs">
+                                                            <Group gap="xs">
+                                                                <ThemeIcon
+                                                                    variant="light"
+                                                                    size="lg"
+                                                                    color={isOutOfStock ? "red" : isLowStock ? "orange" : "blue"}
+                                                                >
+                                                                    <IconBox size={20} />
+                                                                </ThemeIcon>
+                                                                <Text fw={500}>{item.name}</Text>
+                                                            </Group>
+                                                            <Tooltip label="Delete item">
+                                                                <ActionIcon
+                                                                    variant="subtle"
+                                                                    color="red"
+                                                                    onClick={() =>
+                                                                        handleDeleteItem(item.id, item.name)
+                                                                    }
+                                                                >
+                                                                    <IconTrash size={16} />
+                                                                </ActionIcon>
+                                                            </Tooltip>
+                                                        </Group>
 
+                                                        <Text size="sm" c="dimmed" mb="md">
+                                                            Stock Quantity
+                                                        </Text>
 
+                                                        <Group justify="space-between" align="center">
+                                                            <Badge
+                                                                size="xl"
+                                                                variant="filled"
+                                                                color={isOutOfStock ? "red" : isLowStock ? "orange" : "green"}
+                                                            >
+                                                                {item.quantity}
+                                                            </Badge>
+                                                            {isLowStock && !isOutOfStock && (
+                                                                <Badge color="orange" variant="light" size="sm">
+                                                                    Low Stock
+                                                                </Badge>
+                                                            )}
+                                                            {isOutOfStock && (
+                                                                <Badge color="red" variant="light" size="sm">
+                                                                    Out of Stock
+                                                                </Badge>
+                                                            )}
+                                                        </Group>
+                                                    </Card>
+                                                );
+                                            })}
+                                        </SimpleGrid>
+
+                                        {/* Table View */}
+                                        <details>
+                                            <summary style={{ cursor: "pointer", marginBottom: "1rem" }}>
+                                                <Text size="sm" c="dimmed" component="span">
+                                                    Show table view
+                                                </Text>
+                                            </summary>
+                                            <Table.ScrollContainer minWidth={500}>
+                                                <Table highlightOnHover verticalSpacing="sm">
+                                                    <Table.Thead>
+                                                        <Table.Tr>
+                                                            <Table.Th>Item Name</Table.Th>
+                                                            <Table.Th>Quantity</Table.Th>
+                                                            <Table.Th>Status</Table.Th>
+                                                            <Table.Th w={100}>Actions</Table.Th>
+                                                        </Table.Tr>
+                                                    </Table.Thead>
+                                                    <Table.Tbody>
+                                                        {items.map((item) => {
+                                                            const isLowStock = item.quantity < 10;
+                                                            const isOutOfStock = item.quantity === 0;
+                                                            return (
+                                                                <Table.Tr key={item.id}>
+                                                                    <Table.Td>
+                                                                        <Group gap="xs">
+                                                                            <IconBox size={16} />
+                                                                            <Text size="sm">{item.name}</Text>
+                                                                        </Group>
+                                                                    </Table.Td>
+                                                                    <Table.Td>
+                                                                        <Badge
+                                                                            variant="light"
+                                                                            color={isOutOfStock ? "red" : isLowStock ? "orange" : "green"}
+                                                                        >
+                                                                            {item.quantity}
+                                                                        </Badge>
+                                                                    </Table.Td>
+                                                                    <Table.Td>
+                                                                        {isOutOfStock ? (
+                                                                            <Badge color="red" variant="light" size="sm">
+                                                                                Out of Stock
+                                                                            </Badge>
+                                                                        ) : isLowStock ? (
+                                                                            <Badge color="orange" variant="light" size="sm">
+                                                                                Low Stock
+                                                                            </Badge>
+                                                                        ) : (
+                                                                            <Badge color="green" variant="light" size="sm">
+                                                                                In Stock
+                                                                            </Badge>
+                                                                        )}
+                                                                    </Table.Td>
+                                                                    <Table.Td>
+                                                                        <Tooltip label="Delete item">
+                                                                            <ActionIcon
+                                                                                variant="light"
+                                                                                color="red"
+                                                                                onClick={() =>
+                                                                                    handleDeleteItem(item.id, item.name)
+                                                                                }
+                                                                            >
+                                                                                <IconTrash size={16} />
+                                                                            </ActionIcon>
+                                                                        </Tooltip>
+                                                                    </Table.Td>
+                                                                </Table.Tr>
+                                                            );
+                                                        })}
+                                                    </Table.Tbody>
+                                                </Table>
+                                            </Table.ScrollContainer>
+                                        </details>
+                                    </>
+                                )}
+                            </Paper>
+                        </Stack>
+                    </Tabs.Panel>
+                )}
             </Tabs>
 
-            {/** — Add Item Modal */}
+            {/* Add Item Modal */}
             <Modal
                 opened={addModalOpen}
                 onClose={() => setAddModalOpen(false)}
-                title="Add New Inventory Item"
+                title={
+                    <Group gap="xs">
+                        <IconPlus size={20} />
+                        <Text fw={600}>Add New Item</Text>
+                    </Group>
+                }
+                size="md"
             >
-                <TextInput
-                    label="Item Name"
-                    value={newName}
-                    onChange={(e) => setNewName(e.currentTarget.value)}
-                    mb="sm"
-                />
-                <NumberInput
-                    label="Starting Quantity"
-                    value={newQty}
-                    onChange={(val) => setNewQty(val)}
-                    mb="sm"
-                    min={0}
-                />
-                <Group justify="right">
-                    <Button onClick={saveItem}>Save</Button>
-                </Group>
+                <Stack gap="md">
+                    <TextInput
+                        label="Item Name"
+                        placeholder="e.g., Pens, Paper, Stapler"
+                        value={newName}
+                        onChange={(e) => setNewName(e.currentTarget.value)}
+                        leftSection={<IconBox size={16} />}
+                        required
+                    />
+                    <NumberInput
+                        label="Initial Quantity"
+                        placeholder="Enter starting quantity"
+                        value={newQty}
+                        onChange={(val) => setNewQty(val)}
+                        min={0}
+                        required
+                    />
+                    <Group justify="flex-end" mt="md">
+                        <Button variant="subtle" onClick={() => setAddModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSaveItem}>Add Item</Button>
+                    </Group>
+                </Stack>
             </Modal>
 
-            {/** — Request Items Modal */}
+            {/* Request Items Modal */}
             <Modal
                 opened={reqModalOpen}
                 onClose={() => setReqModalOpen(false)}
-                title="Request Inventory Items"
-                size="lg"
+                title={
+                    <Group gap="xs">
+                        <IconShoppingCart size={20} />
+                        <Text fw={600}>Request Office Items</Text>
+                    </Group>
+                }
+                size="xl"
             >
-                <Table verticalSpacing="sm">
-                    <Table.Thead>
-                    <Table.Tr>
-                        <Table.Th>Item</Table.Th>
-                        <Table.Th>Quantity</Table.Th>
-                        <Table.Th>Reason (optional)</Table.Th>
-                        <Table.Th></Table.Th>
-                    </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                    {rows.map((row, idx) => (
-                        <Table.Tr key={idx}>
-                            <Table.Td>
-                                <Select
-                                    data={items.map((i) => ({
-                                        value: i.id.toString(),
-                                        label: i.name,
-                                    }))}
-                                    placeholder="Select item"
-                                    value={row.itemId?.toString() || null}
-                                    onChange={(v) => updateRow(idx, "itemId", Number(v))}
-                                />
-                            </Table.Td>
-                            <Table.Td>
-                                <NumberInput
-                                    min={1}
-                                    max={
-                                        items.find((i) => i.id === row.itemId)?.quantity ?? undefined
-                                    }
-                                    value={row.quantity}
-                                    onChange={(val) => updateRow(idx, "quantity", val)}
-                                />
-                            </Table.Td>
-                            <Table.Td>
-                                <TextInput
-                                    placeholder="Reason"
-                                    value={row.reason}
-                                    onChange={(e) =>
-                                        updateRow(idx, "reason", e.currentTarget.value)
-                                    }
-                                />
-                            </Table.Td>
-                            <Table.Td>
-                                <Button
-                                    color="red"
-                                    variant="subtle"
-                                    size="xs"
-                                    onClick={() => removeRow(idx)}
-                                >
-                                    Remove
-                                </Button>
-                            </Table.Td>
-                        </Table.Tr>
-                    ))}
-                    </Table.Tbody>
-                </Table>
-                <Group mt="md">
-                    <Button onClick={addRow}>Add Another</Button>
-                    <Button color="green" onClick={submitRequest}>
-                        Submit Request
-                    </Button>
-                </Group>
+                <Stack gap="md">
+                    <Table verticalSpacing="sm">
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>Item</Table.Th>
+                                <Table.Th>Quantity</Table.Th>
+                                <Table.Th>Reason (Optional)</Table.Th>
+                                <Table.Th w={80}></Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {rows.map((row, idx) => (
+                                <Table.Tr key={idx}>
+                                    <Table.Td>
+                                        <Select
+                                            data={items.map((i) => ({
+                                                value: i.id.toString(),
+                                                label: `${i.name} (${i.quantity} available)`,
+                                            }))}
+                                            placeholder="Select item"
+                                            value={row.itemId?.toString() || null}
+                                            onChange={(v) => updateRow(idx, "itemId", Number(v))}
+                                        />
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <NumberInput
+                                            min={1}
+                                            max={items.find((i) => i.id === row.itemId)?.quantity || undefined}
+                                            value={row.quantity}
+                                            onChange={(val) => updateRow(idx, "quantity", val)}
+                                            placeholder="Qty"
+                                        />
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <TextInput
+                                            placeholder="Why do you need this?"
+                                            value={row.reason}
+                                            onChange={(e) => updateRow(idx, "reason", e.currentTarget.value)}
+                                        />
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Tooltip label="Remove row">
+                                            <ActionIcon
+                                                color="red"
+                                                variant="subtle"
+                                                onClick={() => removeRow(idx)}
+                                                disabled={rows.length === 1}
+                                            >
+                                                <IconTrash size={16} />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    </Table.Td>
+                                </Table.Tr>
+                            ))}
+                        </Table.Tbody>
+                    </Table>
+
+                    <Group justify="space-between" mt="md">
+                        <Button variant="light" leftSection={<IconPlus size={16} />} onClick={addRow}>
+                            Add Another Item
+                        </Button>
+                        <Group>
+                            <Button variant="subtle" onClick={() => setReqModalOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button color="green" onClick={handleSubmitRequest}>
+                                Submit Request
+                            </Button>
+                        </Group>
+                    </Group>
+                </Stack>
             </Modal>
-        </>
+        </Container>
     );
 }

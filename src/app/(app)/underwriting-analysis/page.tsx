@@ -15,19 +15,38 @@ import {
     Title,
     Table,
     Stack,
-    Badge, Textarea,
+    Badge,
+    Textarea,
+    Text,
+    Container,
+    Checkbox,
+    Accordion,
 } from '@mantine/core';
 import { DatePickerInput, DateTimePicker } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {useReportStore} from "@/store/useReportStore";
 
 
-export default function FacultativeOfferForm() {
+export default function UnderwritingAnalysisPage() {
+    const [selectedTypes, setSelectedTypes] = useState<string[]>(['facultative']);
+    const [selectedLobId, setSelectedLobId] = useState<number | null>(null);
     const dropdownStore = useDropdownStore();
     const offerStore = useOfferStore();
     const {getBrokerSelectData, getCedantSelectData, loadDropdownData} = useReportStore()
+
+    const toggleFormType = (type: string) => {
+        setSelectedTypes(prev => {
+            if (prev.includes(type)) {
+                // Remove if already selected (but keep at least one)
+                return prev.length > 1 ? prev.filter(t => t !== type) : prev;
+            } else {
+                // Add if not selected
+                return [...prev, type];
+            }
+        });
+    };
 
     const form = useForm({
         initialValues: offerStore.getInitialValues(),
@@ -68,6 +87,18 @@ export default function FacultativeOfferForm() {
     const brokerOptions = getBrokerSelectData();
     const handleBrokerChange = (code: string | null) => {
         form.setFieldValue('broker', code || '');
+    };
+
+    // Line of Business change - reset retro type when LOB changes
+    const handleLobChange = (lobId: string | null) => {
+        form.setFieldValue('lineOfBusinessId', lobId || '');
+        form.setFieldValue('retroTypeId', ''); // Reset retro type
+        setSelectedLobId(lobId ? Number(lobId) : null);
+    };
+
+    // Retro Type change
+    const handleRetroTypeChange = (retroTypeId: string | null) => {
+        form.setFieldValue('retroTypeId', retroTypeId || '');
     };
 
     // Calculate action: push form → store → calculate → show results
@@ -166,7 +197,51 @@ export default function FacultativeOfferForm() {
         typeof v === 'number' && !isNaN(v) ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '-';
 
     return (
-        <Box maw={1400} mx="auto" mt="xl">
+        <Container size="xl" py="xl">
+            {/* Header and Analysis Type Selector */}
+            <Paper shadow="sm" p="lg" radius="md" mb="xl">
+                <Stack gap="md">
+                    <div>
+                        <Title order={1} mb="xs">Underwriting Analysis</Title>
+                        <Text c="dimmed">Select one or more analysis types for this offer</Text>
+                    </div>
+
+                    <Group gap="xl">
+                        <Checkbox
+                            label="Facultative"
+                            checked={selectedTypes.includes('facultative')}
+                            onChange={() => toggleFormType('facultative')}
+                            size="md"
+                        />
+                        <Checkbox
+                            label="Policy Cession"
+                            checked={selectedTypes.includes('policy-cession')}
+                            onChange={() => toggleFormType('policy-cession')}
+                            size="md"
+                        />
+                        <Checkbox
+                            label="Treaty"
+                            checked={selectedTypes.includes('treaty')}
+                            onChange={() => toggleFormType('treaty')}
+                            size="md"
+                        />
+                    </Group>
+                </Stack>
+            </Paper>
+
+            {/* Accordion for Multiple Analysis Types */}
+            <Accordion multiple defaultValue={selectedTypes}>
+            {/* Facultative Form */}
+            {selectedTypes.includes('facultative') && (
+            <Accordion.Item value="facultative">
+                <Accordion.Control>
+                    <Group>
+                        <Title order={3}>Facultative Analysis</Title>
+                        <Badge color="blue">Active</Badge>
+                    </Group>
+                </Accordion.Control>
+                <Accordion.Panel>
+            <Box maw={1400} mx="auto" mt="md">
             <Grid gutter="lg">
                 <Grid.Col span={{ base: 12, md: 7 }}>
                     <Paper shadow="sm" p="lg" pos="relative">
@@ -176,244 +251,229 @@ export default function FacultativeOfferForm() {
                         </Title>
 
                         <form onSubmit={form.onSubmit(handleSubmit)}>
-                            {/* Basic Information */}
-                            <Title order={4} mb="md">
-                                Basic Information
-                            </Title>
-                            <Grid gutter="md" mb="lg">
-                                <Grid.Col span={6}>
-                                    <Select
-                                        label="Cedant"
-                                        placeholder="Select cedant"
-                                        data={getCedantSelectData()}
-                                        value={form.values.cedant}
-                                        onChange={handleCedantChange}
-                                        searchable
-                                        required
-                                    />
-                                </Grid.Col>
+                            <Stack gap="lg">
+                                {/* Offer Details Section */}
+                                <Paper p="md" withBorder bg="gray.0">
+                                    <Title order={5} mb="md">Offer Details</Title>
+                                    <Grid gutter="md">
+                                        <Grid.Col span={6}>
+                                            <Select
+                                                label="Cedant"
+                                                placeholder="Select cedant"
+                                                data={getCedantSelectData()}
+                                                value={form.values.cedant}
+                                                onChange={handleCedantChange}
+                                                searchable
+                                                required
+                                                withAsterisk
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={6}>
+                                            <TextInput
+                                                label="Insured Name"
+                                                placeholder="Enter insured name"
+                                                {...form.getInputProps('insured')}
+                                                required
+                                                withAsterisk
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={6}>
+                                            <TextInput
+                                                label="Country"
+                                                placeholder="e.g., Tanzania"
+                                                {...form.getInputProps('country')}
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={6}>
+                                            <DatePickerInput
+                                                label="Offer Received Date"
+                                                placeholder="Select date"
+                                                {...form.getInputProps('offerReceivedDate')}
+                                            />
+                                        </Grid.Col>
+                                    </Grid>
+                                </Paper>
 
-                                <Grid.Col span={6}>
-                                    <Select
-                                        label="Broker"
-                                        placeholder="Select broker"
-                                        data={brokerOptions}
-                                        value={form.values.broker}
-                                        onChange={handleBrokerChange}
-                                        searchable
-                                    />
-                                </Grid.Col>
+                                {/* Program & Retro Configuration */}
+                                <Paper p="md" withBorder bg="blue.0">
+                                    <Title order={5} mb="md">Retro Configuration</Title>
+                                    <Grid gutter="md">
+                                        <Grid.Col span={4}>
+                                            <Select
+                                                label="Line of Business"
+                                                placeholder="Select LOB"
+                                                data={dropdownStore.getLineOfBusinessSelectData()}
+                                                value={form.values.lineOfBusinessId}
+                                                onChange={handleLobChange}
+                                                required
+                                                withAsterisk
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={4}>
+                                            <NumberInput
+                                                label="Retro Year"
+                                                placeholder="e.g., 2024"
+                                                min={2000}
+                                                max={2100}
+                                                value={form.values.retroYear}
+                                                onChange={(val) => form.setFieldValue('retroYear', Number(val) || new Date().getFullYear())}
+                                                required
+                                                withAsterisk
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={4}>
+                                            <Select
+                                                label="Retro Type"
+                                                placeholder={selectedLobId ? "Select retro type" : "Select LOB first"}
+                                                data={dropdownStore.getRetroTypeSelectData(selectedLobId || undefined)}
+                                                value={form.values.retroTypeId}
+                                                onChange={handleRetroTypeChange}
+                                                disabled={!selectedLobId}
+                                                required
+                                                withAsterisk
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={6}>
+                                            <DatePickerInput
+                                                label="Period From"
+                                                placeholder="Policy start"
+                                                {...form.getInputProps('periodFrom')}
+                                                required
+                                                withAsterisk
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={6}>
+                                            <DatePickerInput
+                                                label="Period To"
+                                                placeholder="Policy end"
+                                                {...form.getInputProps('periodTo')}
+                                                required
+                                                withAsterisk
+                                            />
+                                        </Grid.Col>
+                                    </Grid>
+                                </Paper>
 
-                                <Grid.Col span={6}>
-                                    <DatePickerInput
-                                        label="Offer Received Date"
-                                        placeholder="Select date and time"
-                                        {...form.getInputProps('offerReceivedDate')}
-                                        required
-                                    />
-                                </Grid.Col>
+                                {/* Financial Details */}
+                                <Paper p="md" withBorder bg="green.0">
+                                    <Title order={5} mb="md">Financial Details</Title>
+                                    <Grid gutter="md">
+                                        <Grid.Col span={4}>
+                                            <Select
+                                                label="Currency"
+                                                placeholder="Select currency"
+                                                data={dropdownStore.getCurrencySelectData()}
+                                                value={form.values.currencyCode}
+                                                onChange={handleCurrencyChange}
+                                                searchable
+                                                required
+                                                withAsterisk
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={4}>
+                                            <NumberInput
+                                                label="Exchange Rate"
+                                                placeholder="Auto-filled"
+                                                decimalScale={6}
+                                                min={0}
+                                                value={form.values.exchangeRate}
+                                                onChange={(val) => form.setFieldValue('exchangeRate', Number(val) || 1)}
+                                                required
+                                                withAsterisk
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={4}></Grid.Col>
+                                        <Grid.Col span={6}>
+                                            <NumberInput
+                                                label="Sum Insured"
+                                                placeholder="0.00"
+                                                decimalScale={2}
+                                                thousandSeparator=","
+                                                min={0}
+                                                value={form.values.sumInsuredOs}
+                                                onChange={(val) => form.setFieldValue('sumInsuredOs', Number(val) || 0)}
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={6}>
+                                            <NumberInput
+                                                label="Premium"
+                                                placeholder="0.00"
+                                                decimalScale={2}
+                                                thousandSeparator=","
+                                                min={0}
+                                                value={form.values.premiumOs}
+                                                onChange={(val) => form.setFieldValue('premiumOs', Number(val) || 0)}
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={6}>
+                                            <NumberInput
+                                                label="Share Offered %"
+                                                placeholder="0.00"
+                                                decimalScale={2}
+                                                min={0}
+                                                max={100}
+                                                value={form.values.shareOfferedPct}
+                                                onChange={(val) => form.setFieldValue('shareOfferedPct', Number(val) || 0)}
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={6}>
+                                            <NumberInput
+                                                label="Share Accepted %"
+                                                placeholder="0.00"
+                                                decimalScale={2}
+                                                min={0}
+                                                max={100}
+                                                value={form.values.shareAcceptedPct}
+                                                onChange={(val) => form.setFieldValue('shareAcceptedPct', Number(val) || 0)}
+                                            />
+                                        </Grid.Col>
+                                    </Grid>
+                                </Paper>
 
-                                <Grid.Col span={6}>
-                                    <TextInput
-                                        label="Insured"
-                                        placeholder="Enter insured name"
-                                        {...form.getInputProps('insured')}
-                                        required
-                                    />
-                                </Grid.Col>
+                                {/* Notes */}
+                                <Textarea
+                                    label="Notes / Recommendation"
+                                    placeholder="Add any notes or recommendations..."
+                                    {...form.getInputProps('notes')}
+                                    autosize
+                                    minRows={2}
+                                    maxRows={4}
+                                />
 
-                                <Grid.Col span={6}>
-                                    <TextInput
-                                        label="Occupation"
-                                        placeholder="Enter occupation"
-                                        {...form.getInputProps('occupation')}
-                                        required
-                                    />
-                                </Grid.Col>
-
-                                <Grid.Col span={6}>
-                                    <TextInput
-                                        label="Country"
-                                        placeholder="Enter country"
-                                        {...form.getInputProps('country')}
-                                        required
-                                    />
-                                </Grid.Col>
-
-                                <Grid.Col span={12}>
-                                    <Select
-                                        label="Contract Type"
-                                        placeholder="Select contract type"
-                                        data={dropdownStore.getContractTypeSelectData()}
-                                        {...form.getInputProps('contractTypeId')}
-                                        nothingFoundMessage="No contract types"
-                                        required
-                                    />
-                                </Grid.Col>
-
-                                <Grid.Col span={12}>
-                                    <Select
-                                        label="Program"
-                                        placeholder="Select program"
-                                        data={dropdownStore.getProgramSelectData()}
-                                        {...form.getInputProps('programId')}
-                                        nothingFoundMessage="No Program Found"
-                                        required
-                                    />
-                                </Grid.Col>
-
-                            </Grid>
-
-                            <Divider my="lg" />
-
-                            {/* Policy Period */}
-                            <Title order={4} mb="md">
-                                Policy Period
-                            </Title>
-                            <Grid gutter="md" mb="lg">
-                                <Grid.Col span={6}>
-                                    <DatePickerInput
-                                        label="Period From"
-                                        placeholder="Select start date"
-                                        {...form.getInputProps('periodFrom')}
-                                        required
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={6}>
-                                    <DatePickerInput
-                                        label="Period To"
-                                        placeholder="Select end date"
-                                        {...form.getInputProps('periodTo')}
-                                        required
-                                    />
-                                </Grid.Col>
-                            </Grid>
-
-                            <Divider my="lg" />
-
-                            {/* Financial Information */}
-                            <Title order={4} mb="md">
-                                Financial Information
-                            </Title>
-                            <Grid gutter="md" mb="lg">
-                                <Grid.Col span={6}>
-                                    <Select
-                                        label="Currency"
-                                        placeholder="Select currency"
-                                        data={dropdownStore.getCurrencySelectData()}
-                                        value={form.values.currencyCode}
-                                        onChange={handleCurrencyChange}
-                                        searchable
-                                        required
-                                    />
-                                </Grid.Col>
-
-                                <Grid.Col span={6}>
-                                    <NumberInput
-                                        label="Exchange Rate"
-                                        placeholder="1"
-                                        decimalScale={6}
-                                        min={0}
-                                        value={form.values.exchangeRate}
-                                        onChange={(val) => form.setFieldValue('exchangeRate', Number(val) || 1)}
-                                        required
-                                    />
-                                </Grid.Col>
-
-                                <Grid.Col span={6}>
-                                    <NumberInput
-                                        label="Sum Insured (Original Currency)"
-                                        placeholder="0.00"
-                                        decimalScale={2}
-                                        thousandSeparator=","
-                                        min={0}
-                                        value={form.values.sumInsuredOs}
-                                        onChange={(val) => form.setFieldValue('sumInsuredOs', Number(val) || 0)}
-                                    />
-                                </Grid.Col>
-
-                                <Grid.Col span={6}>
-                                    <NumberInput
-                                        label="Premium (Original Currency)"
-                                        placeholder="0.00"
-                                        decimalScale={2}
-                                        thousandSeparator=","
-                                        min={0}
-                                        value={form.values.premiumOs}
-                                        onChange={(val) => form.setFieldValue('premiumOs', Number(val) || 0)}
-                                    />
-                                </Grid.Col>
-                            </Grid>
-
-                            <Divider my="lg" />
-
-                            {/* Share Information */}
-                            <Title order={4} mb="md">
-                                Share Information
-                            </Title>
-                            <Grid gutter="md" mb="lg">
-                                <Grid.Col span={6}>
-                                    <NumberInput
-                                        label="Share Offered %"
-                                        placeholder="0.00"
-                                        decimalScale={2}
-                                        min={0}
-                                        max={100}
-                                        value={form.values.shareOfferedPct}
-                                        onChange={(val) => form.setFieldValue('shareOfferedPct', Number(val) || 0)}
-                                    />
-                                </Grid.Col>
-                                <Grid.Col span={6}>
-                                    <NumberInput
-                                        label="Share Accepted %"
-                                        placeholder="0.00"
-                                        decimalScale={2}
-                                        min={0}
-                                        max={100}
-                                        value={form.values.shareAcceptedPct}
-                                        onChange={(val) => form.setFieldValue('shareAcceptedPct', Number(val) || 0)}
-                                    />
-                                </Grid.Col>
-
-                                <Grid.Col span={12}>
-                                    <Textarea
-                                        label="Recommendation"
-                                        placeholder="Please write your recommendation"
-                                        {...form.getInputProps('notes')}
-                                        required
-                                        autosize
-                                        minRows={2}
-                                        maxRows={6}
-                                    />
-                                </Grid.Col>
-
-                                {/*<Grid.Col span={12}>*/}
-                                {/*     <Select*/}
-                                {/*        label="Assign User"*/}
-                                {/*        placeholder="Select User"*/}
-                                {/*        data={dropdownStore.getUserSelectionData()}*/}
-                                {/*        value={form.values.currencyCode}*/}
-                                {/*        onChange={handleCurrencyChange}*/}
-                                {/*        searchable*/}
-                                {/*        required*/}
-                                {/*        />*/}
-                                {/*</Grid.Col>*/}
-                            </Grid>
-
-                            {/* Actions */}
-                            <Group justify="right" mt="xl">
-                                <Button
-                                    variant="outline"
-                                    onClick={handleCalculate}
-                                    loading={offerStore.calculating}
-                                    disabled={!form.values.currencyCode || !form.values.exchangeRate}
-                                >
-                                    Calculate
-                                </Button>
-                                <Button type="submit" loading={offerStore.loading} disabled={!form.isValid()}>
-                                    Submit Analysis
-                                </Button>
-                            </Group>
+                                {/* Actions */}
+                                <Group justify="space-between">
+                                    <Text size="sm" c="dimmed">
+                                        * Required fields must be filled before calculating
+                                    </Text>
+                                    <Group>
+                                        <Button
+                                            variant="light"
+                                            onClick={handleCalculate}
+                                            loading={offerStore.calculating}
+                                            disabled={!form.values.currencyCode || !form.values.lineOfBusinessId || !form.values.retroTypeId}
+                                        >
+                                            Calculate
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            loading={offerStore.loading}
+                                            disabled={
+                                                !form.values.cedant ||
+                                                !form.values.insured ||
+                                                !form.values.lineOfBusinessId ||
+                                                !form.values.retroTypeId ||
+                                                !form.values.currencyCode ||
+                                                !form.values.periodFrom ||
+                                                !form.values.periodTo ||
+                                                form.values.exchangeRate <= 0 ||
+                                                offerStore.loading
+                                            }
+                                        >
+                                            Submit Analysis
+                                        </Button>
+                                    </Group>
+                                </Group>
+                            </Stack>
                         </form>
                     </Paper>
                 </Grid.Col>
@@ -421,121 +481,169 @@ export default function FacultativeOfferForm() {
                 {/* RESULTS PANEL */}
                 <Grid.Col span={{ base: 12, md: 5 }}>
                     <Stack gap="md">
-                        <Paper withBorder p="md" radius="md">
+                        {/* Status Card */}
+                        <Paper withBorder p="md" radius="md" bg={
+                            results.status === 'SUCCESS' ? 'green.0' :
+                            results.status === 'WARNING' ? 'yellow.0' :
+                            results.status === 'ERROR' ? 'red.0' : 'gray.0'
+                        }>
                             <Group justify="space-between" mb="xs">
-                                <Title order={4}>Calculation Result</Title>
+                                <Title order={5}>Calculation Status</Title>
                                 {results.status && (
                                     <Badge
+                                        size="lg"
                                         color={
-                                            results.status === 'SUCCESS'
-                                                ? 'green'
-                                                : results.status === 'WARNING'
-                                                    ? 'yellow'
-                                                    : 'red'
+                                            results.status === 'SUCCESS' ? 'green' :
+                                            results.status === 'WARNING' ? 'yellow' : 'red'
                                         }
                                     >
                                         {results.status}
                                     </Badge>
                                 )}
                             </Group>
-                            <div style={{ color: 'var(--mantine-color-dimmed)' }}>
-                                {results.message || 'Run Calculate to see results.'}
-                            </div>
+                            <Text size="sm" c="dimmed">
+                                {results.message || 'Click Calculate to see results'}
+                            </Text>
                         </Paper>
 
-                        <Paper withBorder p="md" radius="md">
-                            <Title order={5} mb="sm">
-                                Converted Amounts (TZS)
-                            </Title>
-                            <Table striped withTableBorder>
-                                <Table.Tbody>
-                                    <Table.Tr>
-                                        <Table.Td>Sum Insured (TZS)</Table.Td>
-                                        <Table.Td align="right">{number(results.sumInsuredTz)}</Table.Td>
-                                    </Table.Tr>
-                                    <Table.Tr>
-                                        <Table.Td>Premium (TZS)</Table.Td>
-                                        <Table.Td align="right">{number(results.premiumTz)}</Table.Td>
-                                    </Table.Tr>
-                                </Table.Tbody>
-                            </Table>
-                        </Paper>
+                        {/* Key Metrics */}
+                        {results.status && (
+                            <>
+                                <Paper withBorder p="md" radius="md">
+                                    <Title order={5} mb="md">Offer Summary (TZS)</Title>
+                                    <Stack gap="sm">
+                                        <Group justify="space-between">
+                                            <Text fw={500}>Exposure Offered:</Text>
+                                            <Text fw={700} c="blue">{number(results.soExposureTz)}</Text>
+                                        </Group>
+                                        <Group justify="space-between">
+                                            <Text fw={500}>Premium Offered:</Text>
+                                            <Text fw={700} c="blue">{number(results.soPremiumTz)}</Text>
+                                        </Group>
+                                        <Divider />
+                                        <Group justify="space-between">
+                                            <Text fw={500}>Exposure Accepted:</Text>
+                                            <Text fw={700} c="green">{number(results.saExposureTz)}</Text>
+                                        </Group>
+                                        <Group justify="space-between">
+                                            <Text fw={500}>Premium Accepted:</Text>
+                                            <Text fw={700} c="green">{number(results.saPremiumTz)}</Text>
+                                        </Group>
+                                    </Stack>
+                                </Paper>
 
-                        <Paper withBorder p="md" radius="md">
-                            <Title order={5} mb="sm">
-                                Shares
-                            </Title>
-                            <Table striped withTableBorder>
-                                <Table.Tbody>
-                                    <Table.Tr>
-                                        <Table.Td>SO Exposure (TZS)</Table.Td>
-                                        <Table.Td align="right">{number(results.soExposureTz)}</Table.Td>
-                                    </Table.Tr>
-                                    <Table.Tr>
-                                        <Table.Td>SO Premium (TZS)</Table.Td>
-                                        <Table.Td align="right">{number(results.soPremiumTz)}</Table.Td>
-                                    </Table.Tr>
-                                    <Table.Tr>
-                                        <Table.Td>SA Exposure (TZS)</Table.Td>
-                                        <Table.Td align="right">{number(results.saExposureTz)}</Table.Td>
-                                    </Table.Tr>
-                                    <Table.Tr>
-                                        <Table.Td>SA Premium (TZS)</Table.Td>
-                                        <Table.Td align="right">{number(results.saPremiumTz)}</Table.Td>
-                                    </Table.Tr>
-                                </Table.Tbody>
-                            </Table>
-                        </Paper>
+                                <Paper withBorder p="md" radius="md" bg="blue.0">
+                                    <Title order={5} mb="md">Retention Breakdown</Title>
+                                    <Stack gap="sm">
+                                        <div>
+                                            <Group justify="space-between" mb={4}>
+                                                <Text size="sm" fw={600}>TAN-RE Retention</Text>
+                                                <Badge variant="light">{number(offerStore.tanReRetentionPct)}%</Badge>
+                                            </Group>
+                                            <Group justify="space-between">
+                                                <Text size="sm" c="dimmed">Exposure:</Text>
+                                                <Text size="sm" fw={500}>{number(results.tanReRetExposureTz)}</Text>
+                                            </Group>
+                                            <Group justify="space-between">
+                                                <Text size="sm" c="dimmed">Premium:</Text>
+                                                <Text size="sm" fw={500}>{number(results.tanReRetPremiumTz)}</Text>
+                                            </Group>
+                                        </div>
 
-                        <Paper withBorder p="md" radius="md">
-                            <Title order={5} mb="sm">
-                                Retrocession Breakdown
-                            </Title>
-                            <Table striped withTableBorder>
-                                <Table.Tbody>
-                                    <Table.Tr>
-                                        <Table.Td>TAN-RE Retention %</Table.Td>
-                                        <Table.Td align="right">{number(offerStore.tanReRetentionPct)}</Table.Td>
-                                    </Table.Tr>
-                                    <Table.Tr>
-                                        <Table.Td>TAN-RE Exposure (TZS)</Table.Td>
-                                        <Table.Td align="right">{number(results.tanReRetExposureTz)}</Table.Td>
-                                    </Table.Tr>
-                                    <Table.Tr>
-                                        <Table.Td>TAN-RE Premium (TZS)</Table.Td>
-                                        <Table.Td align="right">{number(results.tanReRetPremiumTz)}</Table.Td>
-                                    </Table.Tr>
-                                    <Table.Tr>
-                                        <Table.Td>Surplus Retro %</Table.Td>
-                                        <Table.Td align="right">{number(offerStore.suRetroPct)}</Table.Td>
-                                    </Table.Tr>
-                                    <Table.Tr>
-                                        <Table.Td>SU Retro Exposure (TZS)</Table.Td>
-                                        <Table.Td align="right">{number(results.suRetroExposureTz)}</Table.Td>
-                                    </Table.Tr>
-                                    <Table.Tr>
-                                        <Table.Td>SU Retro Premium (TZS)</Table.Td>
-                                        <Table.Td align="right">{number(results.suRetroPremiumTz)}</Table.Td>
-                                    </Table.Tr>
-                                    <Table.Tr>
-                                        <Table.Td>Fac Retro %</Table.Td>
-                                        <Table.Td align="right">{number(offerStore.facRetroPct)}</Table.Td>
-                                    </Table.Tr>
-                                    <Table.Tr>
-                                        <Table.Td>Fac Retro Exposure (TZS)</Table.Td>
-                                        <Table.Td align="right">{number(results.facRetroExposureTz)}</Table.Td>
-                                    </Table.Tr>
-                                    <Table.Tr>
-                                        <Table.Td>Fac Retro Premium (TZS)</Table.Td>
-                                        <Table.Td align="right">{number(results.facRetroPremiumTz)}</Table.Td>
-                                    </Table.Tr>
-                                </Table.Tbody>
-                            </Table>
-                        </Paper>
+                                        <Divider />
+
+                                        <div>
+                                            <Group justify="space-between" mb={4}>
+                                                <Text size="sm" fw={600}>Surplus Retro</Text>
+                                                <Badge variant="light" color="orange">{number(offerStore.suRetroPct)}%</Badge>
+                                            </Group>
+                                            <Group justify="space-between">
+                                                <Text size="sm" c="dimmed">Exposure:</Text>
+                                                <Text size="sm" fw={500}>{number(results.suRetroExposureTz)}</Text>
+                                            </Group>
+                                            <Group justify="space-between">
+                                                <Text size="sm" c="dimmed">Premium:</Text>
+                                                <Text size="sm" fw={500}>{number(results.suRetroPremiumTz)}</Text>
+                                            </Group>
+                                        </div>
+
+                                        <Divider />
+
+                                        <div>
+                                            <Group justify="space-between" mb={4}>
+                                                <Text size="sm" fw={600}>Fac Retro</Text>
+                                                <Badge variant="light" color="grape">{number(offerStore.facRetroPct)}%</Badge>
+                                            </Group>
+                                            <Group justify="space-between">
+                                                <Text size="sm" c="dimmed">Exposure:</Text>
+                                                <Text size="sm" fw={500}>{number(results.facRetroExposureTz)}</Text>
+                                            </Group>
+                                            <Group justify="space-between">
+                                                <Text size="sm" c="dimmed">Premium:</Text>
+                                                <Text size="sm" fw={500}>{number(results.facRetroPremiumTz)}</Text>
+                                            </Group>
+                                        </div>
+                                    </Stack>
+                                </Paper>
+                            </>
+                        )}
                     </Stack>
                 </Grid.Col>
             </Grid>
-        </Box>
+            </Box>
+            </Accordion.Panel>
+            </Accordion.Item>
+            )}
+
+            {/* Policy Cession Form */}
+            {selectedTypes.includes('policy-cession') && (
+            <Accordion.Item value="policy-cession">
+                <Accordion.Control>
+                    <Group>
+                        <Title order={3}>Policy Cession Analysis</Title>
+                        <Badge color="orange">Coming Soon</Badge>
+                    </Group>
+                </Accordion.Control>
+                <Accordion.Panel>
+                    <Paper p="xl" withBorder>
+                        <Stack align="center" gap="md">
+                            <Text size="lg" c="dimmed">
+                                Policy Cession analysis form is under development
+                            </Text>
+                            <Text size="sm" c="dimmed">
+                                This will allow you to analyze policy cession offers with specific calculations
+                            </Text>
+                        </Stack>
+                    </Paper>
+                </Accordion.Panel>
+            </Accordion.Item>
+            )}
+
+            {/* Treaty Form */}
+            {selectedTypes.includes('treaty') && (
+            <Accordion.Item value="treaty">
+                <Accordion.Control>
+                    <Group>
+                        <Title order={3}>Treaty Analysis</Title>
+                        <Badge color="grape">Coming Soon</Badge>
+                    </Group>
+                </Accordion.Control>
+                <Accordion.Panel>
+                    <Paper p="xl" withBorder>
+                        <Stack align="center" gap="md">
+                            <Text size="lg" c="dimmed">
+                                Treaty analysis form is under development
+                            </Text>
+                            <Text size="sm" c="dimmed">
+                                This will allow you to analyze treaty offers with specific calculations
+                            </Text>
+                        </Stack>
+                    </Paper>
+                </Accordion.Panel>
+            </Accordion.Item>
+            )}
+            </Accordion>
+        </Container>
     );
 }
 

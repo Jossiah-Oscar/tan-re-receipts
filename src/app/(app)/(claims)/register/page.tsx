@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {RegisteredClaim, useClaimsStore} from "@/store/useClaimRegisterStore";
 import SearchableDropdown from "@/components/claims/register/SearchableDropdown";
 import {
@@ -25,7 +25,7 @@ import {
     SimpleGrid,
     Select
 } from '@mantine/core';
-import { IconX, IconCheck } from '@tabler/icons-react';
+import { IconX, IconCheck, IconFileDownload } from '@tabler/icons-react';
 
 
 export default function ClaimsPage() {
@@ -36,6 +36,92 @@ export default function ClaimsPage() {
     const [attachingToClaimId, setAttachingToClaimId] = useState<string | null>(null);
 
     const store = useClaimsStore();
+
+    // Generate CSV report from registered claims
+    const generateClaimsReport = (): string => {
+        const headers = [
+            'Claim ID',
+            'Date Registered',
+            'Date of Loss',
+            'Date Received',
+            'Original Insured',
+            'Cause of Loss',
+            'Current Reserve (TZS)',
+            'Salvage (TZS)',
+            'Net Amount (TZS)',
+            'Total Share Signed (%)',
+            'TANRE TZS',
+            'Retro Amount',
+            'TANRE Retention',
+            'Contract Count',
+            'Contracts'
+        ];
+
+        const rows = store.registeredClaims.map(claim => [
+            claim.claimId,
+            claim.dateRegistered,
+            claim.dateOfLoss,
+            claim.dateReceived,
+            claim.originalInsured,
+            `"${claim.causeOfLoss.replace(/"/g, '""')}"`, // Escape quotes in cause of loss
+            claim.currentReserve,
+            claim.salvage,
+            claim.netAmount,
+            claim.totalShareSigned.toFixed(2),
+            claim.tanreTZS,
+            claim.retroAmount,
+            claim.tanreRetention,
+            claim.contractCount,
+            `"${claim.contracts.join(', ')}"` // Join contract numbers
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n');
+
+        return csvContent;
+    };
+
+    // Download CSV file
+    const downloadReport = (csvContent: string) => {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+        const filename = `Claims_Register_Report_${dateStr}_${timeStr}.csv`;
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Load dropdown data and registered claims on component mount
+    useEffect(() => {
+        console.log('Component mounted, loading data...');
+        console.log('Initial dropdown state:', {
+            cedantOptions: store.cedantOptions,
+            subProfitCentreOptions: store.subProfitCentreOptions,
+            lobOptions: store.lobOptions,
+            typeOfBusinessOptions: store.typeOfBusinessOptions
+        });
+
+        // Load dropdown data for the search forms
+        store.loadDropdownData().catch(err => {
+            console.error('Failed to load dropdown data:', err);
+        });
+
+        // Load existing registered claims from the database
+        store.loadRegisteredClaims().catch(err => {
+            console.error('Failed to load registered claims:', err);
+        });
+    }, []);
 
     const calculateTotals = () => {
         const amount = parseFloat(store.claimDetails.currentReserve) || 0;
@@ -216,12 +302,26 @@ export default function ClaimsPage() {
                                 <Title order={1} mb="xs">Registered Claims</Title>
                                 <Text c="dimmed">View and manage all registered claims</Text>
                             </div>
-                            <Button
-                                onClick={() => { setView('register'); setStep(1); }}
-                                size="md"
-                            >
-                                + Register New Claim
-                            </Button>
+                            <Group gap="sm">
+                                <Button
+                                    variant="light"
+                                    leftSection={<IconFileDownload size={18} />}
+                                    onClick={() => {
+                                        // Generate CSV report
+                                        const csvContent = generateClaimsReport();
+                                        downloadReport(csvContent);
+                                    }}
+                                    size="md"
+                                >
+                                    Generate Report
+                                </Button>
+                                <Button
+                                    onClick={() => { setView('register'); setStep(1); }}
+                                    size="md"
+                                >
+                                    + Register New Claim
+                                </Button>
+                            </Group>
                         </Group>
                     </Paper>
 
@@ -361,8 +461,8 @@ export default function ClaimsPage() {
                             />
                             <Select
                                 label="Cedant Code"
-                                placeholder="Select cedant"
-                                value={store.searchCriteria.cedantCode}
+                                placeholder={store.cedantOptions.length === 0 ? "Loading..." : "Select cedant"}
+                                value={store.searchCriteria.cedantCode || null}
                                 onChange={(value) => store.setSearchCriteria({ cedantCode: value || '' })}
                                 data={store.cedantOptions}
                                 searchable
@@ -370,8 +470,8 @@ export default function ClaimsPage() {
                             />
                             <Select
                                 label="Sub Profit Centre"
-                                placeholder="Select profit centre"
-                                value={store.searchCriteria.subProfitCentre}
+                                placeholder={store.subProfitCentreOptions.length === 0 ? "Loading..." : "Select profit centre"}
+                                value={store.searchCriteria.subProfitCentre || null}
                                 onChange={(value) => store.setSearchCriteria({ subProfitCentre: value || '' })}
                                 data={store.subProfitCentreOptions}
                                 searchable
@@ -379,8 +479,8 @@ export default function ClaimsPage() {
                             />
                             <Select
                                 label="LOB Description"
-                                placeholder="Select LOB"
-                                value={store.searchCriteria.lobDescription}
+                                placeholder={store.lobOptions.length === 0 ? "Loading..." : "Select LOB"}
+                                value={store.searchCriteria.lobDescription || null}
                                 onChange={(value) => store.setSearchCriteria({ lobDescription: value || '' })}
                                 data={store.lobOptions}
                                 searchable
@@ -388,8 +488,8 @@ export default function ClaimsPage() {
                             />
                             <Select
                                 label="Type of Business"
-                                placeholder="Select type"
-                                value={store.searchCriteria.typeOfBusiness}
+                                placeholder={store.typeOfBusinessOptions.length === 0 ? "Loading..." : "Select type"}
+                                value={store.searchCriteria.typeOfBusiness || null}
                                 onChange={(value) => store.setSearchCriteria({ typeOfBusiness: value || '' })}
                                 data={store.typeOfBusinessOptions}
                                 searchable
@@ -601,8 +701,8 @@ export default function ClaimsPage() {
                             />
                             <Select
                                 label="Cedant Code"
-                                placeholder="Select cedant"
-                                value={store.searchCriteria.cedantCode}
+                                placeholder={store.cedantOptions.length === 0 ? "Loading..." : "Select cedant"}
+                                value={store.searchCriteria.cedantCode || null}
                                 onChange={(value) => store.setSearchCriteria({ cedantCode: value || '' })}
                                 data={store.cedantOptions}
                                 searchable
@@ -610,8 +710,8 @@ export default function ClaimsPage() {
                             />
                             <Select
                                 label="Sub Profit Centre"
-                                placeholder="Select profit centre"
-                                value={store.searchCriteria.subProfitCentre}
+                                placeholder={store.subProfitCentreOptions.length === 0 ? "Loading..." : "Select profit centre"}
+                                value={store.searchCriteria.subProfitCentre || null}
                                 onChange={(value) => store.setSearchCriteria({ subProfitCentre: value || '' })}
                                 data={store.subProfitCentreOptions}
                                 searchable
@@ -619,8 +719,8 @@ export default function ClaimsPage() {
                             />
                             <Select
                                 label="LOB Description"
-                                placeholder="Select LOB"
-                                value={store.searchCriteria.lobDescription}
+                                placeholder={store.lobOptions.length === 0 ? "Loading..." : "Select LOB"}
+                                value={store.searchCriteria.lobDescription || null}
                                 onChange={(value) => store.setSearchCriteria({ lobDescription: value || '' })}
                                 data={store.lobOptions}
                                 searchable
@@ -628,8 +728,8 @@ export default function ClaimsPage() {
                             />
                             <Select
                                 label="Type of Business"
-                                placeholder="Select type"
-                                value={store.searchCriteria.typeOfBusiness}
+                                placeholder={store.typeOfBusinessOptions.length === 0 ? "Loading..." : "Select type"}
+                                value={store.searchCriteria.typeOfBusiness || null}
                                 onChange={(value) => store.setSearchCriteria({ typeOfBusiness: value || '' })}
                                 data={store.typeOfBusinessOptions}
                                 searchable
