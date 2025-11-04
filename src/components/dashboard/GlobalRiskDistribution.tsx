@@ -45,7 +45,7 @@ interface GlobalRiskDistributionProps {
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
         style: "currency",
-        currency: "USD",
+        currency: "TZS",
         notation: "compact",
         maximumFractionDigits: 1,
     }).format(value);
@@ -56,6 +56,31 @@ const formatNumber = (value: number) => {
         notation: "compact",
         maximumFractionDigits: 1,
     }).format(value);
+};
+
+const formatCountryName = (name: string) => {
+    // Handle special cases from the database
+    const countryNameMap: Record<string, string> = {
+        "TANZANIA,UNITED REP.": "Tanzania",
+        "SWAZILAND": "Eswatini",
+        // Add more mappings as needed
+    };
+
+    // Check if there's a direct mapping
+    if (countryNameMap[name]) {
+        return countryNameMap[name];
+    }
+
+    // For other names, do basic cleanup:
+    // - Convert to title case
+    // - Remove trailing periods
+    // - Replace commas with proper separators if needed
+    return name
+        .replace(/,\s*UNITED REP\.$/, "") // Remove ", UNITED REP." suffix
+        .replace(/\./g, "") // Remove periods
+        .split(/[\s,]+/)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(" ");
 };
 
 // GeoJSON world map topology URL
@@ -81,7 +106,9 @@ export default function GlobalRiskDistribution({ data }: GlobalRiskDistributionP
         data.forEach((country) => {
             // Normalize country names for matching
             const normalized = country.countryName.toLowerCase().trim();
+            const formatted = formatCountryName(country.countryName).toLowerCase().trim();
             map.set(normalized, country);
+            map.set(formatted, country); // Also add formatted name for map matching
         });
         return map;
     }, [data]);
@@ -265,7 +292,7 @@ export default function GlobalRiskDistribution({ data }: GlobalRiskDistributionP
                                 <Group>
                                     <IconMapPin size={20} />
                                     <Text fw={600} size="lg">
-                                        {selectedCountry.countryName}
+                                        {formatCountryName(selectedCountry.countryName)}
                                     </Text>
                                 </Group>
                                 <Badge color={getRiskLevel(selectedCountry.premium).color.replace("#", "")} variant="filled">
@@ -365,7 +392,7 @@ export default function GlobalRiskDistribution({ data }: GlobalRiskDistributionP
                                                     #{index + 1}
                                                 </Badge>
                                                 <Text fw={500} size="sm">
-                                                    {country.countryName}
+                                                    {formatCountryName(country.countryName)}
                                                 </Text>
                                             </Group>
                                             <Group gap="md">
