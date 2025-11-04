@@ -227,7 +227,58 @@ export interface FacultativeOfferCalcResponseDto {
  * Offer form + store
  * =========================== */
 
+/* ===========================
+ * Retro Configuration (line item)
+ * =========================== */
+
+export interface RetroConfiguration {
+    // Unique identifier
+    id: string; // generated client-side, UUID-like
+
+    // Configuration details
+    lineOfBusinessId: string;
+    retroTypeId: string;
+    retroYear: number;
+    periodFrom: Date;
+    periodTo: Date;
+
+    // Financial details
+    sumInsuredOs: number;
+    premiumOs: number;
+    shareOfferedPct: number;
+    shareAcceptedPct: number;
+
+    // Calculated results (TZ-converted)
+    sumInsuredTz: number;
+    premiumTz: number;
+    soExposureTz: number;
+    soPremiumTz: number;
+    saExposureTz: number;
+    saPremiumTz: number;
+
+    // Retention breakdown
+    tanReRetentionPct: number;
+    tanReRetExposureTz: number;
+    tanReRetPremiumTz: number;
+
+    // Surplus breakdown
+    suRetroPct: number;
+    suRetroExposureTz: number;
+    suRetroPremiumTz: number;
+
+    // Facultative retro
+    facRetroPct: number;
+    facRetroExposureTz: number;
+    facRetroPremiumTz: number;
+
+    // Calculation state for this config
+    calculationStatus: 'SUCCESS' | 'WARNING' | 'ERROR' | null;
+    calculationMessage: string | null;
+    isCalculating: boolean;
+}
+
 export interface OfferFormData {
+    // Shared offer-level details
     cedant: string;
     broker: string;
     offerReceivedDate: Date;
@@ -235,64 +286,80 @@ export interface OfferFormData {
     occupation: string;
     programId: string; // Keep for backend compatibility
     contractTypeId: string; // Keep for backend compatibility
-    lineOfBusinessId: string; // For UI selection
-    retroTypeId: string; // For calculations
-    retroYear: number; // Retro year for filtering and submission
     country: string;
-    periodFrom: Date;
-    periodTo: Date;
     currencyCode: string;
     exchangeRate: number;
-    notes:string;
+    notes: string;
 
-    sumInsuredOs: number;
-    premiumOs: number;
-
-    sumInsuredTz: number;
-    premiumTz: number;
-
-    shareOfferedPct: number;
-    soExposureTz: number;
-    soPremiumTz: number;
-
-    shareAcceptedPct: number;
-    saExposureTz: number;
-    saPremiumTz: number;
-
-    tanReRetentionPct: number;
-    tanReRetExposureTz: number;
-    tanReRetPremiumTz: number;
-
-    suRetroPct: number;
-    suRetroExposureTz: number;
-    suRetroPremiumTz: number;
-
-    facRetroPct: number;
-    facRetroExposureTz: number;
-    facRetroPremiumTz: number;
+    // Array of retro configurations
+    retroConfigurations: RetroConfiguration[];
 }
 
 interface OfferStore extends OfferFormData {
     loading: boolean;
     calculating: boolean;
     error: string | null;
-    calculationStatus: 'SUCCESS' | 'WARNING' | 'ERROR' | null;
-    calculationMessage: string | null;
 
     setValues: (values: Partial<OfferFormData>) => void;
     setLoading: (loading: boolean) => void;
     setCalculating: (calculating: boolean) => void;
     setError: (error: string | null) => void;
-    setCalculationStatus: (status: 'SUCCESS' | 'WARNING' | 'ERROR' | null) => void;
-    setCalculationMessage: (message: string | null) => void;
+
+    // Retro configuration management
+    addRetroConfig: (config?: Partial<RetroConfiguration>) => string; // returns config ID
+    updateRetroConfig: (configId: string, updates: Partial<RetroConfiguration>) => void;
+    removeRetroConfig: (configId: string) => void;
+    getRetroConfig: (configId: string) => RetroConfiguration | undefined;
+
+    // Calculations per config
+    calculateRetroConfig: (configId: string) => Promise<void>;
 
     resetForm: () => void;
     getInitialValues: () => OfferFormData;
     validateForm: (values: OfferFormData) => Record<string, string>;
-    calculateValues: () => Promise<void>;
     submitForm: (values: OfferFormData) => Promise<boolean>;
     updateCurrencyAndExchangeRate: (currencyCode: string) => void;
 }
+
+// Helper function to generate unique ID for retro config
+let configIdCounter = 0;
+const generateConfigId = (): string => {
+    configIdCounter++;
+    return `config_${Date.now()}_${configIdCounter}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+// Helper to create default retro config
+const createDefaultRetroConfig = (overrides?: Partial<RetroConfiguration>): RetroConfiguration => ({
+    id: generateConfigId(),
+    lineOfBusinessId: '',
+    retroTypeId: '',
+    retroYear: new Date().getFullYear(),
+    periodFrom: new Date(),
+    periodTo: new Date(),
+    sumInsuredOs: 0,
+    premiumOs: 0,
+    shareOfferedPct: 0,
+    shareAcceptedPct: 0,
+    sumInsuredTz: 0,
+    premiumTz: 0,
+    soExposureTz: 0,
+    soPremiumTz: 0,
+    saExposureTz: 0,
+    saPremiumTz: 0,
+    tanReRetentionPct: 0,
+    tanReRetExposureTz: 0,
+    tanReRetPremiumTz: 0,
+    suRetroPct: 0,
+    suRetroExposureTz: 0,
+    suRetroPremiumTz: 0,
+    facRetroPct: 0,
+    facRetroExposureTz: 0,
+    facRetroPremiumTz: 0,
+    calculationStatus: null,
+    calculationMessage: null,
+    isCalculating: false,
+    ...overrides,
+});
 
 const useOfferStore = create<OfferStore>((set, get) => ({
     // form defaults
@@ -303,88 +370,107 @@ const useOfferStore = create<OfferStore>((set, get) => ({
     occupation: '',
     programId: '1', // Default to avoid validation errors
     contractTypeId: '1', // Default to avoid validation errors
-    lineOfBusinessId: '',
-    retroTypeId: '',
-    retroYear: new Date().getFullYear(), // Default to current year
     country: '',
-    periodFrom: new Date(),
-    periodTo: new Date(),
     currencyCode: '',
     exchangeRate: 1,
     notes: '',
 
-    sumInsuredOs: 0,
-    premiumOs: 0,
-    sumInsuredTz: 0,
-    premiumTz: 0,
-
-    shareOfferedPct: 0,
-    soExposureTz: 0,
-    soPremiumTz: 0,
-
-    shareAcceptedPct: 0,
-    saExposureTz: 0,
-    saPremiumTz: 0,
-
-    tanReRetentionPct: 0,
-    tanReRetExposureTz: 0,
-    tanReRetPremiumTz: 0,
-
-    suRetroPct: 0,
-    suRetroExposureTz: 0,
-    suRetroPremiumTz: 0,
-
-    facRetroPct: 0,
-    facRetroExposureTz: 0,
-    facRetroPremiumTz: 0,
+    // Array of retro configurations
+    retroConfigurations: [],
 
     // UI state
     loading: false,
     calculating: false,
     error: null,
-    calculationStatus: null,
-    calculationMessage: null,
 
     // state setters
     setValues: (values) => set((s) => ({ ...s, ...values })),
     setLoading: (loading) => set({ loading }),
     setCalculating: (calculating) => set({ calculating }),
     setError: (error) => set({ error }),
-    setCalculationStatus: (status) => set({ calculationStatus: status }),
-    setCalculationMessage: (message) => set({ calculationMessage: message }),
 
     // initial values for Mantine form
     getInitialValues: () => ({ ...get() }),
+
+    // Retro configuration management
+    addRetroConfig: (config?: Partial<RetroConfiguration>) => {
+        const newConfig = createDefaultRetroConfig(config);
+        set((s) => ({
+            retroConfigurations: [...s.retroConfigurations, newConfig],
+        }));
+        return newConfig.id;
+    },
+
+    updateRetroConfig: (configId: string, updates: Partial<RetroConfiguration>) => {
+        set((s) => ({
+            retroConfigurations: s.retroConfigurations.map((c) =>
+                c.id === configId ? { ...c, ...updates } : c
+            ),
+        }));
+    },
+
+    removeRetroConfig: (configId: string) => {
+        set((s) => ({
+            retroConfigurations: s.retroConfigurations.filter((c) => c.id !== configId),
+        }));
+    },
+
+    getRetroConfig: (configId: string) => {
+        return get().retroConfigurations.find((c) => c.id === configId);
+    },
 
     // validation
     validateForm: (v) => {
         const errors: Record<string, string> = {};
         if (!v.cedant) errors.cedant = 'Cedant is required';
         if (!v.insured) errors.insured = 'Insured is required';
-        if (!v.lineOfBusinessId) errors.lineOfBusinessId = 'Line of Business is required';
-        if (!v.retroTypeId) errors.retroTypeId = 'Retro Type is required';
         if (!v.currencyCode) errors.currencyCode = 'Currency is required';
         if (v.exchangeRate <= 0) errors.exchangeRate = 'Exchange rate must be greater than 0';
-        if (v.periodFrom >= v.periodTo) errors.periodTo = 'Period To must be after Period From';
+        if (v.retroConfigurations.length === 0) {
+            errors.retroConfigurations = 'At least one retro configuration is required';
+        }
+        // Validate each retro config
+        v.retroConfigurations.forEach((config, idx) => {
+            if (!config.lineOfBusinessId) {
+                errors[`config_${idx}_lob`] = 'Line of Business is required';
+            }
+            if (!config.retroTypeId) {
+                errors[`config_${idx}_retroType`] = 'Retro Type is required';
+            }
+            if (config.periodFrom >= config.periodTo) {
+                errors[`config_${idx}_period`] = 'Period To must be after Period From';
+            }
+        });
         return errors;
     },
 
-    // call backend to calculate analysis
-    calculateValues: async () => {
+    // Calculate for a specific retro configuration
+    calculateRetroConfig: async (configId: string) => {
         const s = get();
+        const config = s.retroConfigurations.find((c) => c.id === configId);
+        if (!config) {
+            set({ error: 'Configuration not found' });
+            return;
+        }
+
         const payload = {
-            // mappings to backend DTO
-            retroTypeId: Number(s.retroTypeId),
-            year: s.retroYear, // Use the retroYear field from the form
+            retroTypeId: Number(config.retroTypeId),
+            year: config.retroYear,
             currency: s.currencyCode,
             exchangeRate: s.exchangeRate,
-            sumInsuredOs: s.sumInsuredOs,
-            premiumOs: s.premiumOs,
-            shareOfferedPct: s.shareOfferedPct,
-            shareAcceptedPct: s.shareAcceptedPct,
+            sumInsuredOs: config.sumInsuredOs,
+            premiumOs: config.premiumOs,
+            shareOfferedPct: config.shareOfferedPct,
+            shareAcceptedPct: config.shareAcceptedPct,
         };
 
-        set({ calculating: true, error: null });
+        set((st) => ({
+            retroConfigurations: st.retroConfigurations.map((c) =>
+                c.id === configId ? { ...c, isCalculating: true } : c
+            ),
+            error: null,
+        }));
+
         try {
             const res = await apiFetch<FacultativeOfferCalcResponseDto>(
                 '/api/underwriting/facultative/analyze',
@@ -395,109 +481,127 @@ const useOfferStore = create<OfferStore>((set, get) => ({
                 }
             );
 
-            console.log('This is the retention:', res);
+            console.log('Calculation result for config:', res);
 
-            // map response into form state
-            const updated: Partial<OfferFormData> = {
-                sumInsuredTz: res.exposureOffered, // or res.sumInsuredOs, depending on what you want
-                premiumTz: res.premiumTzs, // Note the 's' at the end
-
+            // Update this specific config with calculation results
+            const updates: Partial<RetroConfiguration> = {
+                sumInsuredTz: res.exposureOffered,
+                premiumTz: res.premiumTzs,
                 soExposureTz: res.exposureOffered,
                 soPremiumTz: res.premiumOffered,
                 saExposureTz: res.exposureAccepted,
                 saPremiumTz: res.premiumAccepted,
-
-                // Calculate percentages since they're not in the API response
                 tanReRetentionPct: res.totalExposure ? (res.retentionExposure / res.totalExposure) * 100 : 0,
                 tanReRetExposureTz: res.retentionExposure,
                 tanReRetPremiumTz: res.retentionPremium,
-
                 suRetroPct: res.totalExposure ? (res.surplusExposure / res.totalExposure) * 100 : 0,
                 suRetroExposureTz: res.surplusExposure,
                 suRetroPremiumTz: res.surplusPremium,
-
                 facRetroPct: res.totalExposure ? (res.facRetroExposure / res.totalExposure) * 100 : 0,
                 facRetroExposureTz: res.facRetroExposure,
                 facRetroPremiumTz: res.facRetroPremium,
+                calculationStatus: res.calculationStatus,
+                calculationMessage: res.message,
+                isCalculating: false,
             };
 
             set((st) => ({
-                ...st,
-                ...updated,
-                calculationStatus: res.calculationStatus,
-                calculationMessage: res.message,
+                retroConfigurations: st.retroConfigurations.map((c) =>
+                    c.id === configId ? { ...c, ...updates } : c
+                ),
             }));
         } catch (e: any) {
-            set({ error: e?.message || 'Calculation failed' });
-        } finally {
-            set({ calculating: false });
+            set((st) => ({
+                retroConfigurations: st.retroConfigurations.map((c) =>
+                    c.id === configId ? { ...c, isCalculating: false, calculationStatus: 'ERROR' as const } : c
+                ),
+                error: e?.message || 'Calculation failed',
+            }));
         }
     },
 
-    // submit (persist) analysis/offer
+    // Legacy calculateValues for backward compatibility - calculates all configs
+    calculateValues: async () => {
+        const s = get();
+        // Calculate all configs
+        const promises = s.retroConfigurations.map((config) =>
+            get().calculateRetroConfig(config.id)
+        );
+        await Promise.all(promises);
+    },
+
+    // submit (persist) analysis/offer - creates separate offer for each retro config
     submitForm: async (v): Promise<boolean> => {
         set({ loading: true, error: null });
         try {
+            if (!v.retroConfigurations || v.retroConfigurations.length === 0) {
+                set({ error: 'At least one retro configuration is required' });
+                return false;
+            }
 
-            const payload = {
-                // Required by backend model
-                programId: Number(v.programId) || 1,
-                contractTypeId: Number(v.contractTypeId) || 1,
-                retroYear: v.retroYear, // Use the retroYear field from the form
-                periodFrom: v.periodFrom.toISOString().slice(0, 10),
-                periodTo: v.periodTo.toISOString().slice(0, 10),
-                currency: v.currencyCode,
-                exchangeRate: v.exchangeRate,
-                offerReceivedDate: v.offerReceivedDate.toISOString().slice(0, 10),
-                cedant: v.cedant,
-                broker: v.broker || '',
-                insured: v.insured,
-                occupation: v.occupation || '',
-                country: v.country,
-                sumInsuredOs: v.sumInsuredOs,
-                premiumOs: v.premiumOs,
-                shareOfferedPct: v.shareOfferedPct,
-                shareAcceptedPct: v.shareAcceptedPct,
-                notes: v.notes,
+            // Submit each retro configuration as a separate offer
+            const submissions = v.retroConfigurations.map((config) => {
+                const payload = {
+                    // Required by backend model
+                    programId: Number(v.programId) || 1,
+                    contractTypeId: Number(v.contractTypeId) || 1,
+                    retroYear: config.retroYear,
+                    periodFrom: config.periodFrom.toISOString().slice(0, 10),
+                    periodTo: config.periodTo.toISOString().slice(0, 10),
+                    currency: v.currencyCode,
+                    exchangeRate: v.exchangeRate,
+                    offerReceivedDate: v.offerReceivedDate.toISOString().slice(0, 10),
+                    cedant: v.cedant,
+                    broker: v.broker || '',
+                    insured: v.insured,
+                    occupation: v.occupation || '',
+                    country: v.country,
+                    sumInsuredOs: config.sumInsuredOs,
+                    premiumOs: config.premiumOs,
+                    shareOfferedPct: config.shareOfferedPct,
+                    shareAcceptedPct: config.shareAcceptedPct,
+                    notes: v.notes,
 
-                // Additional fields for new structure
-                retroTypeId: Number(v.retroTypeId),
-                lineOfBusinessId: Number(v.lineOfBusinessId),
+                    // Retro configuration specific
+                    retroTypeId: Number(config.retroTypeId),
+                    lineOfBusinessId: Number(config.lineOfBusinessId),
 
-                // computed snapshot (optional)
-                sumInsuredTz: v.sumInsuredTz,
-                premiumTz: v.premiumTz,
-                soExposureTz: v.soExposureTz,
-                soPremiumTz: v.soPremiumTz,
-                saExposureTz: v.saExposureTz,
-                saPremiumTz: v.saPremiumTz,
-                tanReRetentionPct: v.tanReRetentionPct,
-                tanReRetExposureTz: v.tanReRetExposureTz,
-                tanReRetPremiumTz: v.tanReRetPremiumTz,
-                suRetroPct: v.suRetroPct,
-                suRetroExposureTz: v.suRetroExposureTz,
-                suRetroPremiumTz: v.suRetroPremiumTz,
-                facRetroPct: v.facRetroPct,
-                facRetroExposureTz: v.facRetroExposureTz,
-                facRetroPremiumTz: v.facRetroPremiumTz,
-            };
+                    // computed snapshot
+                    sumInsuredTz: config.sumInsuredTz,
+                    premiumTz: config.premiumTz,
+                    soExposureTz: config.soExposureTz,
+                    soPremiumTz: config.soPremiumTz,
+                    saExposureTz: config.saExposureTz,
+                    saPremiumTz: config.saPremiumTz,
+                    tanReRetentionPct: config.tanReRetentionPct,
+                    tanReRetExposureTz: config.tanReRetExposureTz,
+                    tanReRetPremiumTz: config.tanReRetPremiumTz,
+                    suRetroPct: config.suRetroPct,
+                    suRetroExposureTz: config.suRetroExposureTz,
+                    suRetroPremiumTz: config.suRetroPremiumTz,
+                    facRetroPct: config.facRetroPct,
+                    facRetroExposureTz: config.facRetroExposureTz,
+                    facRetroPremiumTz: config.facRetroPremiumTz,
+                };
 
-            // Use new endpoint for workflow submission
-            const response = await apiFetch<{
-                offerId: number;
-                analysisId: number;
-                processInstanceId: string;
-                businessKey: string;
-                status: string;
-                message: string;
-            }>('/api/underwriting/facultative/submit', {
-                method: 'POST',
-                body: payload,
-                headers: { 'Content-Type': 'application/json' },
-                requiresAuth: true,
+                return apiFetch<{
+                    offerId: number;
+                    analysisId: number;
+                    processInstanceId: string;
+                    businessKey: string;
+                    status: string;
+                    message: string;
+                }>('/api/underwriting/facultative/submit', {
+                    method: 'POST',
+                    body: payload,
+                    headers: { 'Content-Type': 'application/json' },
+                    requiresAuth: true,
+                });
             });
 
-            console.log('Submission successful:', response);
+            // Execute all submissions in parallel
+            const responses = await Promise.all(submissions);
+            console.log('All submissions successful:', responses);
 
             return true;
         } catch (e: any) {
@@ -535,45 +639,14 @@ const useOfferStore = create<OfferStore>((set, get) => ({
             occupation: '',
             programId: '1',
             contractTypeId: '1',
-            lineOfBusinessId: '',
-            retroTypeId: '',
-            retroYear: new Date().getFullYear(),
             country: '',
-            periodFrom: new Date(),
-            periodTo: new Date(),
             currencyCode: '',
             exchangeRate: 1,
-
-            sumInsuredOs: 0,
-            premiumOs: 0,
-            sumInsuredTz: 0,
-            premiumTz: 0,
-
-            shareOfferedPct: 0,
-            soExposureTz: 0,
-            soPremiumTz: 0,
-
-            shareAcceptedPct: 0,
-            saExposureTz: 0,
-            saPremiumTz: 0,
-
-            tanReRetentionPct: 0,
-            tanReRetExposureTz: 0,
-            tanReRetPremiumTz: 0,
-
-            suRetroPct: 0,
-            suRetroExposureTz: 0,
-            suRetroPremiumTz: 0,
-
-            facRetroPct: 0,
-            facRetroExposureTz: 0,
-            facRetroPremiumTz: 0,
-
+            notes: '',
+            retroConfigurations: [],
             loading: false,
             calculating: false,
             error: null,
-            calculationStatus: null,
-            calculationMessage: null,
         }),
 }));
 

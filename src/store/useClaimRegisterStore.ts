@@ -20,6 +20,28 @@ const convertDateToISO = (dateStr: string): string => {
     return dateStr;
 };
 
+// Helper function to convert YYYY-MM-DD to DD/MM/YYYY for display
+const convertDateToDDMMYYYY = (dateStr: string): string => {
+    if (!dateStr || dateStr.trim() === '') return '';
+
+    // Check if already in DD/MM/YYYY format
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+        return dateStr;
+    }
+
+    // Convert from YYYY-MM-DD to DD/MM/YYYY
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const [year, month, day] = dateStr.split('-');
+        return `${day}/${month}/${year}`;
+    }
+
+    // If format is unexpected, return as-is
+    return dateStr;
+};
+
+// Export helper functions for use in components
+export { convertDateToISO, convertDateToDDMMYYYY };
+
 // Type
 export interface Contract {
     contractNumber: string;
@@ -46,8 +68,10 @@ export interface ClaimDetails {
     dateReceived: string;
     originalInsured: string;
     causeOfLoss: string;
+    causeOfLossCustom?: string; // For custom "Other" cause
     currentReserve: string;
     salvage: string;
+    dateOfLossIsMissing?: boolean; // Flag to track if dateOfLoss needs to be filled later
 }
 
 export interface RegisteredClaim {
@@ -215,8 +239,10 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
         dateReceived: '',
         originalInsured: '',
         causeOfLoss: '',
+        causeOfLossCustom: '',
         currentReserve: '14598843.00',
-        salvage: '0'
+        salvage: '0',
+        dateOfLossIsMissing: false
     },
     searchCriteria: {
         underwritingYear: '2020',
@@ -444,13 +470,18 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
             const retroAmount = tanreTZS * (retroPercentage / 100);
             const tanreRetention = tanreTZS - retroAmount;
 
+            // Determine the final causeOfLoss value (use custom if "Other" is selected)
+            const finalCauseOfLoss = state.claimDetails.causeOfLoss === 'Other'
+                ? state.claimDetails.causeOfLossCustom
+                : state.claimDetails.causeOfLoss;
+
             // Prepare the request payload with full contract details
             const requestPayload = {
                 lineOfBusiness: state.selectedContracts[0]?.lineOfBusiness || state.selectedContracts[0]?.typeOfBusiness || '',
                 dateOfLoss: convertDateToISO(state.claimDetails.dateOfLoss),
                 dateReceived: convertDateToISO(state.claimDetails.dateReceived),
                 originalInsured: state.claimDetails.originalInsured,
-                causeOfLoss: state.claimDetails.causeOfLoss,
+                causeOfLoss: finalCauseOfLoss,
                 currentReserve: amount,
                 salvage: salvageAmount,
                 // Send full contract details (snapshot from search results)
@@ -551,8 +582,10 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
             dateReceived: '',
             originalInsured: '',
             causeOfLoss: '',
+            causeOfLossCustom: '',
             currentReserve: '14598843.00',
-            salvage: '0'
+            salvage: '0',
+            dateOfLossIsMissing: false
         },
         selectedContracts: [],
         searchResults: []

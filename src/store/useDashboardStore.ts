@@ -19,14 +19,22 @@ export interface CedantBalance {
     balanceRepCcy: number
 }
 
+export interface CountryRisk {
+    countryName: string
+    contractCount: number
+    premium: number
+}
+
 interface DashboardState {
     gwp: number | null
     gwpYear: number | null
+
     claims: number | null
     claimYear: number | null
     gwpList: CedantGwp[]
     gwpTrends: PremiumTrend[]
     cedantBalance: CedantBalance[]
+    countryRisks: CountryRisk[]
     loading: boolean
     error: string | null
     fetchDashboardData: () => Promise<void>
@@ -40,6 +48,7 @@ const useDashboardStore = create<DashboardState>((set) => ({
     gwpList: [],
     gwpTrends: [],
     cedantBalance: [],
+    countryRisks: [],
     loading: false,
     error: null,
     fetchDashboardData: async () => {
@@ -52,7 +61,8 @@ const useDashboardStore = create<DashboardState>((set) => ({
                 claimYearResponse,
                 gwpListResponse,
                 gwpTrendsResponse,
-                cedantBalanceResponse
+                cedantBalanceResponse,
+                countryRisksResponse
             ] = await Promise.all([
                 fetch(`${API_BASE_URL}/api/dashboard/gwp`),
                 fetch(`${API_BASE_URL}/api/dashboard/year-gwp`),
@@ -60,7 +70,8 @@ const useDashboardStore = create<DashboardState>((set) => ({
                 fetch(`${API_BASE_URL}/api/dashboard/year-claim`),
                 fetch(`${API_BASE_URL}/api/dashboard/gwp/top-cedants`),
                 fetch(`${API_BASE_URL}/api/dashboard/monthly-trend`),
-                fetch(`${API_BASE_URL}/api/dashboard/outstanding-balances`)
+                fetch(`${API_BASE_URL}/api/dashboard/outstanding-balances`),
+                fetch(`${API_BASE_URL}/api/dashboard/country-risks`).catch(() => ({ json: async () => [] }))
             ])
 
             const [
@@ -70,7 +81,8 @@ const useDashboardStore = create<DashboardState>((set) => ({
                 claimYear,
                 gwpList,
                 gwpTrends,
-                cedantBalance
+                cedantBalance,
+                countryRisks
             ] = await Promise.all([
                 gwpResponse.json(),
                 gwpYearResponse.json(),
@@ -78,7 +90,8 @@ const useDashboardStore = create<DashboardState>((set) => ({
                 claimYearResponse.json(),
                 gwpListResponse.json(),
                 gwpTrendsResponse.json(),
-                cedantBalanceResponse.json()
+                cedantBalanceResponse.json(),
+                countryRisksResponse.json()
             ])
 
             set({
@@ -89,6 +102,7 @@ const useDashboardStore = create<DashboardState>((set) => ({
                 gwpList,
                 gwpTrends,
                 cedantBalance,
+                countryRisks: countryRisks || [],
                 loading: false
             })
         } catch (error) {

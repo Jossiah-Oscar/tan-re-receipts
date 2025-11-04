@@ -6,18 +6,24 @@ import {
     Box,
     Button,
     Card,
+    Container,
     Divider,
     Grid,
     Group,
     Modal,
     NumberInput,
+    Paper,
     ScrollArea,
+    Select,
+    SimpleGrid,
     Stack,
     Table,
     Text,
     TextInput,
     Textarea,
+    ThemeIcon,
     Title,
+    Badge,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import {
@@ -26,19 +32,36 @@ import {
     IconPlus,
     IconPrinter,
     IconTrash,
+    IconFileInvoice,
+    IconFileText,
+    IconUser,
+    IconUserCheck,
+    IconCoin,
+    IconCurrencyDollar,
+    IconList,
+    IconReceipt,
 } from "@tabler/icons-react";
 
 // ---------------- Types ----------------
+// Test currencies - will be replaced by API later
+const CURRENCIES = [
+    { value: "KSH", label: "KSH - Kenyan Shilling" },
+    { value: "USD", label: "USD - US Dollar" },
+    { value: "EUR", label: "EUR - Euro" },
+    { value: "GBP", label: "GBP - British Pound" },
+];
+
 interface AccountEntry {
     accountCode: string;
     accountName: string;
-    kshs: number; // source amount
-    rateOfExchange: number; // KES -> TZS
+    sourceAmount: number; // amount in selected currency
+    rateOfExchange: number; // selected currency -> TSH
     amountInTSH: number; // computed
 }
 
 interface VoucherFormData {
     voucherNumber: string;
+    sourceCurrency: string; // selected currency (KSH, USD, etc.)
     payeeName: string;
     payeeAddress: string;
     dateOfPayment: Date | null;
@@ -132,6 +155,7 @@ const toYmd = (d: Date | null) =>
 export default function PaymentVoucherFormMantine() {
     const [formData, setFormData] = useState<VoucherFormData>({
         voucherNumber: "",
+        sourceCurrency: "KSH", // default currency
         payeeName: "",
         payeeAddress: "",
         dateOfPayment: null,
@@ -141,7 +165,7 @@ export default function PaymentVoucherFormMantine() {
         checkedBy: "",
         amountInWords: "",
         accountEntries: [
-            { accountCode: "", accountName: "", kshs: 0, rateOfExchange: 1, amountInTSH: 0 },
+            { accountCode: "", accountName: "", sourceAmount: 0, rateOfExchange: 1, amountInTSH: 0 },
         ],
     });
 
@@ -149,8 +173,8 @@ export default function PaymentVoucherFormMantine() {
     const [saving, setSaving] = useState(false);
 
     // ---- derived values ----
-    const totalKshs = useMemo(
-        () => formData.accountEntries.reduce((t, e) => t + (e.kshs || 0), 0),
+    const totalSourceAmount = useMemo(
+        () => formData.accountEntries.reduce((t, e) => t + (e.sourceAmount || 0), 0),
         [formData.accountEntries]
     );
 
@@ -183,9 +207,9 @@ export default function PaymentVoucherFormMantine() {
                 if (i !== idx) return e;
                 const next: AccountEntry = { ...e };
                 // coerce numeric inputs
-                if (field === "kshs" || field === "rateOfExchange") {
+                if (field === "sourceAmount" || field === "rateOfExchange") {
                     (next as any)[field] = typeof value === "number" ? value : parseFloat(String(value)) || 0;
-                    next.amountInTSH = (next.kshs || 0) * (next.rateOfExchange || 1);
+                    next.amountInTSH = (next.sourceAmount || 0) * (next.rateOfExchange || 1);
                 } else {
                     (next as any)[field] = value as any;
                 }
@@ -200,7 +224,7 @@ export default function PaymentVoucherFormMantine() {
             ...p,
             accountEntries: [
                 ...p.accountEntries,
-                { accountCode: "", accountName: "", kshs: 0, rateOfExchange: 1, amountInTSH: 0 },
+                { accountCode: "", accountName: "", sourceAmount: 0, rateOfExchange: 1, amountInTSH: 0 },
             ],
         }));
 
@@ -216,7 +240,7 @@ export default function PaymentVoucherFormMantine() {
             const payload = {
                 ...formData,
                 dateOfPayment: toYmd(formData.dateOfPayment),
-                total: totalKshs,
+                total: totalTsh,
                 totalTSH: totalTsh,
                 amountInWords,
             };
@@ -241,8 +265,8 @@ export default function PaymentVoucherFormMantine() {
         const d = toYmd(formData.dateOfPayment);
 
         // Calculate totals directly
-        const totalKshs = formData.accountEntries.reduce((total, entry) => {
-            return total + (entry.kshs || 0);
+        const totalSourceAmt = formData.accountEntries.reduce((total, entry) => {
+            return total + (entry.sourceAmount || 0);
         }, 0);
 
         const totalTsh = formData.accountEntries.reduce((total, entry) => {
@@ -286,7 +310,7 @@ export default function PaymentVoucherFormMantine() {
             <tr class="account-row">
                 <td class="account-code">${e.accountCode || ""}</td>
                 <td class="account-name">${e.accountName || ""}</td>
-                <td class="amount-cell">${fmt(e.kshs || 0)}</td>
+                <td class="amount-cell">${fmt(e.sourceAmount || 0)}</td>
                 <td class="rate-cell">${e.rateOfExchange || 1}</td>
                 <td class="amount-cell">${fmt(e.amountInTSH || 0)}</td>
             </tr>`)
@@ -748,7 +772,7 @@ export default function PaymentVoucherFormMantine() {
                         <tr>
                             <th style="width:15%">Account Code</th>
                             <th style="width:35%">Account Name</th>
-                            <th style="width:15%">KSHS</th>
+                            <th style="width:15%">${formData.sourceCurrency}</th>
                             <th style="width:15%">Exchange Rate</th>
                             <th style="width:20%">Amount in TSH</th>
                         </tr>
@@ -758,7 +782,7 @@ export default function PaymentVoucherFormMantine() {
                         ${empty}
                         <tr class="total-row">
                             <td colspan="2" style="text-align:center; font-weight:700">TOTAL</td>
-                            <td >${fmt(totalKshs)}</td>
+                            <td >${fmt(totalSourceAmt)}</td>
                             <td></td>
                             <td >${fmt(totalTsh)}</td>
                         </tr>
@@ -813,113 +837,238 @@ export default function PaymentVoucherFormMantine() {
 
     // ---------------- UI ----------------
     return (
-        <Stack gap="lg">
-            <Group justify="space-between" align="center">
-                <Title order={2}>Payment Voucher Generator</Title>
-                <Group gap="xs">
-                    <Button leftSection={<IconEye size={16} />} variant="light" onClick={() => setShowPreview(true)}>
+        <Container size="xl" py="md">
+            {/* Header */}
+            <Paper shadow="sm" p="lg" radius="md" mb="xl">
+                <Group justify="space-between">
+                    <div>
+                        <Group gap="xs" mb={4}>
+                            <IconFileInvoice size={28} />
+                            <Title order={1}>Payment Voucher Generator</Title>
+                        </Group>
+                        <Text size="sm" c="dimmed" mt={4}>
+                            Create and manage payment vouchers with automatic calculations
+                        </Text>
+                    </div>
+                    <Group>
+                        <Badge size="lg" variant="light" color="orange">
+                            Draft Mode
+                        </Badge>
+                        <Badge size="lg" variant="light" color="blue">
+                            {new Date().toLocaleDateString()}
+                        </Badge>
+                    </Group>
+                </Group>
+
+                <Divider my="md" />
+
+                <Group justify="flex-end" gap="xs">
+                    <Button leftSection={<IconEye size={16} />} variant="light" color="blue" onClick={() => setShowPreview(true)}>
                         Preview
                     </Button>
                     <Button leftSection={<IconPrinter size={16} />} variant="default" onClick={handlePrint}>
                         Print
                     </Button>
-                    <Button leftSection={<IconDeviceFloppy size={16} />} loading={saving} onClick={handleSave}>
+                    <Button leftSection={<IconDeviceFloppy size={16} />} color="green" loading={saving} onClick={handleSave}>
                         Save Voucher
                     </Button>
                 </Group>
-            </Group>
+            </Paper>
 
-            <Card withBorder shadow="xs" radius="md" p="lg">
-                <Grid gutter="md">
-                    <Grid.Col span={{ base: 12, md: 4 }}>
-                        <TextInput
-                            label="Voucher Number"
-                            placeholder="e.g., 111960"
-                            value={formData.voucherNumber}
-                            onChange={(e) => update("voucherNumber", e.currentTarget.value)}
-                            required
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={{ base: 12, md: 4 }}>
-                        <DateInput
-                            label="Date of Payment"
-                            value={formData.dateOfPayment}
-                            onChange={(v) => update("dateOfPayment", v)}
-                            valueFormat="YYYY-MM-DD"
-                            required
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={{ base: 12, md: 4 }}>
-                        <TextInput
-                            label="Cheque Number"
-                            placeholder="e.g., 012924"
-                            value={formData.chequeNo}
-                            onChange={(e) => update("chequeNo", e.currentTarget.value)}
-                            required
-                        />
-                    </Grid.Col>
+            <Stack gap="lg">
+                {/* Voucher Details Card */}
+                <Card withBorder shadow="xs" radius="md" p="lg">
+                    <Group gap="xs" mb="md">
+                        <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+                            <IconFileText size={20} />
+                        </ThemeIcon>
+                        <div>
+                            <Title order={4}>Voucher Details</Title>
+                            <Text size="sm" c="dimmed">Basic voucher information and payment details</Text>
+                        </div>
+                    </Group>
 
-                    <Grid.Col span={12}>
-                        <Divider label="Payee Information" labelPosition="left" my="xs" />
-                    </Grid.Col>
+                    <Grid gutter="md">
+                        <Grid.Col span={{ base: 12, md: 3 }}>
+                            <TextInput
+                                label="Voucher Number"
+                                placeholder="e.g., 111960"
+                                value={formData.voucherNumber}
+                                onChange={(e) => update("voucherNumber", e.currentTarget.value)}
+                                required
+                                withAsterisk
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={{ base: 12, md: 3 }}>
+                            <Select
+                                label="Source Currency"
+                                placeholder="Select currency"
+                                data={CURRENCIES}
+                                value={formData.sourceCurrency}
+                                onChange={(v) => update("sourceCurrency", v || "KSH")}
+                                required
+                                withAsterisk
+                                leftSection={<IconCurrencyDollar size={16} />}
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={{ base: 12, md: 3 }}>
+                            <DateInput
+                                label="Date of Payment"
+                                value={formData.dateOfPayment}
+                                onChange={(v) => update("dateOfPayment", v)}
+                                valueFormat="YYYY-MM-DD"
+                                required
+                                withAsterisk
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={{ base: 12, md: 3 }}>
+                            <TextInput
+                                label="Cheque Number"
+                                placeholder="e.g., 012924"
+                                value={formData.chequeNo}
+                                onChange={(e) => update("chequeNo", e.currentTarget.value)}
+                                required
+                                withAsterisk
+                            />
+                        </Grid.Col>
+                    </Grid>
+                </Card>
 
-                    <Grid.Col span={12}>
-                        <TextInput
-                            label="Payee Name"
-                            placeholder="e.g., TANZINDIA ASSURANCE CO. LTD"
-                            value={formData.payeeName}
-                            onChange={(e) => update("payeeName", e.currentTarget.value)}
-                            required
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={12}>
-                        <Textarea
-                            label="Payee Address"
-                            placeholder="Full address of the payee"
-                            autosize
-                            minRows={2}
-                            value={formData.payeeAddress}
-                            onChange={(e) => update("payeeAddress", e.currentTarget.value)}
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={12}>
-                        <Textarea
-                            label="Description"
-                            placeholder="e.g., Being amount paid for SETTLEMENT OF ARISING CLAIM ON NMB BANK LTD"
-                            autosize
-                            minRows={2}
-                            value={formData.description}
-                            onChange={(e) => update("description", e.currentTarget.value)}
-                            required
-                        />
-                    </Grid.Col>
+                {/* Payee Information Card */}
+                <Card withBorder shadow="xs" radius="md" p="lg">
+                    <Group gap="xs" mb="md">
+                        <ThemeIcon size="lg" radius="md" variant="light" color="violet">
+                            <IconUser size={20} />
+                        </ThemeIcon>
+                        <div>
+                            <Title order={4}>Payee Information</Title>
+                            <Text size="sm" c="dimmed">Details about the payment recipient</Text>
+                        </div>
+                    </Group>
 
-                    <Grid.Col span={{ base: 12, md: 6 }}>
-                        <TextInput
-                            label="Prepared By"
-                            placeholder="Name of preparer"
-                            value={formData.preparedBy}
-                            onChange={(e) => update("preparedBy", e.currentTarget.value)}
-                        />
-                    </Grid.Col>
-                    <Grid.Col span={{ base: 12, md: 6 }}>
-                        <TextInput
-                            label="Checked By"
-                            placeholder="Name of checker"
-                            value={formData.checkedBy}
-                            onChange={(e) => update("checkedBy", e.currentTarget.value)}
-                        />
-                    </Grid.Col>
-                </Grid>
-            </Card>
+                    <Grid gutter="md">
+                        <Grid.Col span={12}>
+                            <TextInput
+                                label="Payee Name"
+                                placeholder="e.g., TANZINDIA ASSURANCE CO. LTD"
+                                value={formData.payeeName}
+                                onChange={(e) => update("payeeName", e.currentTarget.value)}
+                                required
+                                withAsterisk
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={12}>
+                            <Textarea
+                                label="Payee Address"
+                                placeholder="Full address of the payee"
+                                autosize
+                                minRows={2}
+                                value={formData.payeeAddress}
+                                onChange={(e) => update("payeeAddress", e.currentTarget.value)}
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={12}>
+                            <Textarea
+                                label="Description"
+                                placeholder="e.g., Being amount paid for SETTLEMENT OF ARISING CLAIM ON NMB BANK LTD"
+                                autosize
+                                minRows={2}
+                                value={formData.description}
+                                onChange={(e) => update("description", e.currentTarget.value)}
+                                required
+                                withAsterisk
+                            />
+                        </Grid.Col>
+                    </Grid>
+                </Card>
 
-            <Card withBorder shadow="xs" radius="md" p="lg">
-                <Group justify="space-between" align="center" mb="sm">
-                    <Title order={4}>Account Entries</Title>
-                    <Button leftSection={<IconPlus size={16} />} onClick={addEntry} variant="light">
-                        Add Entry
-                    </Button>
-                </Group>
+                {/* Approval Details Card */}
+                <Card withBorder shadow="xs" radius="md" p="lg">
+                    <Group gap="xs" mb="md">
+                        <ThemeIcon size="lg" radius="md" variant="light" color="green">
+                            <IconUserCheck size={20} />
+                        </ThemeIcon>
+                        <div>
+                            <Title order={4}>Approval Details</Title>
+                            <Text size="sm" c="dimmed">Preparation and verification information</Text>
+                        </div>
+                    </Group>
+
+                    <Grid gutter="md">
+                        <Grid.Col span={{ base: 12, md: 6 }}>
+                            <TextInput
+                                label="Prepared By (ACC/AA/AAT)"
+                                placeholder="Name of preparer"
+                                value={formData.preparedBy}
+                                onChange={(e) => update("preparedBy", e.currentTarget.value)}
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={{ base: 12, md: 6 }}>
+                            <TextInput
+                                label="Checked By (MA/AT)"
+                                placeholder="Name of checker"
+                                value={formData.checkedBy}
+                                onChange={(e) => update("checkedBy", e.currentTarget.value)}
+                            />
+                        </Grid.Col>
+                    </Grid>
+                </Card>
+
+                {/* Account Entries Card */}
+                <Card withBorder shadow="xs" radius="md" p="lg">
+                    <Group justify="space-between" align="center" mb="md">
+                        <Group gap="xs">
+                            <ThemeIcon size="lg" radius="md" variant="light" color="orange">
+                                <IconReceipt size={20} />
+                            </ThemeIcon>
+                            <div>
+                                <Title order={4}>Account Entries</Title>
+                                <Text size="sm" c="dimmed">Line items with account codes and amounts</Text>
+                            </div>
+                        </Group>
+                        <Button leftSection={<IconPlus size={16} />} onClick={addEntry} variant="light" color="orange">
+                            Add Entry
+                        </Button>
+                    </Group>
+
+                    {/* Summary Stats Cards */}
+                    <SimpleGrid cols={{ base: 1, sm: 3 }} mb="lg">
+                        <Card shadow="sm" padding="md" radius="md" withBorder bg="blue.0">
+                            <Group>
+                                <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+                                    <IconCoin size={20} />
+                                </ThemeIcon>
+                                <div>
+                                    <Text size="xs" c="dimmed">Total {formData.sourceCurrency}</Text>
+                                    <Text size="lg" fw={700}>{fmt(totalSourceAmount)}</Text>
+                                </div>
+                            </Group>
+                        </Card>
+
+                        <Card shadow="sm" padding="md" radius="md" withBorder bg="green.0">
+                            <Group>
+                                <ThemeIcon size="lg" radius="md" variant="light" color="green">
+                                    <IconCurrencyDollar size={20} />
+                                </ThemeIcon>
+                                <div>
+                                    <Text size="xs" c="dimmed">Total TSH</Text>
+                                    <Text size="lg" fw={700}>{fmt(totalTsh)}</Text>
+                                </div>
+                            </Group>
+                        </Card>
+
+                        <Card shadow="sm" padding="md" radius="md" withBorder bg="violet.0">
+                            <Group>
+                                <ThemeIcon size="lg" radius="md" variant="light" color="violet">
+                                    <IconList size={20} />
+                                </ThemeIcon>
+                                <div>
+                                    <Text size="xs" c="dimmed">Number of Entries</Text>
+                                    <Text size="lg" fw={700}>{formData.accountEntries.length}</Text>
+                                </div>
+                            </Group>
+                        </Card>
+                    </SimpleGrid>
 
                 <ScrollArea>
                     <Table striped highlightOnHover withTableBorder withColumnBorders stickyHeader>
@@ -927,7 +1076,7 @@ export default function PaymentVoucherFormMantine() {
                             <Table.Tr>
                                 <Table.Th style={{ width: "16%" }}>Account Code</Table.Th>
                                 <Table.Th style={{ width: "34%" }}>Account Name</Table.Th>
-                                <Table.Th style={{ width: "16%" }}>KSHS</Table.Th>
+                                <Table.Th style={{ width: "16%" }}>{formData.sourceCurrency}</Table.Th>
                                 <Table.Th style={{ width: "16" }}>Rate</Table.Th>
                                 <Table.Th style={{ width: "16%" }}>Amount in TSH</Table.Th>
                                 <Table.Th style={{ width: 44 }}></Table.Th>
@@ -955,8 +1104,8 @@ export default function PaymentVoucherFormMantine() {
                                             decimalScale={2}
                                             thousandSeparator
                                             placeholder="0.00"
-                                            value={e.kshs}
-                                            onChange={(val) => updateEntry(i, "kshs", Number(val) || 0)}
+                                            value={e.sourceAmount}
+                                            onChange={(val) => updateEntry(i, "sourceAmount", Number(val) || 0)}
                                         />
                                     </Table.Td>
                                     <Table.Td>
@@ -986,32 +1135,52 @@ export default function PaymentVoucherFormMantine() {
                     </Table>
                 </ScrollArea>
 
-                <Divider my="md" />
-                <Grid>
-                    <Grid.Col span={{ base: 12, md: 6 }}>
-                        <Stack gap={4}>
-                            <Text fw={600}>Amount in Words</Text>
-                            <Box p="sm" style={{ background: "var(--mantine-color-gray-1)", borderRadius: 8 }}>
-                                <Text size="sm" c="dimmed">
+                    <Divider my="lg" />
+
+                    {/* Summary Totals Section */}
+                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                        <Card shadow="sm" padding="lg" radius="md" withBorder>
+                            <Group gap="xs" mb="sm">
+                                <ThemeIcon size="md" radius="md" variant="light" color="gray">
+                                    <IconFileText size={18} />
+                                </ThemeIcon>
+                                <Text fw={600} size="sm">Amount in Words</Text>
+                            </Group>
+                            <Paper p="md" withBorder bg="gray.0">
+                                <Text size="sm" c="dimmed" style={{ fontStyle: "italic" }}>
                                     {amountInWords}
                                 </Text>
-                            </Box>
+                            </Paper>
+                        </Card>
+
+                        <Stack gap="md">
+                            <Card shadow="sm" padding="md" radius="md" withBorder bg="blue.1">
+                                <Group justify="space-between">
+                                    <Group gap="xs">
+                                        <ThemeIcon size="md" radius="md" variant="filled" color="blue">
+                                            <IconCoin size={18} />
+                                        </ThemeIcon>
+                                        <Text fw={600} size="sm">Total {formData.sourceCurrency}</Text>
+                                    </Group>
+                                    <Text fw={700} size="lg" c="blue.9">{fmt(totalSourceAmount)}</Text>
+                                </Group>
+                            </Card>
+
+                            <Card shadow="sm" padding="md" radius="md" withBorder bg="green.1">
+                                <Group justify="space-between">
+                                    <Group gap="xs">
+                                        <ThemeIcon size="md" radius="md" variant="filled" color="green">
+                                            <IconCurrencyDollar size={18} />
+                                        </ThemeIcon>
+                                        <Text fw={600} size="sm">Total TSH</Text>
+                                    </Group>
+                                    <Text fw={700} size="lg" c="green.9">{fmt(totalTsh)}</Text>
+                                </Group>
+                            </Card>
                         </Stack>
-                    </Grid.Col>
-                    <Grid.Col span={{ base: 12, md: 6 }}>
-                        <Stack gap={6}>
-                            <Group justify="space-between">
-                                <Text fw={600}>Total KSHS</Text>
-                                <Text fw={700}>{fmt(totalKshs)}</Text>
-                            </Group>
-                            <Group justify="space-between">
-                                <Text fw={600}>Total TSH</Text>
-                                <Text fw={700}>{fmt(totalTsh)}</Text>
-                            </Group>
-                        </Stack>
-                    </Grid.Col>
-                </Grid>
-            </Card>
+                    </SimpleGrid>
+                </Card>
+            </Stack>
 
             <Modal
                 opened={showPreview}
@@ -1077,7 +1246,7 @@ export default function PaymentVoucherFormMantine() {
                                 <Table.Tr>
                                     <Table.Th>Account Code</Table.Th>
                                     <Table.Th>Account Name</Table.Th>
-                                    <Table.Th ta="right">KSHS</Table.Th>
+                                    <Table.Th ta="right">{formData.sourceCurrency}</Table.Th>
                                     <Table.Th ta="center">Rate</Table.Th>
                                     <Table.Th ta="right">Amount in TSH</Table.Th>
                                 </Table.Tr>
@@ -1087,7 +1256,7 @@ export default function PaymentVoucherFormMantine() {
                                     <Table.Tr key={i}>
                                         <Table.Td>{e.accountCode}</Table.Td>
                                         <Table.Td>{e.accountName}</Table.Td>
-                                        <Table.Td ta="right">{fmt(e.kshs)}</Table.Td>
+                                        <Table.Td ta="right">{fmt(e.sourceAmount)}</Table.Td>
                                         <Table.Td ta="center">{e.rateOfExchange}</Table.Td>
                                         <Table.Td ta="right">{fmt(e.amountInTSH)}</Table.Td>
                                     </Table.Tr>
@@ -1095,7 +1264,7 @@ export default function PaymentVoucherFormMantine() {
                                 <Table.Tr>
                                     <Table.Td fw={700} ta="center">Total</Table.Td>
                                     <Table.Td></Table.Td>
-                                    <Table.Td ta="right" fw={700}>{fmt(totalKshs)}</Table.Td>
+                                    <Table.Td ta="right" fw={700}>{fmt(totalSourceAmount)}</Table.Td>
                                     <Table.Td></Table.Td>
                                     <Table.Td ta="right" fw={700}>{fmt(totalTsh)}</Table.Td>
                                 </Table.Tr>
@@ -1109,6 +1278,6 @@ export default function PaymentVoucherFormMantine() {
                     </Group>
                 </Stack>
             </Modal>
-        </Stack>
+        </Container>
     );
 }

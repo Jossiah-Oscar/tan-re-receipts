@@ -1,4 +1,4 @@
-import { RegisteredClaim } from '@/store/useClaimRegisterStore';
+import { RegisteredClaim, convertDateToDDMMYYYY } from '@/store/useClaimRegisterStore';
 
 interface ClaimDetailModalProps {
     claim: RegisteredClaim;
@@ -31,15 +31,15 @@ export default function ClaimDetailModal({ claim, onClose }: ClaimDetailModalPro
                             </div>
                             <div>
                                 <span className="text-sm text-gray-500">Date Registered</span>
-                                <p className="font-semibold">{claim.dateRegistered}</p>
+                                <p className="font-semibold">{convertDateToDDMMYYYY(claim.dateRegistered)}</p>
                             </div>
                             <div>
                                 <span className="text-sm text-gray-500">Date of Loss</span>
-                                <p className="font-semibold">{claim.dateOfLoss}</p>
+                                <p className="font-semibold">{claim.dateOfLoss ? convertDateToDDMMYYYY(claim.dateOfLoss) : '(Not provided)'}</p>
                             </div>
                             <div>
                                 <span className="text-sm text-gray-500">Date Received</span>
-                                <p className="font-semibold">{claim.dateReceived}</p>
+                                <p className="font-semibold">{convertDateToDDMMYYYY(claim.dateReceived)}</p>
                             </div>
                             <div>
                                 <span className="text-sm text-gray-500">Original Insured</span>

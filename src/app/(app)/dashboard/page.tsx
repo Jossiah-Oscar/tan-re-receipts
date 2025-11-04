@@ -1,32 +1,39 @@
-"use client"
+"use client";
 
-import { useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import {
-    Box,
-    Card,
-    Center,
     Container,
     Grid,
-    Group,
     Loader,
-    Modal, rem,
-    Table,
-    Text
+    Center,
+    Text,
+    Paper,
+    Group,
+    Badge,
+    Title,
+    SimpleGrid,
+    Card,
+    ThemeIcon,
+    Stack,
+    Progress,
+    Tabs,
 } from "@mantine/core";
-import {StatCard} from "@/components/dashboard/gwpCard";
-import {ClaimStatCard} from "@/components/dashboard/claimCard";
-import GwpMonthlyCard from "@/components/dashboard/gwpTable";
-import { IconDotsVertical, } from "@tabler/icons-react";
-import {formatShortNumber} from "@/utils/format";
-import {BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, Tooltip, ResponsiveContainer} from "recharts";
-import useDashboardStore from "@/store/useDashboardStore"
-
+import {
+    IconTrendingUp,
+    IconAlertTriangle,
+    IconCoin,
+    IconChartBar,
+    IconMapPin,
+    IconFileAnalytics,
+} from "@tabler/icons-react";
+import { StatCard } from "@/components/dashboard/gwpCard";
+import { ClaimStatCard } from "@/components/dashboard/claimCard";
+import { formatShortNumber } from "@/utils/format";
+import { BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import useDashboardStore from "@/store/useDashboardStore";
+import GlobalRiskDistribution from "@/components/dashboard/GlobalRiskDistribution";
 
 export default function Dashboard() {
-    const [opened, setOpened] = useState(false);
-    const [openedYearModal, setOpenedYearModal] = useState(false);
-
-
     const {
         gwp,
         gwpYear,
@@ -35,202 +42,376 @@ export default function Dashboard() {
         gwpList,
         gwpTrends,
         cedantBalance,
+        countryRisks,
         loading,
-        fetchDashboardData
-    } = useDashboardStore()
+        fetchDashboardData,
+    } = useDashboardStore();
 
     const monthlyTarget = 336_903_845_564 / 12;
-    const yearlyTarget: number = 336903845564;
+    const yearlyTarget: number = 336_903_845_564;
 
     useEffect(() => {
-      fetchDashboardData()
+        fetchDashboardData();
     }, [fetchDashboardData]);
 
-
-    if (gwp === null || gwpYear === null) return <Center><Loader variant="bars" /> </Center>;
+    if (loading || gwp === null || gwpYear === null) {
+        return (
+            <Center h="80vh">
+                <Stack align="center" gap="md">
+                    <Loader size="xl" variant="bars" />
+                    <Text c="dimmed">Loading dashboard data...</Text>
+                </Stack>
+            </Center>
+        );
+    }
 
     const progress = (gwp / monthlyTarget) * 100;
-    const yearProgress =  (gwpYear / yearlyTarget) * 100
+    const yearProgress = (gwpYear / yearlyTarget) * 100;
+    const lossRatio = claims && gwp ? (claims / gwp) * 100 : 0;
 
-    // @ts-ignore
+    // Prepare data for pie chart
+    const topCedantsData = gwpList.slice(0, 5).map((cedant) => ({
+        name: cedant.cedantName,
+        value: cedant.totalBookedPremium,
+    }));
+
+    const COLORS = ["#3b82f6", "#7c3aed", "#06b6d4", "#10b981", "#f59e0b"];
+
     return (
-        <>
-        <Container size="xl" py="sm" color={'red'}>
+        <Container size="xl" py="md">
+            {/* Header */}
+            <Paper shadow="sm" p="lg" radius="md" mb="xl">
+                <Group justify="space-between">
+                    <div>
+                        <Title order={1}>Dashboard Overview</Title>
+                        <Text size="sm" c="dimmed" mt={4}>
+                            Real-time business intelligence and analytics
+                        </Text>
+                    </div>
+                    <Group>
+                        <Badge size="lg" variant="light" color="blue">
+                            Live Data
+                        </Badge>
+                        <Badge size="lg" variant="light" color="green">
+                            {new Date().toLocaleDateString()}
+                        </Badge>
+                    </Group>
+                </Group>
+            </Paper>
 
-            <div className="p-6">
-                <Text size="xl" fw={700} mb="md">Dashboard Overview</Text>
+            {/* Key Metrics */}
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md" mb="xl">
+                <Card shadow="sm" padding="lg" radius="md" withBorder>
+                    <Group justify="space-between" mb="md">
+                        <ThemeIcon size="xl" radius="md" variant="light" color="blue">
+                            <IconTrendingUp size={24} />
+                        </ThemeIcon>
+                        <Badge color="blue" variant="light">
+                            Monthly
+                        </Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed" mb={4}>
+                        GWP This Month
+                    </Text>
+                    <Text size="xl" fw={700}>
+                        {formatShortNumber(gwp)}
+                    </Text>
+                    <Progress value={progress} mt="md" size="sm" color="blue" />
+                    <Text size="xs" c="dimmed" mt={4}>
+                        {progress.toFixed(1)}% of monthly target
+                    </Text>
+                </Card>
 
-                <Grid>
-                    <Grid.Col span={{ base: 12, md: 3 }}>
-                        <Box onClick={() => setOpened(true)} style={{ cursor: 'pointer' }}>
-                        <StatCard
-                            cardName={'Current Month GWP'}
-                            currentGwp={gwp}
-                            targetGwp={monthlyTarget}
-                            progress={Number(progress.toFixed(2))}
-                            month={'June'} // Or make dynamic
-                        />
-                        </Box>
-                    </Grid.Col>
+                <Card shadow="sm" padding="lg" radius="md" withBorder>
+                    <Group justify="space-between" mb="md">
+                        <ThemeIcon size="xl" radius="md" variant="light" color="violet">
+                            <IconChartBar size={24} />
+                        </ThemeIcon>
+                        <Badge color="violet" variant="light">
+                            Yearly
+                        </Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed" mb={4}>
+                        GWP This Year
+                    </Text>
+                    <Text size="xl" fw={700}>
+                        {formatShortNumber(gwpYear)}
+                    </Text>
+                    <Progress value={yearProgress} mt="md" size="sm" color="violet" />
+                    <Text size="xs" c="dimmed" mt={4}>
+                        {yearProgress.toFixed(1)}% of yearly target
+                    </Text>
+                </Card>
 
-                    <Grid.Col span={{ base: 12, md: 3 }}>
-                        <Box onClick={() => setOpenedYearModal(true)} style={{ cursor: 'pointer' }}>
-                        <StatCard
-                            cardName={'Current Year GWP'}
-                                    currentGwp={gwpYear!}
-                                    targetGwp={yearlyTarget}
-                                    progress={Number(yearProgress.toFixed(2))}
-                                    month={'June'} // Or make dynamic
-                        />
-                        </Box>
-                    </Grid.Col>
+                <Card shadow="sm" padding="lg" radius="md" withBorder>
+                    <Group justify="space-between" mb="md">
+                        <ThemeIcon size="xl" radius="md" variant="light" color="red">
+                            <IconAlertTriangle size={24} />
+                        </ThemeIcon>
+                        <Badge color="red" variant="light">
+                            Monthly
+                        </Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed" mb={4}>
+                        Claims Payout
+                    </Text>
+                    <Text size="xl" fw={700}>
+                        {formatShortNumber(claims || 0)}
+                    </Text>
+                    <Group mt="md" gap={4}>
+                        <Text size="xs" c="dimmed">
+                            Loss Ratio:
+                        </Text>
+                        <Badge color={lossRatio > 70 ? "red" : lossRatio > 50 ? "orange" : "green"} size="sm">
+                            {lossRatio.toFixed(1)}%
+                        </Badge>
+                    </Group>
+                </Card>
 
-                    <Grid.Col span={{ base: 12, md: 3 }}>
-                        <ClaimStatCard
-                            claimsAmount={claims!}
-                            cardName="Claims Payout this month"
-                        />
-                    </Grid.Col>
+                <Card shadow="sm" padding="lg" radius="md" withBorder>
+                    <Group justify="space-between" mb="md">
+                        <ThemeIcon size="xl" radius="md" variant="light" color="orange">
+                            <IconCoin size={24} />
+                        </ThemeIcon>
+                        <Badge color="orange" variant="light">
+                            Yearly
+                        </Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed" mb={4}>
+                        Total Claims (YTD)
+                    </Text>
+                    <Text size="xl" fw={700}>
+                        {formatShortNumber(claimYear || 0)}
+                    </Text>
+                    <Text size="xs" c="dimmed" mt="md">
+                        Year-to-date claims paid
+                    </Text>
+                </Card>
+            </SimpleGrid>
 
-                    <Grid.Col span={{ base: 12, md: 3 }}>
-                        <ClaimStatCard
-                          claimsAmount={claimYear!}
-                          cardName="Claims Payout this Year"
-                        />
-                    </Grid.Col>
+            {/* Tabs for different views */}
+            <Tabs defaultValue="overview" variant="pills" mb="xl">
+                <Tabs.List>
+                    <Tabs.Tab value="overview" leftSection={<IconChartBar size={16} />}>
+                        Overview
+                    </Tabs.Tab>
+                    <Tabs.Tab value="map" leftSection={<IconMapPin size={16} />}>
+                        Global Distribution
+                    </Tabs.Tab>
+                    <Tabs.Tab value="analytics" leftSection={<IconFileAnalytics size={16} />}>
+                        Analytics
+                    </Tabs.Tab>
+                </Tabs.List>
 
-                    {/* Charts Section */}
-                    <Grid.Col span={{ base: 12, md: 12 }}>
-                        <Card shadow="sm" padding="lg" radius="md" withBorder>
-                            <Group justify="space-between" mb="md">
-                                <Text fw={600}>Current Year vs Last Year Premium Trend</Text>
-                            </Group>
+                <Tabs.Panel value="overview" pt="md">
+                    <Grid>
+                        {/* Premium Trend Chart */}
+                        <Grid.Col span={{ base: 12, md: 12 }}>
+                            <Paper shadow="sm" p="lg" radius="md" withBorder>
+                                <Group justify="space-between" mb="md">
+                                    <div>
+                                        <Title order={4}>Premium Trend Analysis</Title>
+                                        <Text size="sm" c="dimmed">
+                                            Current year vs last year monthly comparison
+                                        </Text>
+                                    </div>
+                                </Group>
 
-                            <ResponsiveContainer width="100%" height={400}>
-                                <BarChart data={gwpTrends}>
-                                    height={300}
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="month" />
-                                    <Tooltip />
-                                    <YAxis
-                                        tickFormatter={(value) =>
-                                            new Intl.NumberFormat('en-US', {
-                                                notation: 'compact',
-                                                maximumFractionDigits: 1,
-                                            }).format(value)
-                                        }
-                                    />
-                                    <Legend />
-                                    <Bar dataKey="lastYearPremium" name="Last Year Premium" fill="#3b82f6" /> {/* blue.6 */}
-                                    <Bar dataKey="thisYearPremium" name="This Year Premium" fill="#7c3aed" /> {/* violet.6 */}
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </Card>
-                    </Grid.Col>
+                                <ResponsiveContainer width="100%" height={400}>
+                                    <BarChart data={gwpTrends}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="month" />
+                                        <Tooltip
+                                            formatter={(value: any) =>
+                                                new Intl.NumberFormat("en-US", {
+                                                    style: "currency",
+                                                    currency: "TZS",
+                                                    notation: "compact",
+                                                }).format(value)
+                                            }
+                                        />
+                                        <YAxis
+                                            tickFormatter={(value) =>
+                                                new Intl.NumberFormat("en-US", {
+                                                    notation: "compact",
+                                                    maximumFractionDigits: 1,
+                                                }).format(value)
+                                            }
+                                        />
+                                        <Legend />
+                                        <Bar dataKey="lastYearPremium" name="Last Year" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                                        <Bar dataKey="thisYearPremium" name="This Year" fill="#7c3aed" radius={[8, 8, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </Paper>
+                        </Grid.Col>
 
-                    {/* Top Ten Cedants */}
-                    <Grid.Col span={{ base: 12, md: 5 }}>
-                        <Card shadow="sm" padding="lg" radius="md" withBorder>
-                            <Group justify="space-between" mb="md">
-                                <Text fw={600}>2025 Top 10 Cedant by GWP</Text>
-                                {/*<Text size="xs" c="dimmed">Showing latest 5 of 125 claims</Text>*/}
-                            </Group>
-                            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-                            <Table striped>
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th>Cedant</Table.Th>
-                                        <Table.Th>Amount</Table.Th>
-                                        <Table.Th />
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {gwpList.map((cedant) => (
-                                        <Table.Tr key={cedant.cedantCode}>
-                                            <Table.Td>{cedant.cedantName}</Table.Td>
-                                            <Table.Td>
-                                                <Text fw={500}>
-                                                {formatShortNumber(cedant.totalBookedPremium)}
-                                                </Text>
-                                            </Table.Td>
-                                            <Table.Td>
-                                                {/*<ActionIcon variant="subtle" color="gray">*/}
-                                                <IconDotsVertical style={{ width: rem(16), height: rem(16) }} />
-                                                {/*</ActionIcon>*/}
-                                            </Table.Td>
-                                        </Table.Tr>
-                                    ))}
-                                </Table.Tbody>
-                            </Table>
-                            </div>
-                        </Card>
-                    </Grid.Col>
-
-                    {/* Outstanding Balances */}
-                    <Grid.Col span={{ base: 12, md: 7 }}>
-                        <Card shadow="sm" padding="lg" radius="md" withBorder>
-                            <Group justify="space-between" mb="md">
-                                <Text fw={600}>Local Cedant Outstanding Balances Since 2021</Text>
-                                {/*<Text size="xs" c="dimmed">Showing latest 5 of 125 claims</Text>*/}
-                            </Group>
-
-                            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-                            <Table striped>
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th>Cedant</Table.Th>
-                                        <Table.Th>Amount</Table.Th>
-                                        <Table.Th />
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {cedantBalance.map((cedant) => (
-                                        <Table.Tr key={cedant.brokerCedantName}>
-                                            <Table.Td>{cedant.brokerCedantName}</Table.Td>
-                                            <Table.Td>
-                                                <Text fw={500}>
-                                                TZS {new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(cedant.balanceRepCcy)}
+                        {/* Top Cedants */}
+                        <Grid.Col span={{ base: 12, md: 7 }}>
+                            <Paper shadow="sm" p="lg" radius="md" withBorder h="100%">
+                                <Group justify="space-between" mb="md">
+                                    <div>
+                                        <Title order={4}>Top 10 Cedants by GWP</Title>
+                                        <Text size="sm" c="dimmed">
+                                            2025 Year-to-date rankings
+                                        </Text>
+                                    </div>
+                                    <Badge variant="light" color="blue">
+                                        {gwpList.length} Total
+                                    </Badge>
+                                </Group>
+                                <Stack gap="sm">
+                                    {gwpList.map((cedant, index) => (
+                                        <Group key={cedant.cedantCode} justify="space-between" p="xs" style={{ borderRadius: 8, background: index < 3 ? "var(--mantine-color-blue-0)" : "transparent" }}>
+                                            <Group gap="sm">
+                                                <Badge size="lg" variant={index < 3 ? "filled" : "light"} color={index === 0 ? "yellow" : index === 1 ? "gray" : index === 2 ? "orange" : "blue"}>
+                                                    #{index + 1}
+                                                </Badge>
+                                                <div>
+                                                    <Text size="sm" fw={500}>
+                                                        {cedant.cedantName}
                                                     </Text>
-                                            </Table.Td>
-                                            <Table.Td>
-                                                {/*<ActionIcon variant="subtle" color="gray">*/}
-                                                <IconDotsVertical style={{ width: rem(16), height: rem(16) }} />
-                                                {/*</ActionIcon>*/}
-                                            </Table.Td>
-                                        </Table.Tr>
+                                                    <Text size="xs" c="dimmed">
+                                                        {cedant.cedantCode}
+                                                    </Text>
+                                                </div>
+                                            </Group>
+                                            <Text size="sm" fw={600}>
+                                                {formatShortNumber(cedant.totalBookedPremium)}
+                                            </Text>
+                                        </Group>
                                     ))}
-                                </Table.Tbody>
-                            </Table>
-                            </div>
-                        </Card>
-                    </Grid.Col>
-                </Grid>
-            </div>
+                                </Stack>
+                            </Paper>
+                        </Grid.Col>
+
+                        {/* Outstanding Balances */}
+                        <Grid.Col span={{ base: 12, md: 5 }}>
+                            <Paper shadow="sm" p="lg" radius="md" withBorder h="100%">
+                                <Group justify="space-between" mb="md">
+                                    <div>
+                                        <Title order={4}>Outstanding Balances</Title>
+                                        <Text size="sm" c="dimmed">
+                                            Since 2021
+                                        </Text>
+                                    </div>
+                                    <Badge variant="light" color="orange">
+                                        {cedantBalance.length} Cedants
+                                    </Badge>
+                                </Group>
+                                <Stack gap="sm" style={{ maxHeight: 400, overflowY: "auto" }}>
+                                    {cedantBalance.map((cedant) => (
+                                        <Group key={cedant.brokerCedantName} justify="space-between" p="sm" style={{ borderRadius: 8, border: "1px solid var(--mantine-color-gray-3)" }}>
+                                            <Text size="sm" fw={500} style={{ flex: 1 }}>
+                                                {cedant.brokerCedantName}
+                                            </Text>
+                                            <Text size="sm" fw={600} c="orange">
+                                                {new Intl.NumberFormat("en-TZ", {
+                                                    style: "currency",
+                                                    currency: "TZS",
+                                                    notation: "compact",
+                                                }).format(cedant.balanceRepCcy)}
+                                            </Text>
+                                        </Group>
+                                    ))}
+                                </Stack>
+                            </Paper>
+                        </Grid.Col>
+                    </Grid>
+                </Tabs.Panel>
+
+                <Tabs.Panel value="map" pt="md">
+                    <GlobalRiskDistribution data={countryRisks} />
+                </Tabs.Panel>
+
+                <Tabs.Panel value="analytics" pt="md">
+                    <Grid>
+                        <Grid.Col span={{ base: 12, md: 6 }}>
+                            <Paper shadow="sm" p="lg" radius="md" withBorder>
+                                <Title order={4} mb="md">
+                                    Top 5 Cedants Distribution
+                                </Title>
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <PieChart>
+                                        <Pie
+                                            data={topCedantsData}
+                                            cx="50%"
+                                            cy="50%"
+                                            labelLine={false}
+                                            label={({ name, percent }: any) => `${name?.substring(0, 15) || ''}: ${((percent as number) * 100).toFixed(0)}%`}
+                                            outerRadius={100}
+                                            fill="#8884d8"
+                                            dataKey="value"
+                                        >
+                                            {topCedantsData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            formatter={(value: any) =>
+                                                new Intl.NumberFormat("en-US", {
+                                                    style: "currency",
+                                                    currency: "TZS",
+                                                    notation: "compact",
+                                                }).format(value)
+                                            }
+                                        />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </Paper>
+                        </Grid.Col>
+
+                        <Grid.Col span={{ base: 12, md: 6 }}>
+                            <Paper shadow="sm" p="lg" radius="md" withBorder>
+                                <Title order={4} mb="md">
+                                    Key Performance Indicators
+                                </Title>
+                                <Stack gap="md">
+                                    <div>
+                                        <Group justify="space-between" mb="xs">
+                                            <Text size="sm">Monthly Target Achievement</Text>
+                                            <Text size="sm" fw={600} c={progress >= 100 ? "green" : "orange"}>
+                                                {progress.toFixed(1)}%
+                                            </Text>
+                                        </Group>
+                                        <Progress value={progress} color={progress >= 100 ? "green" : "orange"} size="lg" />
+                                    </div>
+
+                                    <div>
+                                        <Group justify="space-between" mb="xs">
+                                            <Text size="sm">Yearly Target Achievement</Text>
+                                            <Text size="sm" fw={600} c={yearProgress >= 100 ? "green" : "blue"}>
+                                                {yearProgress.toFixed(1)}%
+                                            </Text>
+                                        </Group>
+                                        <Progress value={yearProgress} color={yearProgress >= 100 ? "green" : "blue"} size="lg" />
+                                    </div>
+
+                                    <div>
+                                        <Group justify="space-between" mb="xs">
+                                            <Text size="sm">Loss Ratio</Text>
+                                            <Text size="sm" fw={600} c={lossRatio > 70 ? "red" : lossRatio > 50 ? "orange" : "green"}>
+                                                {lossRatio.toFixed(1)}%
+                                            </Text>
+                                        </Group>
+                                        <Progress value={lossRatio} color={lossRatio > 70 ? "red" : lossRatio > 50 ? "orange" : "green"} size="lg" />
+                                    </div>
+
+                                    <div>
+                                        <Group justify="space-between" mb="xs">
+                                            <Text size="sm">Portfolio Concentration (Top 5)</Text>
+                                            <Text size="sm" fw={600}>
+                                                {((topCedantsData.reduce((sum, c) => sum + c.value, 0) / (gwpYear || 1)) * 100).toFixed(1)}%
+                                            </Text>
+                                        </Group>
+                                        <Progress value={(topCedantsData.reduce((sum, c) => sum + c.value, 0) / (gwpYear || 1)) * 100} color="cyan" size="lg" />
+                                    </div>
+                                </Stack>
+                            </Paper>
+                        </Grid.Col>
+                    </Grid>
+                </Tabs.Panel>
+            </Tabs>
         </Container>
-
-
-            {/* The Modal with the table */}
-            <Modal
-                opened={opened}
-                onClose={() => setOpened(false)}
-                size="lg"
-                centered
-            >
-                <GwpMonthlyCard endPoint={"/api/dashboard/month/performance"} cardName={"GWP Performance – Current Month"}/>
-
-            </Modal>
-
-            {/* The Modal with the table */}
-            <Modal
-                opened={openedYearModal}
-                onClose={() => setOpenedYearModal(false)}
-                size="lg"
-                centered
-            >
-                <GwpMonthlyCard endPoint={"/api/dashboard/year/performance"} cardName={"GWP Performance – Current Year"}/>
-
-            </Modal>
-        </>
-
     );
 }

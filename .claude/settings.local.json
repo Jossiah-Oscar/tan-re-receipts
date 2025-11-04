@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Dev/java/document-register/src/main/java/com/tanre/document_register/underwriting_2/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
