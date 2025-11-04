@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {RegisteredClaim, useClaimsStore} from "@/store/useClaimRegisterStore";
+import {RegisteredClaim, useClaimsStore, convertDateToDDMMYYYY} from "@/store/useClaimRegisterStore";
 import SearchableDropdown from "@/components/claims/register/SearchableDropdown";
 import {
     Table,
@@ -23,9 +23,11 @@ import {
     Divider,
     Box,
     SimpleGrid,
-    Select
+    Select,
+    NativeSelect,
+    Alert
 } from '@mantine/core';
-import { IconX, IconCheck, IconFileDownload } from '@tabler/icons-react';
+import { IconX, IconCheck, IconFileDownload, IconInfoCircle } from '@tabler/icons-react';
 
 
 export default function ClaimsPage() {
@@ -34,6 +36,8 @@ export default function ClaimsPage() {
     const [selectedClaimForView, setSelectedClaimForView] = useState<RegisteredClaim | null>(null);
     const [registeredClaimId, setRegisteredClaimId] = useState<string | null>(null);
     const [attachingToClaimId, setAttachingToClaimId] = useState<string | null>(null);
+    const [searchPerformed, setSearchPerformed] = useState(false);
+    const [searchPerformedAttach, setSearchPerformedAttach] = useState(false);
 
     const store = useClaimsStore();
 
@@ -59,9 +63,9 @@ export default function ClaimsPage() {
 
         const rows = store.registeredClaims.map(claim => [
             claim.claimId,
-            claim.dateRegistered,
-            claim.dateOfLoss,
-            claim.dateReceived,
+            convertDateToDDMMYYYY(claim.dateRegistered),
+            claim.dateOfLoss ? convertDateToDDMMYYYY(claim.dateOfLoss) : '',
+            convertDateToDDMMYYYY(claim.dateReceived),
             claim.originalInsured,
             `"${claim.causeOfLoss.replace(/"/g, '""')}"`, // Escape quotes in cause of loss
             claim.currentReserve,
@@ -138,8 +142,11 @@ export default function ClaimsPage() {
     };
 
     const isValidClaimDetails = () => {
-        const { dateOfLoss, dateReceived, originalInsured, causeOfLoss, currentReserve } = store.claimDetails;
-        return !!(dateOfLoss && dateReceived && originalInsured && causeOfLoss && currentReserve);
+        const { dateReceived, originalInsured, causeOfLoss, currentReserve, causeOfLossCustom } = store.claimDetails;
+        // dateOfLoss is now optional, but other fields are required
+        // causeOfLoss must be either a selected dropdown value OR a custom value
+        const hasCauseOfLoss = causeOfLoss || causeOfLossCustom;
+        return !!(dateReceived && originalInsured && hasCauseOfLoss && currentReserve);
     };
 
     const handleSubmit = async () => {
@@ -157,6 +164,7 @@ export default function ClaimsPage() {
     const handleAttachContracts = (claimId: string) => {
         setAttachingToClaimId(claimId);
         store.setSelectedContracts([]);
+        setSearchPerformedAttach(false);
         store.searchContracts();
         setView('attach');
     };
@@ -191,7 +199,7 @@ export default function ClaimsPage() {
                             </div>
                             <div>
                                 <Text size="sm" c="dimmed">Date Registered</Text>
-                                <Text fw={600}>{selectedClaimForView.dateRegistered}</Text>
+                                <Text fw={600}>{convertDateToDDMMYYYY(selectedClaimForView.dateRegistered)}</Text>
                             </div>
                             <div>
                                 <Text size="sm" c="dimmed">Original Insured</Text>
@@ -371,7 +379,7 @@ export default function ClaimsPage() {
                                         <Table.Td>
                                             <Text fw={600} c="blue">{claim.claimId}</Text>
                                         </Table.Td>
-                                        <Table.Td>{claim.dateRegistered}</Table.Td>
+                                        <Table.Td>{convertDateToDDMMYYYY(claim.dateRegistered)}</Table.Td>
                                         <Table.Td>{claim.originalInsured}</Table.Td>
                                         <Table.Td>
                                             <Text fw={500}>{claim.netAmount.toLocaleString()}</Text>
@@ -497,12 +505,21 @@ export default function ClaimsPage() {
                             />
                         </SimpleGrid>
                         <Button
-                            onClick={store.searchContracts}
+                            onClick={() => {
+                                store.searchContracts();
+                                setSearchPerformedAttach(true);
+                            }}
                             loading={store.loading}
                         >
                             Search Contracts
                         </Button>
                     </Paper>
+
+                    {searchPerformedAttach && store.searchResults.length === 0 && !store.loading && (
+                        <Alert icon={<IconInfoCircle />} title="No Results" color="blue" mb="lg">
+                            No contracts found matching your search criteria. Please try adjusting your search filters such as underwriting year, cedant code, or line of business.
+                        </Alert>
+                    )}
 
                     {store.searchResults.length > 0 && (
                         <Paper shadow="md" p="lg" radius="md">
@@ -609,17 +626,24 @@ export default function ClaimsPage() {
                         <Stack gap="md">
                             <SimpleGrid cols={2} spacing="md">
                                 <TextInput
-                                    label="Date of Loss"
+                                    label={
+                                        <Group gap={4} justify="flex-start">
+                                            <span>Date of Loss</span>
+                                            {!store.claimDetails.dateOfLoss && (
+                                                <Badge size="sm" variant="light" color="gray">Optional - Can fill later</Badge>
+                                            )}
+                                        </Group>
+                                    }
                                     type="date"
+                                    placeholder="dd/mm/yyyy"
                                     value={store.claimDetails.dateOfLoss}
                                     onChange={(e) => store.setClaimDetails({ dateOfLoss: e.target.value })}
-                                    required
-                                    withAsterisk
                                 />
 
                                 <TextInput
                                     label="Date Received"
                                     type="date"
+                                    placeholder="dd/mm/yyyy"
                                     value={store.claimDetails.dateReceived}
                                     onChange={(e) => store.setClaimDetails({ dateReceived: e.target.value })}
                                     required
@@ -635,14 +659,37 @@ export default function ClaimsPage() {
                                 withAsterisk
                             />
 
-                            <Textarea
-                                label="Cause of Loss"
-                                value={store.claimDetails.causeOfLoss}
-                                onChange={(e) => store.setClaimDetails({ causeOfLoss: e.target.value })}
-                                rows={3}
-                                required
-                                withAsterisk
-                            />
+                            <Stack gap="sm">
+                                <Select
+                                    label="Cause of Loss"
+                                    placeholder="Select a cause"
+                                    value={store.claimDetails.causeOfLoss || null}
+                                    onChange={(value) => store.setClaimDetails({ causeOfLoss: value || '', causeOfLossCustom: '' })}
+                                    data={[
+                                        { value: 'Fire damage', label: 'Fire damage' },
+                                        { value: 'Storm damage', label: 'Storm damage' },
+                                        { value: 'Water damage', label: 'Water damage' },
+                                        { value: 'Theft', label: 'Theft' },
+                                        { value: 'Vehicle accident', label: 'Vehicle accident' },
+                                        { value: 'Natural disaster', label: 'Natural disaster' },
+                                        { value: 'Other', label: 'Other - Please specify' }
+                                    ]}
+                                    required
+                                    withAsterisk
+                                    searchable
+                                />
+
+                                {store.claimDetails.causeOfLoss === 'Other' && (
+                                    <TextInput
+                                        label="Please specify the cause of loss"
+                                        placeholder="Enter custom cause of loss"
+                                        value={store.claimDetails.causeOfLossCustom || ''}
+                                        onChange={(e) => store.setClaimDetails({ causeOfLossCustom: e.target.value })}
+                                        required
+                                        withAsterisk
+                                    />
+                                )}
+                            </Stack>
 
                             <SimpleGrid cols={2} spacing="md">
                                 <TextInput
@@ -737,12 +784,21 @@ export default function ClaimsPage() {
                             />
                         </SimpleGrid>
                         <Button
-                            onClick={store.searchContracts}
+                            onClick={() => {
+                                store.searchContracts();
+                                setSearchPerformed(true);
+                            }}
                             loading={store.loading}
                         >
                             Search Contracts
                         </Button>
                     </Paper>
+
+                    {searchPerformed && store.searchResults.length === 0 && !store.loading && (
+                        <Alert icon={<IconInfoCircle />} title="No Results" color="blue" mb="lg">
+                            No contracts found matching your search criteria. Please try adjusting your search filters such as underwriting year, cedant code, or line of business.
+                        </Alert>
+                    )}
 
                     {store.searchResults.length > 0 && (
                         <Paper shadow="md" p="lg" radius="md">
@@ -823,24 +879,39 @@ export default function ClaimsPage() {
                             <Title order={4} size="h5">Claim Information</Title>
                             <Button variant="subtle" size="xs" onClick={() => setStep(1)}>Edit</Button>
                         </Group>
-                        <SimpleGrid cols={2} spacing="md">
+                        <Stack gap="md">
+                            <SimpleGrid cols={2} spacing="md">
+                                <div>
+                                    <Group gap={4} justify="flex-start">
+                                        <Text size="sm" c="dimmed">Date of Loss</Text>
+                                        {!store.claimDetails.dateOfLoss && (
+                                            <Badge size="xs" variant="light" color="orange">Missing - Add later</Badge>
+                                        )}
+                                    </Group>
+                                    <Text fw={600}>{store.claimDetails.dateOfLoss || '(Not provided)'}</Text>
+                                </div>
+                                <div>
+                                    <Text size="sm" c="dimmed">Original Insured</Text>
+                                    <Text fw={600}>{store.claimDetails.originalInsured}</Text>
+                                </div>
+                                <div>
+                                    <Text size="sm" c="dimmed">Current Reserve (TZS)</Text>
+                                    <Text fw={600}>{parseFloat(store.claimDetails.currentReserve).toLocaleString()}</Text>
+                                </div>
+                                <div>
+                                    <Text size="sm" c="dimmed">Net Amount (TZS)</Text>
+                                    <Text fw={600} c="blue">{totals.netAmount.toLocaleString()}</Text>
+                                </div>
+                            </SimpleGrid>
                             <div>
-                                <Text size="sm" c="dimmed">Date of Loss</Text>
-                                <Text fw={600}>{store.claimDetails.dateOfLoss}</Text>
+                                <Text size="sm" c="dimmed">Cause of Loss</Text>
+                                <Text fw={600}>
+                                    {store.claimDetails.causeOfLoss === 'Other'
+                                        ? store.claimDetails.causeOfLossCustom
+                                        : store.claimDetails.causeOfLoss}
+                                </Text>
                             </div>
-                            <div>
-                                <Text size="sm" c="dimmed">Original Insured</Text>
-                                <Text fw={600}>{store.claimDetails.originalInsured}</Text>
-                            </div>
-                            <div>
-                                <Text size="sm" c="dimmed">Current Reserve (TZS)</Text>
-                                <Text fw={600}>{parseFloat(store.claimDetails.currentReserve).toLocaleString()}</Text>
-                            </div>
-                            <div>
-                                <Text size="sm" c="dimmed">Net Amount (TZS)</Text>
-                                <Text fw={600} c="blue">{totals.netAmount.toLocaleString()}</Text>
-                            </div>
-                        </SimpleGrid>
+                        </Stack>
                     </Paper>
 
                     <Paper p="md" withBorder bg="blue.0" mb="md">
