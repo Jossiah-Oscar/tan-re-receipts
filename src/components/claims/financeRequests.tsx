@@ -83,6 +83,9 @@ export default function ClaimsPaymentTable() {
         processingPaymentItems,
     } = useClaimPaymentStore ();
 
+    const [searchClaimNumber, setSearchClaimNumber] = useState('');
+    const [searchInsuredName, setSearchInsuredName] = useState('');
+
     useEffect(() => {
         fetchItems()
     }, [fetchItems]);
@@ -100,10 +103,18 @@ export default function ClaimsPaymentTable() {
         fetchFinanceStatuses()
     }
 
-    const pendingDocs = items.filter((d) => d.status.name === 'PENDING_PAYMENT');
-    const pendingAllocation = items.filter((d) => d.status.name === 'PENDING_ALLOCATION')
-    const completed = items.filter((d) => d.status.name === 'COMPLETED')
-    const processingPayment = items.filter((d) => d.status.name === 'PROCESSING_PAYMENT')
+    const filterBySearch = (docs: typeof items) => {
+        return docs.filter((d) => {
+            const matchesClaim = d.claimNumber.toLowerCase().includes(searchClaimNumber.toLowerCase());
+            const matchesInsured = d.insured.toLowerCase().includes(searchInsuredName.toLowerCase());
+            return matchesClaim && matchesInsured;
+        });
+    };
+
+    const pendingDocs = filterBySearch(items.filter((d) => d.status.name === 'PENDING_PAYMENT'));
+    const pendingAllocation = filterBySearch(items.filter((d) => d.status.name === 'PENDING_ALLOCATION'))
+    const completed = filterBySearch(items.filter((d) => d.status.name === 'COMPLETED'))
+    const processingPayment = filterBySearch(items.filter((d) => d.status.name === 'PROCESSING_PAYMENT'))
 
 
 
@@ -165,28 +176,29 @@ export default function ClaimsPaymentTable() {
 
             {/*SEARCH BAR*/}
 
+            <Card shadow="sm" p="md" radius="md" withBorder mb="lg">
+                <Stack mb="md" justify="center">
+                    <Group justify="space-between">
+                        <Group grow>
+                            <TextInput
+                                placeholder="Search by Claim Number"
+                                value={searchClaimNumber}
+                                onChange={(e) => setSearchClaimNumber(e.currentTarget.value)}
+                            />
+                            <TextInput
+                                placeholder="Search by Insured Name"
+                                value={searchInsuredName}
+                                onChange={(e) => setSearchInsuredName(e.currentTarget.value)}
+                            />
 
-            {/*<Card shadow="sm" p="md" radius="md" withBorder mb="lg">*/}
-            {/*    <Stack mb="md" justify="center">*/}
-            {/*        <Group justify="space-between">*/}
-            {/*            <Group grow>*/}
-            {/*                <TextInput*/}
-            {/*                    placeholder="Search by Claim Number"*/}
-            {/*                    // value={cedantName}*/}
-            {/*                    // onChange={(e) => setCedantName(e.currentTarget.value)}*/}
-            {/*                />*/}
-            {/*                <TextInput*/}
-            {/*                    placeholder="Search by Insured Name"*/}
-            {/*                    // value={cedantName}*/}
-            {/*                    // onChange={(e) => setCedantName(e.currentTarget.value)}*/}
-            {/*                />*/}
-
-            {/*            </Group>*/}
-            {/*            <Button >Search</Button>*/}
-            {/*        </Group>*/}
-            {/*    </Stack>*/}
-            {/*</Card>*/}
-
+                        </Group>
+                        <Button onClick={() => {
+                            setSearchClaimNumber('');
+                            setSearchInsuredName('');
+                        }}>Clear</Button>
+                    </Group>
+                </Stack>
+            </Card>
 
             {/*SEARCH BAR*/}
 
@@ -261,16 +273,25 @@ export default function ClaimsPaymentTable() {
 
                   <Tabs.Panel value="PROCESSING-PAYMENT" pt="md">
 
-                    <ProcessingPayments/>
+                    <ProcessingPayments
+                        searchClaimNumber={searchClaimNumber}
+                        searchInsuredName={searchInsuredName}
+                    />
 
                   </Tabs.Panel>
 
                   <Tabs.Panel value="PENDING-ALLOCATION" pt="md">
-                      <PendingAllocation />
+                      <PendingAllocation
+                          searchClaimNumber={searchClaimNumber}
+                          searchInsuredName={searchInsuredName}
+                      />
                   </Tabs.Panel>
 
                   <Tabs.Panel value="COMPLETED" pt="md">
-                      <CompletePaymentTable />
+                      <CompletePaymentTable
+                          searchClaimNumber={searchClaimNumber}
+                          searchInsuredName={searchInsuredName}
+                      />
                   </Tabs.Panel>
 
 

@@ -91,7 +91,7 @@ function RetroConfigModal({
 
         const configToSave = config
             ? { ...config, ...formValues } as RetroConfiguration
-            : { ...formValues, id: undefined } as unknown as RetroConfiguration;
+            : (formValues as RetroConfiguration); // Don't set id, let store generate it
 
         onSave(configToSave);
         onClose();
@@ -404,16 +404,19 @@ export default function UnderwritingAnalysisPage() {
 
             {/* Accordion for Multiple Analysis Types */}
             <Accordion multiple defaultValue={selectedTypes}>
-            {/* Facultative Form */}
-            {selectedTypes.includes('facultative') && (
-            <Accordion.Item key="facultative" value="facultative">
-                <Accordion.Control>
-                    <Group>
-                        <Title order={3}>Facultative Analysis</Title>
-                        <Badge color="blue">Active</Badge>
-                    </Group>
-                </Accordion.Control>
-                <Accordion.Panel>
+            {['facultative', 'policy-cession', 'treaty']
+                .filter(type => selectedTypes.includes(type))
+                .map(type => {
+                    if (type === 'facultative') {
+                        return (
+                            <Accordion.Item key="facultative" value="facultative">
+                                <Accordion.Control>
+                                    <Group>
+                                        <Title order={3}>Facultative Analysis</Title>
+                                        <Badge color="blue">Active</Badge>
+                                    </Group>
+                                </Accordion.Control>
+                                <Accordion.Panel>
             <Box maw={1400} mx="auto" mt="md">
             <Grid gutter="lg">
                 <Grid.Col span={{ base: 12, md: 7 }}>
@@ -536,7 +539,7 @@ export default function UnderwritingAnalysisPage() {
                                                             </Table.Td>
                                                             <Table.Td>
                                                                 <Group gap={0} justify="flex-end">
-                                                                    <Tooltip key={`${config.id}-calculate`} label={config.calculationStatus ? "Recalculate" : "Calculate"}>
+                                                                    <Tooltip label={config.calculationStatus ? "Recalculate" : "Calculate"}>
                                                                         <ActionIcon
                                                                             size="xs"
                                                                             color="green"
@@ -547,7 +550,7 @@ export default function UnderwritingAnalysisPage() {
                                                                             <IconCalculator size={16} />
                                                                         </ActionIcon>
                                                                     </Tooltip>
-                                                                    <Tooltip key={`${config.id}-edit`} label="Edit">
+                                                                    <Tooltip label="Edit">
                                                                         <ActionIcon
                                                                             size="xs"
                                                                             color="blue"
@@ -560,7 +563,7 @@ export default function UnderwritingAnalysisPage() {
                                                                             <IconEdit size={16} />
                                                                         </ActionIcon>
                                                                     </Tooltip>
-                                                                    <Tooltip key={`${config.id}-delete`} label="Delete">
+                                                                    <Tooltip label="Delete">
                                                                         <ActionIcon
                                                                             size="xs"
                                                                             color="red"
@@ -665,6 +668,7 @@ export default function UnderwritingAnalysisPage() {
                                 </Text>
                             </Paper>
                         ) : (
+                            <>
                             <Accordion
                                 value={expandedConfigId}
                                 onChange={setExpandedConfigId}
@@ -685,7 +689,7 @@ export default function UnderwritingAnalysisPage() {
                                         >
                                             <Accordion.Control>
                                                 <Group justify="space-between" style={{ width: '100%' }}>
-                                                    <div key="title">
+                                                    <div>
                                                         <Text fw={500}>
                                                             {lob?.name} - {retroType?.name}
                                                         </Text>
@@ -695,7 +699,6 @@ export default function UnderwritingAnalysisPage() {
                                                     </div>
                                                     {config.calculationStatus && (
                                                         <Badge
-                                                            key="status-badge"
                                                             color={
                                                                 config.calculationStatus === 'SUCCESS'
                                                                     ? 'green'
@@ -712,7 +715,7 @@ export default function UnderwritingAnalysisPage() {
                                             <Accordion.Panel>
                                             <Stack gap="md">
                                                 {config.calculationStatus ? (
-                                                    <div key="calculated-results">
+                                                    <div>
                                                         <Group justify="space-between">
                                                             <Button
                                                                 size="xs"
@@ -755,7 +758,7 @@ export default function UnderwritingAnalysisPage() {
                                                         <Paper withBorder p="sm">
                                                             <Title order={6} mb="xs">Retention Breakdown</Title>
                                                             <Stack gap="xs">
-                                                                <div key="tan-re-retention">
+                                                                <div>
                                                                     <Group justify="space-between" mb={4}>
                                                                         <Text size="sm" fw={600}>TAN-RE Retention</Text>
                                                                         <Badge size="sm" variant="light">{number(config.tanReRetentionPct)}%</Badge>
@@ -770,9 +773,9 @@ export default function UnderwritingAnalysisPage() {
                                                                     </Group>
                                                                 </div>
 
-                                                                <Divider size="xs" key="divider-1" />
+                                                                <Divider size="xs" />
 
-                                                                <div key="surplus-retro">
+                                                                <div>
                                                                     <Group justify="space-between" mb={4}>
                                                                         <Text size="sm" fw={600}>Surplus Retro</Text>
                                                                         <Badge size="sm" variant="light" color="orange">{number(config.suRetroPct)}%</Badge>
@@ -787,9 +790,9 @@ export default function UnderwritingAnalysisPage() {
                                                                     </Group>
                                                                 </div>
 
-                                                                <Divider size="xs" key="divider-2" />
+                                                                <Divider size="xs" />
 
-                                                                <div key="fac-retro">
+                                                                <div>
                                                                     <Group justify="space-between" mb={4}>
                                                                         <Text size="sm" fw={600}>Fac Retro</Text>
                                                                         <Badge size="sm" variant="light" color="grape">{number(config.facRetroPct)}%</Badge>
@@ -807,7 +810,7 @@ export default function UnderwritingAnalysisPage() {
                                                         </Paper>
                                                     </div>
                                                 ) : (
-                                                    <div key="not-calculated">
+                                                    <div>
                                                         <Group justify="space-between">
                                                             <Text size="sm" c="dimmed">Not calculated yet</Text>
                                                             <Button
@@ -826,62 +829,65 @@ export default function UnderwritingAnalysisPage() {
                                     );
                                 })}
                             </Accordion>
+                            </>
                         )}
                     </Stack>
                 </Grid.Col>
             </Grid>
             </Box>
             </Accordion.Panel>
-            </Accordion.Item>
-            )}
-
-            {/* Policy Cession Form */}
-            {selectedTypes.includes('policy-cession') && (
-            <Accordion.Item key="policy-cession" value="policy-cession">
-                <Accordion.Control>
-                    <Group>
-                        <Title order={3}>Policy Cession Analysis</Title>
-                        <Badge color="orange">Coming Soon</Badge>
-                    </Group>
-                </Accordion.Control>
-                <Accordion.Panel>
-                    <Paper p="xl" withBorder>
-                        <Stack align="center" gap="md">
-                            <Text size="lg" c="dimmed">
-                                Policy Cession analysis form is under development
-                            </Text>
-                            <Text size="sm" c="dimmed">
-                                This will allow you to analyze policy cession offers with specific calculations
-                            </Text>
-                        </Stack>
-                    </Paper>
-                </Accordion.Panel>
-            </Accordion.Item>
-            )}
-
-            {/* Treaty Form */}
-            {selectedTypes.includes('treaty') && (
-            <Accordion.Item key="treaty" value="treaty">
-                <Accordion.Control>
-                    <Group>
-                        <Title order={3}>Treaty Analysis</Title>
-                        <Badge color="grape">Coming Soon</Badge>
-                    </Group>
-                </Accordion.Control>
-                <Accordion.Panel>
-                    <Paper p="xl" withBorder>
-                        <Stack align="center" gap="md">
-                            <Text size="lg" c="dimmed">
-                                Treaty analysis form is under development
-                            </Text>
-                            <Text size="sm" c="dimmed">
-                                This will allow you to analyze treaty offers with specific calculations
-                            </Text>
-                        </Stack>
-                    </Paper>
-                </Accordion.Panel>
-            </Accordion.Item>
-            )}
+                                </Accordion.Item>
+                            );
+                        } else if (type === 'policy-cession') {
+                            return (
+                                <Accordion.Item key="policy-cession" value="policy-cession">
+                                    <Accordion.Control>
+                                        <Group>
+                                            <Title order={3}>Policy Cession Analysis</Title>
+                                            <Badge color="orange">Coming Soon</Badge>
+                                        </Group>
+                                    </Accordion.Control>
+                                    <Accordion.Panel>
+                                        <Paper p="xl" withBorder>
+                                            <Stack align="center" gap="md">
+                                                <Text size="lg" c="dimmed">
+                                                    Policy Cession analysis form is under development
+                                                </Text>
+                                                <Text size="sm" c="dimmed">
+                                                    This will allow you to analyze policy cession offers with specific calculations
+                                                </Text>
+                                            </Stack>
+                                        </Paper>
+                                    </Accordion.Panel>
+                                </Accordion.Item>
+                            );
+                        } else if (type === 'treaty') {
+                            return (
+                                <Accordion.Item key="treaty" value="treaty">
+                                    <Accordion.Control>
+                                        <Group>
+                                            <Title order={3}>Treaty Analysis</Title>
+                                            <Badge color="grape">Coming Soon</Badge>
+                                        </Group>
+                                    </Accordion.Control>
+                                    <Accordion.Panel>
+                                        <Paper p="xl" withBorder>
+                                            <Stack align="center" gap="md">
+                                                <Text size="lg" c="dimmed">
+                                                    Treaty analysis form is under development
+                                                </Text>
+                                                <Text size="sm" c="dimmed">
+                                                    This will allow you to analyze treaty offers with specific calculations
+                                                </Text>
+                                            </Stack>
+                                        </Paper>
+                                    </Accordion.Panel>
+                                </Accordion.Item>
+                            );
+                        }
+                        return null;
+                    })
+                }
             </Accordion>
 
             {/* Modal for adding/editing retro configurations */}

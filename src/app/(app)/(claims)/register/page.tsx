@@ -113,12 +113,18 @@ export default function ClaimsPage() {
             cedantOptions: store.cedantOptions,
             subProfitCentreOptions: store.subProfitCentreOptions,
             lobOptions: store.lobOptions,
-            typeOfBusinessOptions: store.typeOfBusinessOptions
+            typeOfBusinessOptions: store.typeOfBusinessOptions,
+            currencyOptions: store.currencyOptions
         });
 
         // Load dropdown data for the search forms
         store.loadDropdownData().catch(err => {
             console.error('Failed to load dropdown data:', err);
+        });
+
+        // Load currencies and exchange rates
+        store.loadCurrencies().catch(err => {
+            console.error('Failed to load currencies:', err);
         });
 
         // Load existing registered claims from the database
@@ -142,11 +148,12 @@ export default function ClaimsPage() {
     };
 
     const isValidClaimDetails = () => {
-        const { dateReceived, originalInsured, causeOfLoss, currentReserve, causeOfLossCustom } = store.claimDetails;
-        // dateOfLoss is now optional, but other fields are required
+        const { dateReceived, originalInsured, causeOfLoss, currentReserve, causeOfLossCustom, claimCurrency, claimExchangeRate } = store.claimDetails;
+        // dateOfLoss is optional (may not be known at registration time)
         // causeOfLoss must be either a selected dropdown value OR a custom value
         const hasCauseOfLoss = causeOfLoss || causeOfLossCustom;
-        return !!(dateReceived && originalInsured && hasCauseOfLoss && currentReserve);
+        // claimCurrency and claimExchangeRate are required
+        return !!(dateReceived && originalInsured && hasCauseOfLoss && currentReserve && claimCurrency && claimExchangeRate && claimExchangeRate > 0);
     };
 
     const handleSubmit = async () => {
@@ -368,6 +375,7 @@ export default function ClaimsPage() {
                                     <Table.Th>Claim ID</Table.Th>
                                     <Table.Th>Date Registered</Table.Th>
                                     <Table.Th>Original Insured</Table.Th>
+                                    <Table.Th>Current Reserve (TZS)</Table.Th>
                                     <Table.Th>Net Amount (TZS)</Table.Th>
                                     <Table.Th>TANRE TZS</Table.Th>
                                     <Table.Th>Actions</Table.Th>
@@ -381,6 +389,9 @@ export default function ClaimsPage() {
                                         </Table.Td>
                                         <Table.Td>{convertDateToDDMMYYYY(claim.dateRegistered)}</Table.Td>
                                         <Table.Td>{claim.originalInsured}</Table.Td>
+                                        <Table.Td>
+                                            <Text fw={500} c="orange">{claim.salvageAmountTZS ? claim.salvageAmountTZS.toLocaleString() : '0.00'}</Text>
+                                        </Table.Td>
                                         <Table.Td>
                                             <Text fw={500}>{claim.netAmount.toLocaleString()}</Text>
                                         </Table.Td>
@@ -630,7 +641,7 @@ export default function ClaimsPage() {
                                         <Group gap={4} justify="flex-start">
                                             <span>Date of Loss</span>
                                             {!store.claimDetails.dateOfLoss && (
-                                                <Badge size="sm" variant="light" color="gray">Optional - Can fill later</Badge>
+                                                <Badge size="sm" variant="light" color="gray">Optional</Badge>
                                             )}
                                         </Group>
                                     }
@@ -691,9 +702,41 @@ export default function ClaimsPage() {
                                 )}
                             </Stack>
 
+                            <Select
+                                label="Claim Currency"
+                                placeholder={store.currencyOptions.length === 0 ? "Loading currencies..." : "Select currency"}
+                                value={store.claimDetails.claimCurrency || null}
+                                onChange={(value) => {
+                                    if (value) {
+                                        const selectedCurrency = store.currencyOptions.find(c => c.value === value);
+                                        store.setClaimDetails({
+                                            claimCurrency: value,
+                                            claimExchangeRate: selectedCurrency?.exchangeRate || 0
+                                        });
+                                    } else {
+                                        store.setClaimDetails({
+                                            claimCurrency: '',
+                                            claimExchangeRate: 0
+                                        });
+                                    }
+                                }}
+                                data={store.currencyOptions}
+                                searchable
+                                required
+                                withAsterisk
+                            />
+
+                            {store.claimDetails.claimCurrency && store.claimDetails.claimExchangeRate > 0 && (
+                                <Alert icon={<IconInfoCircle />} title="Exchange Rate" color="blue">
+                                    <Text size="sm">
+                                        Exchange Rate: <Text fw={600} component="span">{store.claimDetails.claimExchangeRate.toLocaleString()}</Text> per {store.claimDetails.claimCurrency}
+                                    </Text>
+                                </Alert>
+                            )}
+
                             <SimpleGrid cols={2} spacing="md">
                                 <TextInput
-                                    label="Current Reserve (TZS)"
+                                    label={`Current Reserve (${store.claimDetails.claimCurrency || 'Currency'})`}
                                     value={store.claimDetails.currentReserve}
                                     onChange={(e) => store.setClaimDetails({ currentReserve: e.target.value })}
                                     required
@@ -701,11 +744,12 @@ export default function ClaimsPage() {
                                 />
 
                                 <TextInput
-                                    label="Salvage (TZS)"
+                                    label={`Salvage (${store.claimDetails.claimCurrency || 'Currency'})`}
                                     value={store.claimDetails.salvage}
                                     onChange={(e) => store.setClaimDetails({ salvage: e.target.value })}
                                 />
                             </SimpleGrid>
+
 
                             <Button
                                 fullWidth
@@ -895,12 +939,25 @@ export default function ClaimsPage() {
                                     <Text fw={600}>{store.claimDetails.originalInsured}</Text>
                                 </div>
                                 <div>
-                                    <Text size="sm" c="dimmed">Current Reserve (TZS)</Text>
+                                    <Text size="sm" c="dimmed">Current Reserve ({store.claimDetails.claimCurrency})</Text>
                                     <Text fw={600}>{parseFloat(store.claimDetails.currentReserve).toLocaleString()}</Text>
+                                </div>
+                                <div>
+                                    <Text size="sm" c="dimmed">Current Reserve in TZS</Text>
+                                    <Text fw={600} c="green">
+                                        {((parseFloat(store.claimDetails.currentReserve) || 0) / store.claimDetails.claimExchangeRate).toLocaleString('en-US', {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        })}
+                                    </Text>
                                 </div>
                                 <div>
                                     <Text size="sm" c="dimmed">Net Amount (TZS)</Text>
                                     <Text fw={600} c="blue">{totals.netAmount.toLocaleString()}</Text>
+                                </div>
+                                <div>
+                                    <Text size="sm" c="dimmed">Salvage ({store.claimDetails.claimCurrency})</Text>
+                                    <Text fw={600}>{parseFloat(store.claimDetails.salvage).toLocaleString()}</Text>
                                 </div>
                             </SimpleGrid>
                             <div>

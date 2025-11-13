@@ -72,6 +72,8 @@ export interface ClaimDetails {
     currentReserve: string;
     salvage: string;
     dateOfLossIsMissing?: boolean; // Flag to track if dateOfLoss needs to be filled later
+    claimCurrency: string; // Currency selected for the claim
+    claimExchangeRate: number; // Exchange rate for the selected currency
 }
 
 export interface RegisteredClaim {
@@ -83,6 +85,7 @@ export interface RegisteredClaim {
     causeOfLoss: string;
     currentReserve: number;
     salvage: number;
+    salvageAmountTZS: number;
     netAmount: number;
     totalShareSigned: number;
     tanreTZS: number;
@@ -195,6 +198,12 @@ interface Client {
     BROKER_CEDANT_TYPE: string;
 }
 
+interface CurrencyExchangeRate {
+    CURRENCY_CODE: string;
+    CURRENCY_DESCRIPTION: string;
+    EXCHANGE_RATE: number;
+}
+
 // Zustand Store
 interface ClaimsStore {
     registeredClaims: RegisteredClaim[];
@@ -217,6 +226,7 @@ interface ClaimsStore {
     subProfitCentreOptions: { value: string; label: string }[];
     lobOptions: { value: string; label: string }[];
     typeOfBusinessOptions: { value: string; label: string }[];
+    currencyOptions: { value: string; label: string; exchangeRate: number }[];
 
     setClaimDetails: (details: Partial<ClaimDetails>) => void;
     setSearchCriteria: (criteria: any) => void;
@@ -229,6 +239,7 @@ interface ClaimsStore {
     setSelectedContracts: (contracts: Contract[]) => void;
     loadDropdownData: () => Promise<void>;
     loadRegisteredClaims: () => Promise<void>;
+    loadCurrencies: () => Promise<void>;
 }
 
 export const useClaimsStore = create<ClaimsStore>((set, get) => ({
@@ -242,7 +253,9 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
         causeOfLossCustom: '',
         currentReserve: '14598843.00',
         salvage: '0',
-        dateOfLossIsMissing: false
+        dateOfLossIsMissing: false,
+        claimCurrency: '',
+        claimExchangeRate: 0
     },
     searchCriteria: {
         underwritingYear: '2020',
@@ -261,6 +274,7 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
     subProfitCentreOptions: [],
     lobOptions: [],
     typeOfBusinessOptions: [],
+    currencyOptions: [],
 
     setClaimDetails: (details) =>
         set((state) => ({ claimDetails: { ...state.claimDetails, ...details } })),
@@ -478,7 +492,7 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
             // Prepare the request payload with full contract details
             const requestPayload = {
                 lineOfBusiness: state.selectedContracts[0]?.lineOfBusiness || state.selectedContracts[0]?.typeOfBusiness || '',
-                dateOfLoss: convertDateToISO(state.claimDetails.dateOfLoss),
+                dateOfLoss: state.claimDetails.dateOfLoss ? convertDateToISO(state.claimDetails.dateOfLoss) : null,
                 dateReceived: convertDateToISO(state.claimDetails.dateReceived),
                 originalInsured: state.claimDetails.originalInsured,
                 causeOfLoss: finalCauseOfLoss,
@@ -507,7 +521,9 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 totalShareSigned,
                 tanreTZS,
                 retroAmount,
-                tanreRetention
+                tanreRetention,
+                claimCurrency: state.claimDetails.claimCurrency,
+                claimExchangeRate: state.claimDetails.claimExchangeRate
             };
 
             console.log('Submitting claim:', requestPayload);
@@ -553,6 +569,7 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 causeOfLoss: response.causeOfLoss,
                 currentReserve: response.currentReserve,
                 salvage: response.salvage,
+                salvageAmountTZS: response.salvageAmountTZS,
                 netAmount: response.netAmount,
                 totalShareSigned: response.totalShareSigned,
                 tanreTZS: response.tanreTZS,
@@ -585,7 +602,9 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
             causeOfLossCustom: '',
             currentReserve: '14598843.00',
             salvage: '0',
-            dateOfLossIsMissing: false
+            dateOfLossIsMissing: false,
+            claimCurrency: '',
+            claimExchangeRate: 0
         },
         selectedContracts: [],
         searchResults: []
@@ -674,6 +693,41 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
         }
     },
 
+    loadCurrencies: async () => {
+        try {
+            console.log('Loading currencies and exchange rates...');
+
+            const response = await fetch(`${API_BASE_URL}/api/currency/exchange-rates`);
+
+            if (!response.ok) {
+                throw new Error(`Failed to load currencies: ${response.statusText}`);
+            }
+
+            const currencies: CurrencyExchangeRate[] = await response.json();
+
+            console.log('Raw currency data:', currencies.length, 'currencies');
+
+            // Transform to Select component format with exchange rates
+            const currencyOptions = currencies
+                .filter(currency => currency.CURRENCY_CODE && currency.CURRENCY_DESCRIPTION)
+                .map(currency => ({
+                    value: currency.CURRENCY_CODE,
+                    label: `${currency.CURRENCY_DESCRIPTION} (${currency.CURRENCY_CODE})`,
+                    exchangeRate: currency.EXCHANGE_RATE || 0
+                }))
+                .sort((a, b) => a.value.localeCompare(b.value));
+
+            console.log('Transformed currency options:', currencyOptions.length, 'options');
+
+            set({ currencyOptions });
+            console.log('Currencies loaded successfully');
+        } catch (error) {
+            console.error('Error loading currencies:', error);
+            set({ currencyOptions: [] });
+            throw error;
+        }
+    },
+
     loadRegisteredClaims: async () => {
         try {
             console.log('Loading registered claims from database...');
@@ -718,6 +772,7 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 causeOfLoss: item.causeOfLoss,
                 currentReserve: item.currentReserve,
                 salvage: item.salvage,
+                salvageAmountTZS: item.salvageAmountTZS,
                 netAmount: item.netAmount,
                 totalShareSigned: item.totalShareSigned,
                 tanreTZS: item.tanreTZS,

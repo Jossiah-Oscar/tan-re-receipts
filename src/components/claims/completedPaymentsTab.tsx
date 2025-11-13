@@ -4,7 +4,12 @@ import useFinanceRequestStore from "@/store/useFinanceRequestStore";
 import {useRouter} from "next/navigation";
 import {useEffect} from "react";
 
-export default function CompletePaymentTable() {
+interface CompletePaymentTableProps {
+    searchClaimNumber: string;
+    searchInsuredName: string;
+}
+
+export default function CompletePaymentTable({ searchClaimNumber, searchInsuredName }: CompletePaymentTableProps) {
 
     const {
         items,
@@ -19,7 +24,15 @@ export default function CompletePaymentTable() {
         fetchItems()
     }, [fetchItems])
 
-    const pendingAllocation = items.filter((d) => d.status.name === 'COMPLETED')
+    const filterBySearch = (docs: typeof items) => {
+        return docs.filter((d) => {
+            const matchesClaim = d.claimNumber.toLowerCase().includes(searchClaimNumber.toLowerCase());
+            const matchesInsured = d.insured.toLowerCase().includes(searchInsuredName.toLowerCase());
+            return matchesClaim && matchesInsured;
+        });
+    };
+
+    const pendingAllocation = filterBySearch(items.filter((d) => d.status.name === 'COMPLETED'))
 
     const viewDocumentDetails = (docID: number, sequenceNo: number) => {
         router.push(`/claims-payment/${docID}/edit?value=${sequenceNo}`)

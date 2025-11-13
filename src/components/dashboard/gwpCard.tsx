@@ -9,11 +9,20 @@ interface GwpCardProps {
     progress: number;
     month: string;
     cardName: string;
+    onCardClick?: () => void;
 }
 
-export default function GwpCard({ currentGwp, targetGwp, progress, cardName }: GwpCardProps) {
+export default function GwpCard({ currentGwp, targetGwp, progress, cardName, onCardClick }: GwpCardProps) {
     return (
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Card
+            shadow="sm"
+            padding="lg"
+            radius="md"
+            withBorder
+            onClick={onCardClick}
+            style={{ cursor: onCardClick ? 'pointer' : 'default' }}
+            className={onCardClick ? 'hover:shadow-md transition-shadow' : ''}
+        >
             <Stack align="center" gap="sm">
                 <Title order={4}>{cardName}</Title>
 
@@ -36,11 +45,19 @@ export default function GwpCard({ currentGwp, targetGwp, progress, cardName }: G
     );
 }
 
-export function StatCard({ currentGwp, targetGwp, progress, cardName }: GwpCardProps) {
+export function StatCard({ currentGwp, targetGwp, progress, cardName, onCardClick }: GwpCardProps) {
     // const TrendIcon = trend === 'up' ? IconTrendingUp : IconTrendingDown;
 
     return (
-        <Card shadow="sm" padding="lg" radius="md" withBorder>
+        <Card
+            shadow="sm"
+            padding="lg"
+            radius="md"
+            withBorder
+            onClick={onCardClick}
+            style={{ cursor: onCardClick ? 'pointer' : 'default' }}
+            className={onCardClick ? 'hover:shadow-md transition-shadow' : ''}
+        >
             <Group justify="center" align="flex-start" wrap="nowrap">
                 <Stack gap="xs" justify="center">
 

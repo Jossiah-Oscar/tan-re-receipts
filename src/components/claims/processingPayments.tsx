@@ -23,7 +23,12 @@ import useClaimPaymentStore from "@/store/useClaimPaymentStore"
 import {ClaimFinanceDocStatus} from "@/model/ClaimFinanceDocStatus";
 import {useRouter} from "next/navigation";
 
-export default function ProcessingPayments() {
+interface ProcessingPaymentsProps {
+    searchClaimNumber: string;
+    searchInsuredName: string;
+}
+
+export default function ProcessingPayments({ searchClaimNumber, searchInsuredName }: ProcessingPaymentsProps) {
 
     const [docID, setDocID] = useState<number | null>(null);
     const router = useRouter();
@@ -52,6 +57,16 @@ export default function ProcessingPayments() {
 
     }, [fetchItems]);
 
+    const filterBySearch = (items: typeof processingPaymentItems) => {
+        return items.filter((it) => {
+            const matchesClaim = it.claimDocuments.claimNumber.toLowerCase().includes(searchClaimNumber.toLowerCase());
+            const matchesInsured = it.claimDocuments.insured.toLowerCase().includes(searchInsuredName.toLowerCase());
+            return matchesClaim && matchesInsured;
+        });
+    };
+
+    const filteredItems = filterBySearch(processingPaymentItems);
+
 
     const viewDocumentDetails = (docID: number, sequenceNo: number) => {
         router.push(`/claims-payment/${docID}/edit?value=${sequenceNo}`);
@@ -70,21 +85,26 @@ export default function ProcessingPayments() {
 
     return (
         <>
-                <Table highlightOnHover striped verticalSpacing="md">
-                    <Table.Thead>
-                        <Table.Tr>
-                            <Table.Th>Claim Number</Table.Th>
-                            <Table.Th>Policy Number</Table.Th>
-                            <Table.Th>Underwriting Year</Table.Th>
-                            <Table.Th>Broker/Cedant</Table.Th>
-                            <Table.Th>Insured Name</Table.Th>
-                            <Table.Th>Loss Date</Table.Th>
-                            <Table.Th>Finance Status</Table.Th>
-                            <Table.Th>Actions</Table.Th>
-                        </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                        {processingPaymentItems.map((it) => (
+                {loading ? (
+                    <Loader />
+                ) : filteredItems.length === 0 ? (
+                    <Text>No Processing Payments.</Text>
+                ) : (
+                    <Table highlightOnHover striped verticalSpacing="md">
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>Claim Number</Table.Th>
+                                <Table.Th>Policy Number</Table.Th>
+                                <Table.Th>Underwriting Year</Table.Th>
+                                <Table.Th>Broker/Cedant</Table.Th>
+                                <Table.Th>Insured Name</Table.Th>
+                                <Table.Th>Loss Date</Table.Th>
+                                <Table.Th>Finance Status</Table.Th>
+                                <Table.Th>Actions</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {filteredItems.map((it) => (
                             <Table.Tr key={it.claimDocuments.id}>
                                 <Table.Td>{it.claimDocuments.claimNumber}</Table.Td>
                                 <Table.Td>{it.claimDocuments.contractNumber}</Table.Td>
@@ -128,8 +148,9 @@ export default function ProcessingPayments() {
                                 </Table.Td>
                             </Table.Tr>
                         ))}
-                    </Table.Tbody>
-                </Table>
+                        </Table.Tbody>
+                    </Table>
+                )}
 
 
 {/*Attach Proof of Payment MODAL*/}

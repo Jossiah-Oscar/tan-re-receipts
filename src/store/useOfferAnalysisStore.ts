@@ -322,10 +322,13 @@ interface OfferStore extends OfferFormData {
 }
 
 // Helper function to generate unique ID for retro config
-let configIdCounter = 0;
 const generateConfigId = (): string => {
-    configIdCounter++;
-    return `config_${Date.now()}_${configIdCounter}_${Math.random().toString(36).substr(2, 9)}`;
+    // Use crypto.getRandomUUID for truly unique IDs, fallback to random string
+    if (typeof crypto !== 'undefined' && crypto.getRandomUUID) {
+        return `config_${crypto.getRandomUUID()}`;
+    }
+    // Fallback for environments without crypto API
+    return `config_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
 // Helper to create default retro config

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, lazy, Suspense } from "react";
 import {
     Container,
     Grid,
@@ -33,6 +33,18 @@ import { BarChart, CartesianGrid, XAxis, YAxis, Legend, Bar, Tooltip, Responsive
 import useDashboardStore from "@/store/useDashboardStore";
 import GlobalRiskDistribution from "@/components/dashboard/GlobalRiskDistribution";
 
+// Code-split modal component for better initial bundle size
+const PerformanceBreakdownModal = lazy(() =>
+    import("@/components/dashboard/PerformanceBreakdownModal")
+);
+
+// Fallback component for modal loading state
+const ModalFallback = () => (
+    <div style={{ padding: "20px", textAlign: "center" }}>
+        <Loader size="sm" />
+    </div>
+);
+
 export default function Dashboard() {
     const {
         gwp,
@@ -43,18 +55,79 @@ export default function Dashboard() {
         gwpTrends,
         cedantBalance,
         countryRisks,
-        loading,
-        fetchDashboardData,
+        monthlyPerformance,
+        yearlyPerformance,
+        criticalLoading,
+        secondaryLoading,
+        countryRisksLoading,
+        performanceLoading,
+        performanceError,
+        fetchCriticalData,
+        fetchSecondaryData,
+        fetchCountryRisks,
+        fetchMonthlyPerformance,
+        fetchYearlyPerformance,
     } = useDashboardStore();
+
+    const [monthlyModalOpen, setMonthlyModalOpen] = useState(false);
+    const [yearlyModalOpen, setYearlyModalOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<string | null>("overview");
 
     const monthlyTarget = 336_903_845_564 / 12;
     const yearlyTarget: number = 336_903_845_564;
 
+    // Phase 1: Load critical data first
     useEffect(() => {
-        fetchDashboardData();
-    }, [fetchDashboardData]);
+        fetchCriticalData();
+    }, [fetchCriticalData]);
 
-    if (loading || gwp === null || gwpYear === null) {
+    // Phase 2: Load secondary data after critical data loads
+    useEffect(() => {
+        if (!criticalLoading && (gwpList.length === 0 && gwpTrends.length === 0)) {
+            fetchSecondaryData();
+        }
+    }, [criticalLoading, fetchSecondaryData, gwpList.length, gwpTrends.length]);
+
+    // Memoize expensive computations (must be before any conditional returns)
+    const topCedantsData = useMemo(
+        () =>
+            gwpList.slice(0, 5).map((cedant) => ({
+                name: cedant.cedantName,
+                value: cedant.totalBookedPremium,
+            })),
+        [gwpList]
+    );
+
+    const COLORS = useMemo(
+        () => ["#3b82f6", "#7c3aed", "#06b6d4", "#10b981", "#f59e0b"],
+        []
+    );
+
+    const portfolioConcentration = useMemo(
+        () =>
+            topCedantsData.length > 0
+                ? (topCedantsData.reduce((sum, c) => sum + c.value, 0) /
+                      (gwpYear || 1)) *
+                  100
+                : 0,
+        [topCedantsData, gwpYear]
+    );
+
+    const handleMonthlyCardClick = () => {
+        setMonthlyModalOpen(true);
+        if (monthlyPerformance.length === 0) {
+            fetchMonthlyPerformance();
+        }
+    };
+
+    const handleYearlyCardClick = () => {
+        setYearlyModalOpen(true);
+        if (yearlyPerformance.length === 0) {
+            fetchYearlyPerformance();
+        }
+    };
+
+    if (criticalLoading || gwp === null || gwpYear === null) {
         return (
             <Center h="80vh">
                 <Stack align="center" gap="md">
@@ -68,14 +141,6 @@ export default function Dashboard() {
     const progress = (gwp / monthlyTarget) * 100;
     const yearProgress = (gwpYear / yearlyTarget) * 100;
     const lossRatio = claims && gwp ? (claims / gwp) * 100 : 0;
-
-    // Prepare data for pie chart
-    const topCedantsData = gwpList.slice(0, 5).map((cedant) => ({
-        name: cedant.cedantName,
-        value: cedant.totalBookedPremium,
-    }));
-
-    const COLORS = ["#3b82f6", "#7c3aed", "#06b6d4", "#10b981", "#f59e0b"];
 
     return (
         <Container size="xl" py="md">
@@ -101,7 +166,15 @@ export default function Dashboard() {
 
             {/* Key Metrics */}
             <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md" mb="xl">
-                <Card shadow="sm" padding="lg" radius="md" withBorder>
+                <Card
+                    shadow="sm"
+                    padding="lg"
+                    radius="md"
+                    withBorder
+                    onClick={handleMonthlyCardClick}
+                    style={{ cursor: "pointer" }}
+                    className="hover:shadow-md transition-shadow"
+                >
                     <Group justify="space-between" mb="md">
                         <ThemeIcon size="xl" radius="md" variant="light" color="blue">
                             <IconTrendingUp size={24} />
@@ -122,7 +195,15 @@ export default function Dashboard() {
                     </Text>
                 </Card>
 
-                <Card shadow="sm" padding="lg" radius="md" withBorder>
+                <Card
+                    shadow="sm"
+                    padding="lg"
+                    radius="md"
+                    withBorder
+                    onClick={handleYearlyCardClick}
+                    style={{ cursor: "pointer" }}
+                    className="hover:shadow-md transition-shadow"
+                >
                     <Group justify="space-between" mb="md">
                         <ThemeIcon size="xl" radius="md" variant="light" color="violet">
                             <IconChartBar size={24} />
@@ -190,7 +271,19 @@ export default function Dashboard() {
             </SimpleGrid>
 
             {/* Tabs for different views */}
-            <Tabs defaultValue="overview" variant="pills" mb="xl">
+            <Tabs
+                value={activeTab}
+                onChange={(tab) => {
+                    setActiveTab(tab);
+                    // Lazy load country-risks data when user clicks Map tab
+                    if (tab === "map" && countryRisks.length === 0 && !countryRisksLoading) {
+                        fetchCountryRisks();
+                    }
+                }}
+                defaultValue="overview"
+                variant="pills"
+                mb="xl"
+            >
                 <Tabs.List>
                     <Tabs.Tab value="overview" leftSection={<IconChartBar size={16} />}>
                         Overview
@@ -321,7 +414,16 @@ export default function Dashboard() {
                 </Tabs.Panel>
 
                 <Tabs.Panel value="map" pt="md">
-                    <GlobalRiskDistribution data={countryRisks} />
+                    {countryRisksLoading ? (
+                        <Center h={400}>
+                            <Stack align="center" gap="md">
+                                <Loader size="md" variant="bars" />
+                                <Text c="dimmed" size="sm">Loading global distribution data...</Text>
+                            </Stack>
+                        </Center>
+                    ) : (
+                        <GlobalRiskDistribution data={countryRisks} />
+                    )}
                 </Tabs.Panel>
 
                 <Tabs.Panel value="analytics" pt="md">
@@ -401,10 +503,10 @@ export default function Dashboard() {
                                         <Group justify="space-between" mb="xs">
                                             <Text size="sm">Portfolio Concentration (Top 5)</Text>
                                             <Text size="sm" fw={600}>
-                                                {((topCedantsData.reduce((sum, c) => sum + c.value, 0) / (gwpYear || 1)) * 100).toFixed(1)}%
+                                                {portfolioConcentration.toFixed(1)}%
                                             </Text>
                                         </Group>
-                                        <Progress value={(topCedantsData.reduce((sum, c) => sum + c.value, 0) / (gwpYear || 1)) * 100} color="cyan" size="lg" />
+                                        <Progress value={portfolioConcentration} color="cyan" size="lg" />
                                     </div>
                                 </Stack>
                             </Paper>
@@ -412,6 +514,29 @@ export default function Dashboard() {
                     </Grid>
                 </Tabs.Panel>
             </Tabs>
+
+            {/* Performance Breakdown Modals */}
+            <Suspense fallback={<ModalFallback />}>
+                <PerformanceBreakdownModal
+                    opened={monthlyModalOpen}
+                    onClose={() => setMonthlyModalOpen(false)}
+                    type="monthly"
+                    data={monthlyPerformance}
+                    loading={performanceLoading}
+                    error={performanceError}
+                />
+            </Suspense>
+
+            <Suspense fallback={<ModalFallback />}>
+                <PerformanceBreakdownModal
+                    opened={yearlyModalOpen}
+                    onClose={() => setYearlyModalOpen(false)}
+                    type="yearly"
+                    data={yearlyPerformance}
+                    loading={performanceLoading}
+                    error={performanceError}
+                />
+            </Suspense>
         </Container>
     );
 }
