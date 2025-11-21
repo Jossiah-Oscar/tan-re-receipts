@@ -53,10 +53,6 @@ export default function ClaimDetailModal({ claim, onClose }: ClaimDetailModalPro
                                 <span className="text-sm text-gray-500">Salvage (TZS)</span>
                                 <p className="font-semibold">{claim.salvage.toLocaleString()}</p>
                             </div>
-                            <div>
-                                <span className="text-sm text-gray-500">Net Amount (TZS)</span>
-                                <p className="font-semibold text-blue-600">{claim.netAmount.toLocaleString()}</p>
-                            </div>
                             <div className="col-span-2">
                                 <span className="text-sm text-gray-500">Cause of Loss</span>
                                 <p className="font-semibold">{claim.causeOfLoss}</p>

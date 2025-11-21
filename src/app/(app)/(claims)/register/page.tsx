@@ -2,31 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import {RegisteredClaim, useClaimsStore, convertDateToDDMMYYYY} from "@/store/useClaimRegisterStore";
-import SearchableDropdown from "@/components/claims/register/SearchableDropdown";
 import {
     Table,
     Button,
     TextInput,
-    Textarea,
     Modal,
     Paper,
-    Card,
     Group,
     Stack,
     Badge,
     Title,
     Text,
-    Grid,
     ActionIcon,
-    NumberInput,
     Container,
-    Divider,
     Box,
     SimpleGrid,
     Select,
-    NativeSelect,
     Alert
 } from '@mantine/core';
+import { DateInput } from '@mantine/dates';
 import { IconX, IconCheck, IconFileDownload, IconInfoCircle } from '@tabler/icons-react';
 
 
@@ -52,7 +46,6 @@ export default function ClaimsPage() {
             'Cause of Loss',
             'Current Reserve (TZS)',
             'Salvage (TZS)',
-            'Net Amount (TZS)',
             'Total Share Signed (%)',
             'TANRE TZS',
             'Retro Amount',
@@ -70,7 +63,6 @@ export default function ClaimsPage() {
             `"${claim.causeOfLoss.replace(/"/g, '""')}"`, // Escape quotes in cause of loss
             claim.currentReserve,
             claim.salvage,
-            claim.netAmount,
             claim.totalShareSigned.toFixed(2),
             claim.tanreTZS,
             claim.retroAmount,
@@ -211,10 +203,6 @@ export default function ClaimsPage() {
                             <div>
                                 <Text size="sm" c="dimmed">Original Insured</Text>
                                 <Text fw={600}>{selectedClaimForView.originalInsured}</Text>
-                            </div>
-                            <div>
-                                <Text size="sm" c="dimmed">Net Amount (TZS)</Text>
-                                <Text fw={600} c="blue">{selectedClaimForView.netAmount.toLocaleString()}</Text>
                             </div>
                             <Box style={{ gridColumn: 'span 2' }}>
                                 <Text size="sm" c="dimmed">Cause of Loss</Text>
@@ -372,28 +360,28 @@ export default function ClaimsPage() {
                         <Table highlightOnHover>
                             <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Th>Claim ID</Table.Th>
+                                    {/*<Table.Th>Claim ID</Table.Th>*/}
                                     <Table.Th>Date Registered</Table.Th>
                                     <Table.Th>Original Insured</Table.Th>
-                                    <Table.Th>Current Reserve (TZS)</Table.Th>
-                                    <Table.Th>Net Amount (TZS)</Table.Th>
-                                    <Table.Th>TANRE TZS</Table.Th>
+                                    <Table.Th>Current Reserve (Original Currency)</Table.Th>
+                                    <Table.Th>Share Signed (%)</Table.Th>
+                                    <Table.Th>Amount In Tzs</Table.Th>
                                     <Table.Th>Actions</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
                                 {store.registeredClaims.map((claim) => (
                                     <Table.Tr key={claim.claimId}>
-                                        <Table.Td>
-                                            <Text fw={600} c="blue">{claim.claimId}</Text>
-                                        </Table.Td>
+                                        {/*<Table.Td>*/}
+                                        {/*    <Text fw={600} c="blue">{claim.}</Text>*/}
+                                        {/*</Table.Td>*/}
                                         <Table.Td>{convertDateToDDMMYYYY(claim.dateRegistered)}</Table.Td>
                                         <Table.Td>{claim.originalInsured}</Table.Td>
                                         <Table.Td>
-                                            <Text fw={500} c="orange">{claim.salvageAmountTZS ? claim.salvageAmountTZS.toLocaleString() : '0.00'}</Text>
+                                            <Text fw={500}>{claim.currentReserve.toLocaleString()}</Text>
                                         </Table.Td>
                                         <Table.Td>
-                                            <Text fw={500}>{claim.netAmount.toLocaleString()}</Text>
+                                            <Text fw={500}>{claim.totalShareSigned.toLocaleString() + '%'}</Text>
                                         </Table.Td>
                                         <Table.Td>
                                             <Text fw={500} c="green">{claim.tanreTZS.toLocaleString()}</Text>
@@ -452,7 +440,7 @@ export default function ClaimsPage() {
                     {claim && (
                         <Paper shadow="md" p="lg" radius="md">
                             <Title order={3} size="h4" mb="md">Current Claim Details</Title>
-                            <SimpleGrid cols={3} spacing="md">
+                            <SimpleGrid cols={2} spacing="md">
                                 <div>
                                     <Text size="sm" c="dimmed">Original Insured:</Text>
                                     <Text fw={500}>{claim.originalInsured}</Text>
@@ -460,10 +448,6 @@ export default function ClaimsPage() {
                                 <div>
                                     <Text size="sm" c="dimmed">Current Contracts:</Text>
                                     <Text fw={500}>{claim.contractCount} contracts</Text>
-                                </div>
-                                <div>
-                                    <Text size="sm" c="dimmed">Net Amount:</Text>
-                                    <Text fw={500}>{claim.netAmount.toLocaleString()} TZS</Text>
                                 </div>
                             </SimpleGrid>
                         </Paper>
@@ -591,7 +575,7 @@ export default function ClaimsPage() {
 
                             <Paper p="md" withBorder bg="blue.0">
                                 <Title order={4} size="h6" mb="sm">New Calculations Preview</Title>
-                                <SimpleGrid cols={3} spacing="md">
+                                <SimpleGrid cols={2} spacing="md">
                                     <div>
                                         <Text size="sm" c="dimmed">Total Share Signed:</Text>
                                         <Text size="lg" fw={700}>
@@ -599,16 +583,11 @@ export default function ClaimsPage() {
                                         </Text>
                                     </div>
                                     <div>
-                                        <Text size="sm" c="dimmed">New TANRE TZS:</Text>
-                                        <Text size="lg" fw={700} c="green">
-                                            {claim && (claim.netAmount * (store.selectedContracts.reduce((sum, c) => sum + c.shareSigned, 0) / 100)).toLocaleString()}
-                                        </Text>
-                                    </div>
-                                    <div>
                                         <Text size="sm" c="dimmed">Contracts:</Text>
                                         <Text size="lg" fw={700}>{store.selectedContracts.length}</Text>
                                     </div>
                                 </SimpleGrid>
+                                <Text size="sm" c="dimmed" mt="md">New calculations will be computed by the backend when contracts are attached</Text>
                             </Paper>
                         </Paper>
                     )}
@@ -636,7 +615,7 @@ export default function ClaimsPage() {
 
                         <Stack gap="md">
                             <SimpleGrid cols={2} spacing="md">
-                                <TextInput
+                                <DateInput
                                     label={
                                         <Group gap={4} justify="flex-start">
                                             <span>Date of Loss</span>
@@ -645,18 +624,18 @@ export default function ClaimsPage() {
                                             )}
                                         </Group>
                                     }
-                                    type="date"
-                                    placeholder="dd/mm/yyyy"
-                                    value={store.claimDetails.dateOfLoss}
-                                    onChange={(e) => store.setClaimDetails({ dateOfLoss: e.target.value })}
+                                    placeholder="DD/MM/YYYY"
+                                    valueFormat="DD/MM/YYYY"
+                                    value={store.claimDetails.dateOfLoss ? new Date(store.claimDetails.dateOfLoss) : null}
+                                    onChange={(date) => store.setClaimDetails({ dateOfLoss: date ? date.toISOString().split('T')[0] : '' })}
                                 />
 
-                                <TextInput
+                                <DateInput
                                     label="Date Received"
-                                    type="date"
-                                    placeholder="dd/mm/yyyy"
-                                    value={store.claimDetails.dateReceived}
-                                    onChange={(e) => store.setClaimDetails({ dateReceived: e.target.value })}
+                                    placeholder="DD/MM/YYYY"
+                                    valueFormat="DD/MM/YYYY"
+                                    value={store.claimDetails.dateReceived ? new Date(store.claimDetails.dateReceived) : null}
+                                    onChange={(date) => store.setClaimDetails({ dateReceived: date ? date.toISOString().split('T')[0] : '' })}
                                     required
                                     withAsterisk
                                 />
@@ -932,7 +911,7 @@ export default function ClaimsPage() {
                                             <Badge size="xs" variant="light" color="orange">Missing - Add later</Badge>
                                         )}
                                     </Group>
-                                    <Text fw={600}>{store.claimDetails.dateOfLoss || '(Not provided)'}</Text>
+                                    <Text fw={600}>{store.claimDetails.dateOfLoss ? convertDateToDDMMYYYY(store.claimDetails.dateOfLoss) : '(Not provided)'}</Text>
                                 </div>
                                 <div>
                                     <Text size="sm" c="dimmed">Original Insured</Text>
@@ -951,10 +930,10 @@ export default function ClaimsPage() {
                                         })}
                                     </Text>
                                 </div>
-                                <div>
-                                    <Text size="sm" c="dimmed">Net Amount (TZS)</Text>
-                                    <Text fw={600} c="blue">{totals.netAmount.toLocaleString()}</Text>
-                                </div>
+                                {/*<div>*/}
+                                {/*    <Text size="sm" c="dimmed">Net Amount (TZS)</Text>*/}
+                                {/*    <Text fw={600} c="blue">{totals.netAmount.toLocaleString()}</Text>*/}
+                                {/*</div>*/}
                                 <div>
                                     <Text size="sm" c="dimmed">Salvage ({store.claimDetails.claimCurrency})</Text>
                                     <Text fw={600}>{parseFloat(store.claimDetails.salvage).toLocaleString()}</Text>

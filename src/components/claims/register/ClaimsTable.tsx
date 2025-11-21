@@ -1,4 +1,4 @@
-import { RegisteredClaim } from '@/store/useClaimRegisterStore';
+import { RegisteredClaim, convertDateToDDMMYYYY } from '@/store/useClaimRegisterStore';
 
 interface ClaimsTableProps {
     claims: RegisteredClaim[];
@@ -25,9 +25,6 @@ export default function ClaimsTable({ claims, onViewClaim }: ClaimsTableProps) {
                             Date of Loss
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Net Amount (TZS)
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             TANRE TZS
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -45,16 +42,13 @@ export default function ClaimsTable({ claims, onViewClaim }: ClaimsTableProps) {
                                 <span className="font-semibold text-blue-600">{claim.claimId}</span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {claim.dateRegistered}
+                                {convertDateToDDMMYYYY(claim.dateRegistered)}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900">
                                 {claim.originalInsured}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                {claim.dateOfLoss}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {claim.netAmount.toLocaleString()}
+                                {claim.dateOfLoss ? convertDateToDDMMYYYY(claim.dateOfLoss) : '(Not provided)'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
                                 {claim.tanreTZS.toLocaleString(undefined, {maximumFractionDigits: 2})}

@@ -324,8 +324,8 @@ interface OfferStore extends OfferFormData {
 // Helper function to generate unique ID for retro config
 const generateConfigId = (): string => {
     // Use crypto.getRandomUUID for truly unique IDs, fallback to random string
-    if (typeof crypto !== 'undefined' && crypto.getRandomUUID) {
-        return `config_${crypto.getRandomUUID()}`;
+    if (typeof crypto !== 'undefined' && crypto.randomUUID()) {
+        return `config_${crypto.randomUUID()}`;
     }
     // Fallback for environments without crypto API
     return `config_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${Math.random().toString(36).substr(2, 9)}`;

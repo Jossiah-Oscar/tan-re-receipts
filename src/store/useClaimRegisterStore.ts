@@ -85,8 +85,6 @@ export interface RegisteredClaim {
     causeOfLoss: string;
     currentReserve: number;
     salvage: number;
-    salvageAmountTZS: number;
-    netAmount: number;
     totalShareSigned: number;
     tanreTZS: number;
     retroAmount: number;
@@ -149,7 +147,6 @@ export const mockClaims: RegisteredClaim[] = [
         causeOfLoss: 'Fire damage to warehouse',
         currentReserve: 25000000,
         salvage: 2000000,
-        netAmount: 23000000,
         totalShareSigned: 45.0,
         tanreTZS: 10350000,
         retroAmount: 1552500,
@@ -166,7 +163,6 @@ export const mockClaims: RegisteredClaim[] = [
         causeOfLoss: 'Storm damage to building structure',
         currentReserve: 18500000,
         salvage: 0,
-        netAmount: 18500000,
         totalShareSigned: 55.0,
         tanreTZS: 10175000,
         retroAmount: 1526250,
@@ -251,7 +247,7 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
         originalInsured: '',
         causeOfLoss: '',
         causeOfLossCustom: '',
-        currentReserve: '14598843.00',
+        currentReserve: '00.00',
         salvage: '0',
         dateOfLossIsMissing: false,
         claimCurrency: '',
@@ -375,7 +371,7 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 throw new Error('Claim not found');
             }
 
-            const netAmount = claim.netAmount;
+            const netAmount = claim.currentReserve;
             const totalShareSigned = contracts.reduce((sum, c) => sum + c.shareSigned, 0);
             const retroPercentage = contracts[0]?.retroPercentage || 0;
 
@@ -426,7 +422,6 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 causeOfLoss: string;
                 currentReserve: number;
                 salvage: number;
-                netAmount: number;
                 totalShareSigned: number;
                 tanreTZS: number;
                 retroAmount: number;
@@ -541,7 +536,6 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 causeOfLoss: string;
                 currentReserve: number;
                 salvage: number;
-                netAmount: number;
                 totalShareSigned: number;
                 tanreTZS: number;
                 retroAmount: number;
@@ -569,8 +563,6 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 causeOfLoss: response.causeOfLoss,
                 currentReserve: response.currentReserve,
                 salvage: response.salvage,
-                salvageAmountTZS: response.salvageAmountTZS,
-                netAmount: response.netAmount,
                 totalShareSigned: response.totalShareSigned,
                 tanreTZS: response.tanreTZS,
                 retroAmount: response.retroAmount,
@@ -600,7 +592,7 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
             originalInsured: '',
             causeOfLoss: '',
             causeOfLossCustom: '',
-            currentReserve: '14598843.00',
+            currentReserve: '00.00',
             salvage: '0',
             dateOfLossIsMissing: false,
             claimCurrency: '',
@@ -745,7 +737,6 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 causeOfLoss: string;
                 currentReserve: number;
                 salvage: number;
-                netAmount: number;
                 totalShareSigned: number;
                 tanreTZS: number;
                 retroAmount: number;
@@ -772,8 +763,6 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 causeOfLoss: item.causeOfLoss,
                 currentReserve: item.currentReserve,
                 salvage: item.salvage,
-                salvageAmountTZS: item.salvageAmountTZS,
-                netAmount: item.netAmount,
                 totalShareSigned: item.totalShareSigned,
                 tanreTZS: item.tanreTZS,
                 retroAmount: item.retroAmount,
