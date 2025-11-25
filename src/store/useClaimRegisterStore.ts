@@ -74,6 +74,17 @@ export interface ClaimDetails {
     dateOfLossIsMissing?: boolean; // Flag to track if dateOfLoss needs to be filled later
     claimCurrency: string; // Currency selected for the claim
     claimExchangeRate: number; // Exchange rate for the selected currency
+    statusRemarksId?: number; // Status/Remarks dropdown
+    osDocumentStatusId?: number; // O/S Documents dropdown
+}
+
+// Status option types
+export interface StatusOption {
+    id: number;
+    name: string;
+    label: string;
+    description?: string;
+    active: boolean;
 }
 
 export interface RegisteredClaim {
@@ -91,6 +102,8 @@ export interface RegisteredClaim {
     tanreRetention: number;
     contractCount: number;
     contracts: string[];
+    statusRemarks?: { id: number; name: string; label: string } | null;
+    osDocumentStatus?: { id: number; name: string; label: string } | null;
 }
 
 // Mock Data
@@ -223,6 +236,8 @@ interface ClaimsStore {
     lobOptions: { value: string; label: string }[];
     typeOfBusinessOptions: { value: string; label: string }[];
     currencyOptions: { value: string; label: string; exchangeRate: number }[];
+    statusRemarksOptions: StatusOption[];
+    osDocumentStatusOptions: StatusOption[];
 
     setClaimDetails: (details: Partial<ClaimDetails>) => void;
     setSearchCriteria: (criteria: any) => void;
@@ -236,6 +251,7 @@ interface ClaimsStore {
     loadDropdownData: () => Promise<void>;
     loadRegisteredClaims: () => Promise<void>;
     loadCurrencies: () => Promise<void>;
+    loadStatusOptions: () => Promise<void>;
 }
 
 export const useClaimsStore = create<ClaimsStore>((set, get) => ({
@@ -251,7 +267,9 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
         salvage: '0',
         dateOfLossIsMissing: false,
         claimCurrency: '',
-        claimExchangeRate: 0
+        claimExchangeRate: 0,
+        statusRemarksId: undefined,
+        osDocumentStatusId: undefined
     },
     searchCriteria: {
         underwritingYear: '2020',
@@ -271,6 +289,8 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
     lobOptions: [],
     typeOfBusinessOptions: [],
     currencyOptions: [],
+    statusRemarksOptions: [],
+    osDocumentStatusOptions: [],
 
     setClaimDetails: (details) =>
         set((state) => ({ claimDetails: { ...state.claimDetails, ...details } })),
@@ -518,7 +538,9 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 retroAmount,
                 tanreRetention,
                 claimCurrency: state.claimDetails.claimCurrency,
-                claimExchangeRate: state.claimDetails.claimExchangeRate
+                claimExchangeRate: state.claimDetails.claimExchangeRate,
+                statusRemarksId: state.claimDetails.statusRemarksId || null,
+                osDocumentStatusId: state.claimDetails.osDocumentStatusId || null
             };
 
             console.log('Submitting claim:', requestPayload);
@@ -545,6 +567,8 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 createdBy: string;
                 createdAt: string;
                 updatedAt: string;
+                statusRemarks: { id: number; name: string; label: string } | null;
+                osDocumentStatus: { id: number; name: string; label: string } | null;
             }>('/api/claims/register', {
                 method: 'POST',
                 body: requestPayload,
@@ -568,7 +592,9 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 retroAmount: response.retroAmount,
                 tanreRetention: response.tanreRetention,
                 contractCount: response.contractCount,
-                contracts: response.contracts
+                contracts: response.contracts,
+                statusRemarks: response.statusRemarks,
+                osDocumentStatus: response.osDocumentStatus
             };
 
             // Update the store with the new claim
@@ -596,7 +622,9 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
             salvage: '0',
             dateOfLossIsMissing: false,
             claimCurrency: '',
-            claimExchangeRate: 0
+            claimExchangeRate: 0,
+            statusRemarksId: undefined,
+            osDocumentStatusId: undefined
         },
         selectedContracts: [],
         searchResults: []
@@ -746,6 +774,8 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 createdBy: string;
                 createdAt: string;
                 updatedAt: string;
+                statusRemarks: { id: number; name: string; label: string } | null;
+                osDocumentStatus: { id: number; name: string; label: string } | null;
             }>>('/api/claims', {
                 method: 'GET',
                 requiresAuth: true
@@ -768,7 +798,9 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 retroAmount: item.retroAmount,
                 tanreRetention: item.tanreRetention,
                 contractCount: item.contractCount,
-                contracts: item.contracts
+                contracts: item.contracts,
+                statusRemarks: item.statusRemarks,
+                osDocumentStatus: item.osDocumentStatus
             }));
 
             set({ registeredClaims: claims });
@@ -788,6 +820,40 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
 
             // Keep empty array on error - don't block the UI
             set({ registeredClaims: [] });
+        }
+    },
+
+    loadStatusOptions: async () => {
+        try {
+            console.log('Loading status options...');
+
+            // Fetch both status options in parallel
+            const [statusRemarksRes, osDocumentStatusRes] = await Promise.all([
+                apiFetch<StatusOption[]>('/api/claims/status-remarks', {
+                    method: 'GET',
+                    requiresAuth: true
+                }),
+                apiFetch<StatusOption[]>('/api/claims/os-document-statuses', {
+                    method: 'GET',
+                    requiresAuth: true
+                })
+            ]);
+
+            console.log('Status remarks options:', statusRemarksRes);
+            console.log('O/S Document status options:', osDocumentStatusRes);
+
+            set({
+                statusRemarksOptions: statusRemarksRes,
+                osDocumentStatusOptions: osDocumentStatusRes
+            });
+
+            console.log('Status options loaded successfully');
+        } catch (error) {
+            console.error('Error loading status options:', error);
+            set({
+                statusRemarksOptions: [],
+                osDocumentStatusOptions: []
+            });
         }
     }
 }));

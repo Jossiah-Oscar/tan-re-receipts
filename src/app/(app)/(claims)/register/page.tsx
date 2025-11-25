@@ -123,6 +123,11 @@ export default function ClaimsPage() {
         store.loadRegisteredClaims().catch(err => {
             console.error('Failed to load registered claims:', err);
         });
+
+        // Load status options for dropdowns
+        store.loadStatusOptions().catch(err => {
+            console.error('Failed to load status options:', err);
+        });
     }, []);
 
     const calculateTotals = () => {
@@ -729,6 +734,33 @@ export default function ClaimsPage() {
                                 />
                             </SimpleGrid>
 
+                            <SimpleGrid cols={2} spacing="md">
+                                <Select
+                                    label="Status/Remarks"
+                                    placeholder={store.statusRemarksOptions.length === 0 ? "Loading..." : "Select status"}
+                                    value={store.claimDetails.statusRemarksId?.toString() || null}
+                                    onChange={(value) => store.setClaimDetails({ statusRemarksId: value ? parseInt(value) : undefined })}
+                                    data={store.statusRemarksOptions.map(opt => ({
+                                        value: opt.id.toString(),
+                                        label: opt.label
+                                    }))}
+                                    searchable
+                                    clearable
+                                />
+
+                                <Select
+                                    label="O/S Documents"
+                                    placeholder={store.osDocumentStatusOptions.length === 0 ? "Loading..." : "Select document status"}
+                                    value={store.claimDetails.osDocumentStatusId?.toString() || null}
+                                    onChange={(value) => store.setClaimDetails({ osDocumentStatusId: value ? parseInt(value) : undefined })}
+                                    data={store.osDocumentStatusOptions.map(opt => ({
+                                        value: opt.id.toString(),
+                                        label: opt.label
+                                    }))}
+                                    searchable
+                                    clearable
+                                />
+                            </SimpleGrid>
 
                             <Button
                                 fullWidth

@@ -1,7 +1,8 @@
 'use client'
 
 
-import {Button, Container, FileInput, Group, Stack, Table, Tabs, Text, Title} from "@mantine/core";
+import {Button, Container, FileInput, Group, Modal, Stack, Table, Tabs, Text, Title} from "@mantine/core";
+import {IconTrash} from "@tabler/icons-react";
 import {API_BASE_URL, API_BASE_URl_DOC, apiFetch} from "@/config/api";
 import {showNotification} from "@mantine/notifications";
 import {ClaimDocument} from "@/components/claims/financeRequests";
@@ -35,6 +36,9 @@ export default function EditDocumentPage() {
     const [newFiles, setNewFiles] = useState<File[]>([]);
     const [outstandingClaims, setOutStandingClaim] = useState<ClaimWithOutstandingDTO[]>([]);
     const [uploading, setUploading] = useState(false);
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [fileToDelete, setFileToDelete] = useState<ClaimDocFileDTO | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
 
     useEffect(() => {
@@ -122,7 +126,43 @@ export default function EditDocumentPage() {
         } catch (err: any) {
             console.error('Error downloading evidence:', err);
         }
-}
+    }
+
+    function openDeleteModal(file: ClaimDocFileDTO) {
+        setFileToDelete(file);
+        setDeleteModalOpen(true);
+    }
+
+    function closeDeleteModal() {
+        setDeleteModalOpen(false);
+        setFileToDelete(null);
+    }
+
+    async function handleDeleteFile() {
+        if (!fileToDelete) return;
+        setDeleting(true);
+        try {
+            await apiFetch(`/api/claim-documents/files/${fileToDelete.id}`, {
+                method: "DELETE",
+                requiresAuth: true,
+            });
+            showNotification({
+                title: "Success",
+                message: "File deleted successfully",
+                color: "green"
+            });
+            closeDeleteModal();
+            fetchItems(); // refresh files list
+        } catch (e: any) {
+            showNotification({
+                title: "Error",
+                message: e.message || "Failed to delete file",
+                color: "red"
+            });
+        } finally {
+            setDeleting(false);
+        }
+    }
 
 
         return(
@@ -179,7 +219,15 @@ export default function EditDocumentPage() {
                                                        >
                                                            Download
                                                        </Button>
-
+                                                       <Button
+                                                           size="xs"
+                                                           color="red"
+                                                           variant="outline"
+                                                           leftSection={<IconTrash size={14} />}
+                                                           onClick={() => openDeleteModal(f)}
+                                                       >
+                                                           Delete
+                                                       </Button>
                                                    </Group>
                                                </Table.Td>
                                            </Table.Tr>
@@ -253,6 +301,38 @@ export default function EditDocumentPage() {
                    </Tabs.Panel>
 
                </Tabs>
+
+               {/* Delete Confirmation Modal */}
+               <Modal
+                   opened={deleteModalOpen}
+                   onClose={closeDeleteModal}
+                   title="Confirm Delete"
+                   centered
+                   size="sm"
+               >
+                   <Stack>
+                       <Text>
+                           Are you sure you want to delete this file?
+                       </Text>
+                       {fileToDelete && (
+                           <Text fw={600} c="dimmed">
+                               {fileToDelete.fileName}
+                           </Text>
+                       )}
+                       <Group justify="flex-end" mt="md">
+                           <Button variant="default" onClick={closeDeleteModal}>
+                               Cancel
+                           </Button>
+                           <Button
+                               color="red"
+                               onClick={handleDeleteFile}
+                               loading={deleting}
+                           >
+                               Delete
+                           </Button>
+                       </Group>
+                   </Stack>
+               </Modal>
 
            </Container>
        );
