@@ -18,10 +18,14 @@ import {
     Box,
     SimpleGrid,
     Select,
-    Alert
+    Alert,
+    FileInput,
+    List,
+    Menu
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
-import { IconX, IconCheck, IconFileDownload, IconInfoCircle } from '@tabler/icons-react';
+import { IconX, IconCheck, IconFileDownload, IconInfoCircle, IconUpload, IconTrash, IconFile, IconPaperclip, IconDots, IconEye, IconPlus } from '@tabler/icons-react';
+import { showNotification } from '@mantine/notifications';
 
 
 export default function ClaimsPage() {
@@ -32,6 +36,8 @@ export default function ClaimsPage() {
     const [attachingToClaimId, setAttachingToClaimId] = useState<string | null>(null);
     const [searchPerformed, setSearchPerformed] = useState(false);
     const [searchPerformedAttach, setSearchPerformedAttach] = useState(false);
+    const [filesModalOpen, setFilesModalOpen] = useState(false);
+    const [selectedClaimForFiles, setSelectedClaimForFiles] = useState<RegisteredClaim | null>(null);
 
     const store = useClaimsStore();
 
@@ -181,6 +187,19 @@ export default function ClaimsPage() {
         }
     };
 
+    const handleOpenFilesModal = async (claim: RegisteredClaim) => {
+        setSelectedClaimForFiles(claim);
+        setFilesModalOpen(true);
+        // Load files for this claim
+        await store.getClaimFiles(claim.claimId);
+    };
+
+    const handleCloseFilesModal = () => {
+        setFilesModalOpen(false);
+        setSelectedClaimForFiles(null);
+        store.setUploadedFiles([]);
+    };
+
     const totals = calculateTotals();
 
     // Claim Detail Modal
@@ -277,6 +296,69 @@ export default function ClaimsPage() {
                                 <Text size="xl" fw={700} c="orange">{totals.retroAmount.toLocaleString()}</Text>
                             </div>
                         </SimpleGrid>
+                    </Paper>
+
+                    <Paper p="md" withBorder mb="lg">
+                        <Title order={4} size="h5" mb="md">Attach Files (Optional)</Title>
+                        <Stack gap="md">
+                            <FileInput
+                                label="Select files to upload"
+                                placeholder="Click to select files (50MB max per file)"
+                                multiple
+                                leftSection={<IconPaperclip size={16} />}
+                                value={store.uploadedFiles}
+                                onChange={(files) => store.setUploadedFiles(files || [])}
+                            />
+                            {store.uploadedFiles.length > 0 && (
+                                <Paper p="sm" withBorder bg="gray.0">
+                                    <Text size="sm" fw={600} mb="xs">Selected Files ({store.uploadedFiles.length})</Text>
+                                    <List size="sm" spacing="xs">
+                                        {store.uploadedFiles.map((file, index) => (
+                                            <List.Item key={index} icon={<IconFile size={14} />}>
+                                                <Group justify="space-between">
+                                                    <Text size="xs">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</Text>
+                                                    <ActionIcon
+                                                        size="xs"
+                                                        color="red"
+                                                        variant="subtle"
+                                                        onClick={() => {
+                                                            const newFiles = [...store.uploadedFiles];
+                                                            newFiles.splice(index, 1);
+                                                            store.setUploadedFiles(newFiles);
+                                                        }}
+                                                    >
+                                                        <IconX size={12} />
+                                                    </ActionIcon>
+                                                </Group>
+                                            </List.Item>
+                                        ))}
+                                    </List>
+                                    <Button
+                                        fullWidth
+                                        mt="sm"
+                                        leftSection={<IconUpload size={16} />}
+                                        onClick={async () => {
+                                            try {
+                                                await store.uploadClaimFiles(registeredClaimId, store.uploadedFiles);
+                                                showNotification({
+                                                    title: 'Success',
+                                                    message: 'Files uploaded successfully',
+                                                    color: 'green'
+                                                });
+                                            } catch (error: any) {
+                                                showNotification({
+                                                    title: 'Error',
+                                                    message: error.message || 'Failed to upload files',
+                                                    color: 'red'
+                                                });
+                                            }
+                                        }}
+                                    >
+                                        Upload Files
+                                    </Button>
+                                </Paper>
+                            )}
+                        </Stack>
                     </Paper>
 
                     <Group grow>
@@ -392,29 +474,176 @@ export default function ClaimsPage() {
                                             <Text fw={500} c="green">{claim.tanreTZS.toLocaleString()}</Text>
                                         </Table.Td>
                                         <Table.Td>
-                                            <Group gap="xs">
-                                                <Button
-                                                    variant="subtle"
-                                                    size="xs"
-                                                    onClick={() => setSelectedClaimForView(claim)}
-                                                >
-                                                    View
-                                                </Button>
-                                                <Button
-                                                    variant="subtle"
-                                                    color="green"
-                                                    size="xs"
-                                                    onClick={() => handleAttachContracts(claim.claimId)}
-                                                >
-                                                    Attach Contracts
-                                                </Button>
-                                            </Group>
+                                            <Menu shadow="md" width={200}>
+                                                <Menu.Target>
+                                                    <ActionIcon variant="subtle" color="gray">
+                                                        <IconDots size={16} />
+                                                    </ActionIcon>
+                                                </Menu.Target>
+
+                                                <Menu.Dropdown>
+                                                    <Menu.Item
+                                                        leftSection={<IconEye size={14} />}
+                                                        onClick={() => setSelectedClaimForView(claim)}
+                                                    >
+                                                        View Details
+                                                    </Menu.Item>
+
+                                                    <Menu.Item
+                                                        leftSection={<IconPaperclip size={14} />}
+                                                        onClick={() => handleOpenFilesModal(claim)}
+                                                    >
+                                                        Manage Files
+                                                    </Menu.Item>
+
+                                                    <Menu.Item
+                                                        leftSection={<IconPlus size={14} />}
+                                                        onClick={() => handleAttachContracts(claim.claimId)}
+                                                    >
+                                                        Attach Contracts
+                                                    </Menu.Item>
+                                                </Menu.Dropdown>
+                                            </Menu>
                                         </Table.Td>
                                     </Table.Tr>
                                 ))}
                             </Table.Tbody>
                         </Table>
                     </Paper>
+
+                    {/* Files Modal */}
+                    <Modal
+                        opened={filesModalOpen}
+                        onClose={handleCloseFilesModal}
+                        title={`Files - ${selectedClaimForFiles?.claimId || ''}`}
+                        size="lg"
+                    >
+                        <Stack gap="md">
+                            {/* Existing Files List */}
+                            <Paper p="md" withBorder>
+                                <Title order={5} mb="md">Attached Files ({store.claimFiles.length})</Title>
+                                {store.claimFiles.length === 0 ? (
+                                    <Text c="dimmed" size="sm">No files attached yet</Text>
+                                ) : (
+                                    <Stack gap="xs">
+                                        {store.claimFiles.map((file) => (
+                                            <Paper key={file.id} p="sm" withBorder bg="gray.0">
+                                                <Group justify="space-between">
+                                                    <Group gap="xs">
+                                                        <IconFile size={16} />
+                                                        <div>
+                                                            <Text size="sm" fw={500}>{file.fileName}</Text>
+                                                            <Text size="xs" c="dimmed">
+                                                                {new Date(file.dateUploaded).toLocaleString()}
+                                                            </Text>
+                                                        </div>
+                                                    </Group>
+                                                    <Group gap="xs">
+                                                        <ActionIcon
+                                                            variant="subtle"
+                                                            color="blue"
+                                                            onClick={() => store.downloadClaimFile(file.id, file.fileName)}
+                                                        >
+                                                            <IconFileDownload size={16} />
+                                                        </ActionIcon>
+                                                        <ActionIcon
+                                                            variant="subtle"
+                                                            color="red"
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await store.deleteClaimFile(file.id);
+                                                                    showNotification({
+                                                                        title: 'Success',
+                                                                        message: 'File deleted',
+                                                                        color: 'green'
+                                                                    });
+                                                                } catch (error: any) {
+                                                                    showNotification({
+                                                                        title: 'Error',
+                                                                        message: error.message || 'Failed to delete file',
+                                                                        color: 'red'
+                                                                    });
+                                                                }
+                                                            }}
+                                                        >
+                                                            <IconTrash size={16} />
+                                                        </ActionIcon>
+                                                    </Group>
+                                                </Group>
+                                            </Paper>
+                                        ))}
+                                    </Stack>
+                                )}
+                            </Paper>
+
+                            {/* Upload New Files */}
+                            <Paper p="md" withBorder>
+                                <Title order={5} mb="md">Upload New Files</Title>
+                                <Stack gap="md">
+                                    <FileInput
+                                        label="Select files"
+                                        placeholder="Click to select files (50MB max per file)"
+                                        multiple
+                                        leftSection={<IconPaperclip size={16} />}
+                                        value={store.uploadedFiles}
+                                        onChange={(files) => store.setUploadedFiles(files || [])}
+                                    />
+                                    {store.uploadedFiles.length > 0 && (
+                                        <Paper p="sm" withBorder bg="gray.0">
+                                            <Text size="sm" fw={600} mb="xs">Selected Files ({store.uploadedFiles.length})</Text>
+                                            <List size="sm" spacing="xs">
+                                                {store.uploadedFiles.map((file, index) => (
+                                                    <List.Item key={index} icon={<IconFile size={14} />}>
+                                                        <Group justify="space-between">
+                                                            <Text size="xs">{file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</Text>
+                                                            <ActionIcon
+                                                                size="xs"
+                                                                color="red"
+                                                                variant="subtle"
+                                                                onClick={() => {
+                                                                    const newFiles = [...store.uploadedFiles];
+                                                                    newFiles.splice(index, 1);
+                                                                    store.setUploadedFiles(newFiles);
+                                                                }}
+                                                            >
+                                                                <IconX size={12} />
+                                                            </ActionIcon>
+                                                        </Group>
+                                                    </List.Item>
+                                                ))}
+                                            </List>
+                                            <Button
+                                                fullWidth
+                                                mt="sm"
+                                                leftSection={<IconUpload size={16} />}
+                                                onClick={async () => {
+                                                    if (!selectedClaimForFiles) return;
+                                                    try {
+                                                        await store.uploadClaimFiles(selectedClaimForFiles.claimId, store.uploadedFiles);
+                                                        showNotification({
+                                                            title: 'Success',
+                                                            message: 'Files uploaded successfully',
+                                                            color: 'green'
+                                                        });
+                                                        // Reload files
+                                                        await store.getClaimFiles(selectedClaimForFiles.claimId);
+                                                    } catch (error: any) {
+                                                        showNotification({
+                                                            title: 'Error',
+                                                            message: error.message || 'Failed to upload files',
+                                                            color: 'red'
+                                                        });
+                                                    }
+                                                }}
+                                            >
+                                                Upload Files
+                                            </Button>
+                                        </Paper>
+                                    )}
+                                </Stack>
+                            </Paper>
+                        </Stack>
+                    </Modal>
                 </Stack>
             </Container>
         );

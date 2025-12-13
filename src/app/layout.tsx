@@ -8,10 +8,9 @@ import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import {MantineProvider, AppShell, Group, Burger, Skeleton, NavLink} from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
+import { ModalsProvider } from '@mantine/modals';
 import {useDisclosure} from "@mantine/hooks";
-import Link from "next/link";
 import '@mantine/dates/styles.css';
-import { IconChevronRight } from "@tabler/icons-react";
 import {useEffect} from "react";
 import {usePathname, useRouter} from "next/navigation";
 import {AuthProvider} from "@/context/AuthContext";
@@ -58,14 +57,16 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
       <MantineProvider defaultColorScheme="light">
-           <Notifications />
-          {isLogin ? (
-              <>{children}</>
-          ) : (
-              <AuthProvider>
-                  <AppShell>…{children}…</AppShell>
-              </AuthProvider>
-          )}
+          <ModalsProvider>
+              <Notifications />
+              {isLogin ? (
+                  <>{children}</>
+              ) : (
+                  <AuthProvider>
+                      <AppShell>…{children}…</AppShell>
+                  </AuthProvider>
+              )}
+          </ModalsProvider>
       </MantineProvider>
       </body>
     </html>

@@ -87,6 +87,14 @@ export interface StatusOption {
     active: boolean;
 }
 
+// File types
+export interface ClaimFile {
+    id: number;
+    fileName: string;
+    contentType: string;
+    dateUploaded: string;
+}
+
 export interface RegisteredClaim {
     claimId: string;
     dateRegistered: string;
@@ -229,6 +237,8 @@ interface ClaimsStore {
     searchResults: Contract[];
     loading: boolean;
     editingClaimId: string | null;
+    uploadedFiles: File[];
+    claimFiles: ClaimFile[];
 
     // Dropdown options (for Select component)
     cedantOptions: { value: string; label: string }[];
@@ -252,6 +262,11 @@ interface ClaimsStore {
     loadRegisteredClaims: () => Promise<void>;
     loadCurrencies: () => Promise<void>;
     loadStatusOptions: () => Promise<void>;
+    setUploadedFiles: (files: File[]) => void;
+    uploadClaimFiles: (claimId: string, files: File[]) => Promise<void>;
+    getClaimFiles: (claimId: string) => Promise<void>;
+    downloadClaimFile: (fileId: number, fileName: string) => Promise<void>;
+    deleteClaimFile: (fileId: number) => Promise<void>;
 }
 
 export const useClaimsStore = create<ClaimsStore>((set, get) => ({
@@ -282,6 +297,8 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
     searchResults: [],
     loading: false,
     editingClaimId: null,
+    uploadedFiles: [],
+    claimFiles: [],
 
     // Dropdown options (empty initially, loaded from API)
     cedantOptions: [],
@@ -854,6 +871,97 @@ export const useClaimsStore = create<ClaimsStore>((set, get) => ({
                 statusRemarksOptions: [],
                 osDocumentStatusOptions: []
             });
+        }
+    },
+
+    // File operations
+    setUploadedFiles: (files) => set({ uploadedFiles: files }),
+
+    uploadClaimFiles: async (claimId, files) => {
+        try {
+            const formData = new FormData();
+            files.forEach((file) => formData.append('files', file));
+
+            await apiFetch(`/api/claims/${claimId}/files/upload`, {
+                method: 'POST',
+                body: formData,
+                requiresAuth: true
+            });
+
+            console.log('Files uploaded successfully');
+            // Clear uploaded files after successful upload
+            set({ uploadedFiles: [] });
+        } catch (error) {
+            console.error('Error uploading files:', error);
+            throw error;
+        }
+    },
+
+    getClaimFiles: async (claimId) => {
+        try {
+            const files = await apiFetch<ClaimFile[]>(`/api/claims/${claimId}/files`, {
+                method: 'GET',
+                requiresAuth: true
+            });
+
+            set({ claimFiles: files });
+            console.log('Claim files loaded:', files.length);
+        } catch (error) {
+            console.error('Error loading claim files:', error);
+            set({ claimFiles: [] });
+        }
+    },
+
+    downloadClaimFile: async (fileId, fileName) => {
+        try {
+            const url = `${API_BASE_URL}/api/claims/files/${fileId}/download`;
+            const token = localStorage.getItem('jwt');
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/octet-stream'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Download failed');
+            }
+
+            const blob = await response.blob();
+            const downloadUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(downloadUrl);
+
+            console.log('File downloaded:', fileName);
+        } catch (error) {
+            console.error('Error downloading file:', error);
+            throw error;
+        }
+    },
+
+    deleteClaimFile: async (fileId) => {
+        try {
+            await apiFetch(`/api/claims/files/${fileId}`, {
+                method: 'DELETE',
+                requiresAuth: true
+            });
+
+            // Remove file from claimFiles list
+            set((state) => ({
+                claimFiles: state.claimFiles.filter(f => f.id !== fileId)
+            }));
+
+            console.log('File deleted successfully');
+        } catch (error) {
+            console.error('Error deleting file:', error);
+            throw error;
         }
     }
 }));

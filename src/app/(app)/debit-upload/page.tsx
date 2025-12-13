@@ -27,7 +27,8 @@ import {
     IconEye, IconFileTypeDoc,
     IconPhoto,
     IconPlus,
-    IconTrash
+    IconTrash,
+    IconClipboardList
 } from '@tabler/icons-react';
 import {DocumentSearch} from "@/components/debit-upload/debitSearch";
 import {UploadForm} from "@/components/debit-upload/uploadForm";
@@ -297,9 +298,13 @@ export default function DocumentUploadPage() {
             <Stack gap="xs">
                 <Group justify="space-between" mt="md">
                     <Title order={3}>Document Management</Title>
-                    {/*<Button leftSection={<IconPlus size={16}/>} onClick={() => setUploadOpened(true)}>*/}
-                    {/*    Upload Document*/}
-                    {/*</Button>*/}
+                    <Button
+                        variant="light"
+                        leftSection={<IconClipboardList size={16}/>}
+                        onClick={() => router.push('/debit-upload/tracker')}
+                    >
+                        Document Tracker
+                    </Button>
                 </Group>
                 {/*<Title order={3}>Document Management</Title>*/}
                 <Card>
