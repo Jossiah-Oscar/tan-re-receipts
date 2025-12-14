@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { Select } from '@mantine/core';
-import {API_BASE_URl_DOC} from "@/config/api";
+import { API_BASE_URL } from "@/config/api";
 
-interface Cedant {
-    code: string;
-    name: string;
-    type: 'B' | 'C';
+interface Client {
+    BROKER_CEDANT_CODE: string;
+    BROKER_CEDANT_NAME: string;
+    BROKER_CEDANT_TYPE: string;
 }
 
 interface BrokerCedantDropdownProps {
@@ -34,7 +34,7 @@ export function BrokerCedantDropdown({value,
             }
 
             try {
-                const res = await fetch(`${API_BASE_URl_DOC}/api/broker-cedants`, {
+                const res = await fetch(`${API_BASE_URL}/api/client/list`, {
                     headers: {
                         "Authorization": `Bearer ${token}`,
                         "Content-Type": "application/json",
@@ -51,10 +51,10 @@ export function BrokerCedantDropdown({value,
                     throw new Error(`HTTP ${res.status} - ${res.statusText}`);
                 }
 
-                const data: Cedant[] = await res.json();
+                const data: Client[] = await res.json();
                 setOptions(data.map((c) => ({
-                    value: c.code,
-                    label: `${c.name} (${c.code})`,
+                    value: c.BROKER_CEDANT_CODE,
+                    label: `${c.BROKER_CEDANT_NAME} (${c.BROKER_CEDANT_CODE})`,
                 })));
                 setError(null);
             } catch (err: any) {

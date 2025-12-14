@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:uat": "env-cmd -f .env.uat next build",
+    "build:prod": "env-cmd -f .env.production next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -33,6 +35,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "env-cmd": "^11.0.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

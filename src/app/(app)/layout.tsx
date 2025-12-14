@@ -8,7 +8,9 @@ import {
     ColorSchemeScript,
     NavLink,
     Text,
-    Avatar, Stack
+    Avatar,
+    Stack,
+    Badge
 } from "@mantine/core";
 
 import {useDisclosure} from "@mantine/hooks";
@@ -26,6 +28,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     const isCEO = roles.includes("CEO");
     const user={ name: username, role: roles[0], avatar: null }
 
+    // Get environment from build-time env variable
+    const environment = process.env.NEXT_PUBLIC_ENVIRONMENT || 'LOCAL';
+    const isLocal = environment === 'LOCAL';
+    const isUAT = environment === 'UAT';
+    const isProduction = environment === 'PRODUCTION';
+
+    // Show badge for non-production environments
+    const showEnvironmentBadge = !isProduction;
+
 
     return (
 
@@ -36,8 +47,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             >
                 <AppShell.Header>
                     <Group h="100%" px="lg" justify="space-between">
-                        {/* Left side: logo */}
-                        <Image src={Logo} alt="Illustration" width={110} height={300}/>
+                        {/* Left side: logo and environment badge */}
+                        <Group gap="md">
+                            <Image src={Logo} alt="Illustration" width={110} height={300}/>
+                            {showEnvironmentBadge && (
+                                <Badge
+                                    size="lg"
+                                    color={isLocal ? 'blue' : 'orange'}
+                                    variant="filled"
+                                    styles={{
+                                        root: {
+                                            textTransform: 'uppercase',
+                                            fontWeight: 700,
+                                            letterSpacing: '0.5px'
+                                        }
+                                    }}
+                                >
+                                    {isLocal ? 'Local Development' : 'UAT Environment'}
+                                </Badge>
+                            )}
+                        </Group>
 
                         {/* Right side: user section */}
                         <Group gap="xs">
