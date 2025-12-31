@@ -577,7 +577,6 @@ const useOfferStore = create<OfferStore>((set, get) => ({
                     cedant: v.cedant,
                     broker: v.broker || '',
                     insured: v.insured,
-                    occupation: v.occupation || '',
                     country: v.country,
                     sumInsuredOs: config.sumInsuredOs,
                     premiumOs: config.premiumOs,
