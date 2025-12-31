@@ -9,7 +9,8 @@ import {
     IconReport,
     IconDevicesExclamation,
     IconContract,
-    IconSettings
+    IconSettings,
+    IconFileAnalytics
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -173,6 +174,16 @@ export const SimpleNavbar = ({ isCEO, isAdmin, userName }: SimpleNavbarProps) =>
                             }}
                         />
                     </NavLink>
+
+                    <NavLink
+                        component={Link}
+                        href="/underwriting-analysis"
+                        label="Underwriting Analysis"
+                        leftSection={<IconFileAnalytics size={18} stroke={1.5} />}
+                        active={active === "Underwriting_Analysis"}
+                        onClick={() => setActive('Underwriting_Analysis')}
+                        styles={navLinkStyles}
+                    />
 
                     <NavLink
                         component={Link}

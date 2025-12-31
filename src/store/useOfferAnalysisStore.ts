@@ -14,11 +14,9 @@ export interface ContractType {
 
 
 export interface Currency {
-    code: string;           // 'TZS'
-    name: string;           // 'Tanzanian Shilling'
-    exchange_rate?: number; // backend may use any of: exchange_rate | exchangeRate | rate
-    exchangeRate?: number;
-    rate?: number;
+    CURRENCY_CODE: string;
+    EXCHANGE_RATE: number;
+    CURRENCY_DESCRIPTION: string;
 }
 
 export interface BrokerCedant {
@@ -49,6 +47,11 @@ export interface RetroType {
     businessTypeId: number;
 }
 
+export interface Country {
+    COUNTRY_CODE: string;
+    COUNTRY_DESCRIPTION: string;
+}
+
 
 
 
@@ -63,6 +66,7 @@ interface DropdownStore {
     users: User[];
     lineOfBusinesses: LineOfBusiness[];
     retroTypes: RetroType[];
+    countries: Country[];
     loading: boolean;
     error: string | null;
 
@@ -72,6 +76,7 @@ interface DropdownStore {
     setContractTypes: (types: ContractType[]) => void;
     setLineOfBusinesses: (lobs: LineOfBusiness[]) => void;
     setRetroTypes: (types: RetroType[]) => void;
+    setCountries: (countries: Country[]) => void;
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
 
@@ -83,15 +88,16 @@ interface DropdownStore {
     getContractTypeSelectData: () => { value: string; label: string }[];
     getLineOfBusinessSelectData: () => { value: string; label: string }[];
     getRetroTypeSelectData: (lobId?: number) => { value: string; label: string }[];
+    getCountrySelectData: () => { value: string; label: string }[];
 }
 
 const useDropdownStore = create<DropdownStore>((set, get) => ({
     programs: [],
     currencies: [
-        { code: 'TZS', name: 'Tanzanian Shilling', exchangeRate: 1 },
-        { code: 'USD', name: 'US Dollar', exchangeRate: 2500 },
-        { code: 'EUR', name: 'Euro', exchangeRate: 2750 },
-        { code: 'GBP', name: 'British Pound', exchangeRate: 3200 },
+        { CURRENCY_CODE: 'TZS', CURRENCY_DESCRIPTION: 'Tanzanian Shilling', EXCHANGE_RATE: 1 },
+        { CURRENCY_CODE: 'USD', CURRENCY_DESCRIPTION: 'US Dollar', EXCHANGE_RATE: 2500 },
+        { CURRENCY_CODE: 'EUR', CURRENCY_DESCRIPTION: 'Euro', EXCHANGE_RATE: 2750 },
+        { CURRENCY_CODE: 'GBP', CURRENCY_DESCRIPTION: 'British Pound', EXCHANGE_RATE: 3200 },
     ],
     contractTypes: [],
     users: [],
@@ -106,6 +112,7 @@ const useDropdownStore = create<DropdownStore>((set, get) => ({
         { id: 3, name: 'Fire & Engineering - Prop', description: 'Fire and Engineering Proportional Treaty', lobId: 1, businessTypeId: 2 },
         { id: 4, name: 'Fire & Engineering - Non-Prop', description: 'Fire and Engineering Non Proportional Treaty', lobId: 1, businessTypeId: 2 },
     ],
+    countries: [],
     loading: false,
     error: null,
 
@@ -115,23 +122,27 @@ const useDropdownStore = create<DropdownStore>((set, get) => ({
     setUsers: (users) => set({ users: users }),
     setLineOfBusinesses: (lobs) => set({ lineOfBusinesses: lobs }),
     setRetroTypes: (types) => set({ retroTypes: types }),
+    setCountries: (countries) => set({ countries: countries }),
     setLoading: (loading) => set({ loading }),
     setError: (error) => set({ error }),
 
     loadDropdownData: async () => {
-        const { setLoading, setError, setProgram, setCurrencies, setContractTypes, setUsers, setLineOfBusinesses, setRetroTypes } = get();
+        const { setLoading, setError, setProgram, setCurrencies, setContractTypes, setUsers, setLineOfBusinesses, setRetroTypes, setCountries } = get();
         setLoading(true);
         setError(null);
         try {
             // Load all dropdown data concurrently
-            const [contractTypes, currencies, classes, users, lobs, retroTypes] = await Promise.all([
+            const [contractTypes, currencies, classes, users, lobs, retroTypes, countriesRes] = await Promise.all([
                 apiFetch<ContractType[]>(`/api/contract-types`).catch(() => []),
-                apiFetch<Currency[]>('/api/currencies').catch(() => get().currencies), // Keep default currencies if API fails
+                fetch(`${API_BASE_URL}/api/currency/exchange-rates`).then(r => r.json()).catch(() => get().currencies), // Fetch currencies from main API
                 apiFetch<Program[]>('/api/program').catch(() => []),
                 apiFetch<User[]>('/admin/users/list').catch(() => []),
                 apiFetch<LineOfBusiness[]>('/api/underwriting/line-of-business').catch(() => get().lineOfBusinesses), // Keep default LOBs if API fails
-                apiFetch<RetroType[]>('/api/underwriting/retro-types').catch(() => get().retroTypes) // Keep default retro types if API fails
+                apiFetch<RetroType[]>('/api/underwriting/retro-types').catch(() => get().retroTypes), // Keep default retro types if API fails
+                fetch(`${API_BASE_URL}/api/country/list`).then(r => r.json()).catch(() => []) // Fetch countries from main API
             ]);
+
+            const countries = countriesRes || [];
 
             setContractTypes(contractTypes || []);
             // Only update if API returned data, otherwise keep defaults
@@ -140,6 +151,7 @@ const useDropdownStore = create<DropdownStore>((set, get) => ({
             setUsers(users || []);
             if (lobs && lobs.length > 0) setLineOfBusinesses(lobs);
             if (retroTypes && retroTypes.length > 0) setRetroTypes(retroTypes);
+            setCountries(countries || []);
 
         } catch (err: any) {
             setError(err?.message || 'Unknown error loading dropdowns');
@@ -152,7 +164,7 @@ const useDropdownStore = create<DropdownStore>((set, get) => ({
     getProgramSelectData: () => get().programs.map((c) => ({ value: String(c.programId), label: c.programName })),
     getUserSelectionData: () => get().users.map((c) => ({ value: String(c.id), label: c.username })),
     getCurrencySelectData: () =>
-        get().currencies.map((c) => ({ value: c.code, label: `${c.name} (${c.code})` })),
+        get().currencies.map((c) => ({ value: c.CURRENCY_CODE, label: `${c.CURRENCY_DESCRIPTION} (${c.CURRENCY_CODE})` })),
 
     getContractTypeSelectData: () =>{
         const {contractTypes} = get();
@@ -176,6 +188,14 @@ const useDropdownStore = create<DropdownStore>((set, get) => ({
         return filtered.map((rt) => ({
             value: String(rt.id),
             label: rt.name
+        }));
+    },
+
+    getCountrySelectData: () => {
+        const { countries } = get();
+        return countries.map((country) => ({
+            value: country.COUNTRY_DESCRIPTION,
+            label: country.COUNTRY_DESCRIPTION
         }));
     }
 
@@ -463,8 +483,8 @@ const useOfferStore = create<OfferStore>((set, get) => ({
             exchangeRate: s.exchangeRate,
             sumInsuredOs: config.sumInsuredOs,
             premiumOs: config.premiumOs,
-            shareOfferedPct: config.shareOfferedPct,
-            shareAcceptedPct: config.shareAcceptedPct,
+            shareOfferedPct: config.shareOfferedPct / 100, // Convert from 50.0 to 0.5
+            shareAcceptedPct: config.shareAcceptedPct / 100, // Convert from 50.0 to 0.5
         };
 
         set((st) => ({
@@ -561,8 +581,8 @@ const useOfferStore = create<OfferStore>((set, get) => ({
                     country: v.country,
                     sumInsuredOs: config.sumInsuredOs,
                     premiumOs: config.premiumOs,
-                    shareOfferedPct: config.shareOfferedPct,
-                    shareAcceptedPct: config.shareAcceptedPct,
+                    shareOfferedPct: config.shareOfferedPct / 100, // Convert from 50.0 to 0.5
+                    shareAcceptedPct: config.shareAcceptedPct / 100, // Convert from 50.0 to 0.5
                     notes: v.notes,
 
                     // Retro configuration specific
@@ -618,12 +638,10 @@ const useOfferStore = create<OfferStore>((set, get) => ({
     // pick currency + set rate
     updateCurrencyAndExchangeRate: (currencyCode: string) => {
         const { currencies } = useDropdownStore.getState();
-        const selected = currencies.find((c) => c.code === currencyCode);
+        const selected = currencies.find((c) => c.CURRENCY_CODE === currencyCode);
         if (!selected) return;
 
-        // tolerate different API shapes
-        const rate =
-            (selected.exchange_rate ?? selected.exchangeRate ?? selected.rate ?? 1) as number;
+        const rate = selected.EXCHANGE_RATE;
 
         set((st) => ({
             ...st,

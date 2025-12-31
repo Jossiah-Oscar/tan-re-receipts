@@ -24,14 +24,70 @@ import {
     Modal,
     ActionIcon,
     Tooltip,
+    Tabs,
+    Loader,
+    Alert,
+    Card,
+    SimpleGrid,
+    ThemeIcon,
 } from '@mantine/core';
 import { DatePickerInput, DateTimePicker } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { useEffect, useMemo, useState } from 'react';
 import {useReportStore} from "@/store/useReportStore";
-import { IconTrash, IconEdit, IconPlus, IconCalculator } from '@tabler/icons-react';
+import {
+    IconTrash,
+    IconEdit,
+    IconPlus,
+    IconCalculator,
+    IconFileAnalytics,
+    IconClock,
+    IconChecks,
+    IconX,
+    IconAlertCircle,
+    IconRefresh,
+} from '@tabler/icons-react';
+import { apiFetch } from '@/config/api';
 
+// TypeScript interfaces for API response
+interface Metrics {
+    totalSubmissions: number;
+    pendingApprovals: number;
+    approvedThisMonth: number;
+    rejectedThisMonth: number;
+    averageProcessingTime: string;
+}
+
+interface Submission {
+    offerId: number;
+    cedant: string;
+    insured: string;
+    sumInsured: number;
+    currency: string;
+    submittedDate: string;
+    shareOfferedPct: number;
+    shareAcceptedPct: number;
+    status: string;
+    processInstanceId: string;
+}
+
+interface OverviewApiResponse {
+    metrics: Metrics;
+    recentSubmissions: Submission[];
+}
+
+// Utility function to format large numbers
+const formatShortNumber = (num: number): string => {
+    if (num >= 1_000_000_000) {
+        return (num / 1_000_000_000).toFixed(2) + 'B';
+    } else if (num >= 1_000_000) {
+        return (num / 1_000_000).toFixed(1) + 'M';
+    } else if (num >= 1_000) {
+        return (num / 1_000).toFixed(0) + 'K';
+    }
+    return num.toLocaleString();
+};
 
 // Modal component for adding/editing retro config
 function RetroConfigModal({
@@ -52,8 +108,9 @@ function RetroConfigModal({
     offerStore: any;
 }) {
     const [selectedLobId, setSelectedLobId] = useState<number | null>(initialLobId || null);
-    const [formValues, setFormValues] = useState<Partial<RetroConfiguration>>(
-        config || {
+
+    const modalForm = useForm({
+        initialValues: config || {
             lineOfBusinessId: '',
             retroTypeId: '',
             retroYear: new Date().getFullYear(),
@@ -63,37 +120,64 @@ function RetroConfigModal({
             premiumOs: 0,
             shareOfferedPct: 0,
             shareAcceptedPct: 0,
-        }
-    );
+        },
+        validate: {
+            lineOfBusinessId: (value) => (!value ? 'Line of Business is required' : null),
+            retroTypeId: (value) => (!value ? 'Retro Type is required' : null),
+            periodFrom: (value, values) => {
+                if (!value) return 'Period From is required';
+                if (values.periodTo && value >= values.periodTo) {
+                    return 'Period From must be before Period To';
+                }
+                return null;
+            },
+            periodTo: (value, values) => {
+                if (!value) return 'Period To is required';
+                if (values.periodFrom && value <= values.periodFrom) {
+                    return 'Period To must be after Period From';
+                }
+                return null;
+            },
+        },
+    });
 
-    // Update form when config changes (e.g., when opening modal for editing)
+    // Update form when modal opens with config
     useEffect(() => {
-        if (config) {
-            setFormValues(config);
-            setSelectedLobId(config.lineOfBusinessId ? Number(config.lineOfBusinessId) : null);
+        if (opened) {
+            if (config) {
+                modalForm.setValues(config);
+                setSelectedLobId(config.lineOfBusinessId ? Number(config.lineOfBusinessId) : null);
+            } else {
+                modalForm.reset();
+                setSelectedLobId(initialLobId);
+            }
         }
-    }, [config?.id]); // Only update when config ID changes (different config opened)
+    }, [opened, config?.id]); // Reset when modal opens or config changes
 
     const handleLobChange = (lobId: string | null) => {
         setSelectedLobId(lobId ? Number(lobId) : null);
-        setFormValues({ ...formValues, lineOfBusinessId: lobId || '', retroTypeId: '' });
+        modalForm.setFieldValue('lineOfBusinessId', lobId || '');
+        modalForm.setFieldValue('retroTypeId', ''); // Reset retro type
     };
 
-    const handleSave = async () => {
-        if (!formValues.lineOfBusinessId || !formValues.retroTypeId) {
+    const handleSave = () => {
+        const validation = modalForm.validate();
+
+        if (validation.hasErrors) {
             showNotification({
-                title: 'Error',
-                message: 'Please fill in all required fields',
+                title: 'Validation Error',
+                message: 'Please fix the errors in the form before saving',
                 color: 'red',
             });
             return;
         }
 
         const configToSave = config
-            ? { ...config, ...formValues } as RetroConfiguration
-            : (formValues as RetroConfiguration); // Don't set id, let store generate it
+            ? { ...config, ...modalForm.values } as RetroConfiguration
+            : (modalForm.values as RetroConfiguration);
 
         onSave(configToSave);
+        modalForm.reset();
         onClose();
     };
 
@@ -104,7 +188,7 @@ function RetroConfigModal({
                     label="Line of Business"
                     placeholder="Select LOB"
                     data={dropdownStore.getLineOfBusinessSelectData()}
-                    value={formValues.lineOfBusinessId}
+                    {...modalForm.getInputProps('lineOfBusinessId')}
                     onChange={handleLobChange}
                     required
                     withAsterisk
@@ -114,8 +198,7 @@ function RetroConfigModal({
                     label="Retro Type"
                     placeholder={selectedLobId ? 'Select retro type' : 'Select LOB first'}
                     data={dropdownStore.getRetroTypeSelectData(selectedLobId || undefined)}
-                    value={formValues.retroTypeId}
-                    onChange={(val) => setFormValues({ ...formValues, retroTypeId: val || '' })}
+                    {...modalForm.getInputProps('retroTypeId')}
                     disabled={!selectedLobId}
                     required
                     withAsterisk
@@ -126,8 +209,7 @@ function RetroConfigModal({
                     placeholder="e.g., 2024"
                     min={2000}
                     max={2100}
-                    value={formValues.retroYear}
-                    onChange={(val) => setFormValues({ ...formValues, retroYear: Number(val) || new Date().getFullYear() })}
+                    {...modalForm.getInputProps('retroYear')}
                     required
                     withAsterisk
                 />
@@ -136,16 +218,14 @@ function RetroConfigModal({
                     <DatePickerInput
                         label="Period From"
                         placeholder="Policy start"
-                        value={formValues.periodFrom}
-                        onChange={(val) => setFormValues({ ...formValues, periodFrom: val || new Date() })}
+                        {...modalForm.getInputProps('periodFrom')}
                         required
                         withAsterisk
                     />
                     <DatePickerInput
                         label="Period To"
                         placeholder="Policy end"
-                        value={formValues.periodTo}
-                        onChange={(val) => setFormValues({ ...formValues, periodTo: val || new Date() })}
+                        {...modalForm.getInputProps('periodTo')}
                         required
                         withAsterisk
                     />
@@ -157,8 +237,7 @@ function RetroConfigModal({
                     decimalScale={2}
                     thousandSeparator=","
                     min={0}
-                    value={formValues.sumInsuredOs}
-                    onChange={(val) => setFormValues({ ...formValues, sumInsuredOs: Number(val) || 0 })}
+                    {...modalForm.getInputProps('sumInsuredOs')}
                 />
 
                 <NumberInput
@@ -167,28 +246,27 @@ function RetroConfigModal({
                     decimalScale={2}
                     thousandSeparator=","
                     min={0}
-                    value={formValues.premiumOs}
-                    onChange={(val) => setFormValues({ ...formValues, premiumOs: Number(val) || 0 })}
+                    {...modalForm.getInputProps('premiumOs')}
                 />
 
                 <Group grow>
                     <NumberInput
                         label="Share Offered %"
-                        placeholder="0.00"
+                        placeholder="e.g., 50.00"
                         decimalScale={2}
                         min={0}
                         max={100}
-                        value={formValues.shareOfferedPct}
-                        onChange={(val) => setFormValues({ ...formValues, shareOfferedPct: Number(val) || 0 })}
+                        suffix="%"
+                        {...modalForm.getInputProps('shareOfferedPct')}
                     />
                     <NumberInput
                         label="Share Accepted %"
-                        placeholder="0.00"
+                        placeholder="e.g., 50.00"
                         decimalScale={2}
                         min={0}
                         max={100}
-                        value={formValues.shareAcceptedPct}
-                        onChange={(val) => setFormValues({ ...formValues, shareAcceptedPct: Number(val) || 0 })}
+                        suffix="%"
+                        {...modalForm.getInputProps('shareAcceptedPct')}
                     />
                 </Group>
 
@@ -216,6 +294,28 @@ export default function UnderwritingAnalysisPage() {
     const {getBrokerSelectData, getCedantSelectData, loadDropdownData} = useReportStore()
     const retroConfigs = useOfferStore(state => state.retroConfigurations);
 
+    // Overview tab state
+    const [overviewData, setOverviewData] = useState<OverviewApiResponse | null>(null);
+    const [overviewLoading, setOverviewLoading] = useState(false);
+    const [overviewError, setOverviewError] = useState<string | null>(null);
+
+    // Fetch overview data
+    const fetchOverviewData = async () => {
+        setOverviewLoading(true);
+        setOverviewError(null);
+        try {
+            const response = await apiFetch<OverviewApiResponse>(
+                '/api/underwriting/facultative/overview?limit=10&offset=0'
+            );
+            setOverviewData(response);
+        } catch (err: any) {
+            console.error('Failed to fetch overview data:', err);
+            setOverviewError(err?.message || 'Failed to load data');
+        } finally {
+            setOverviewLoading(false);
+        }
+    };
+
     const toggleFormType = (type: string) => {
         setSelectedTypes(prev => {
             if (prev.includes(type)) {
@@ -240,6 +340,16 @@ export default function UnderwritingAnalysisPage() {
             console.error('Dropdown load failed', e);
         });
     }, []);
+
+    // Load overview data on mount
+    useEffect(() => {
+        fetchOverviewData();
+    }, []);
+
+    // Sync form retroConfigurations with store
+    useEffect(() => {
+        form.setFieldValue('retroConfigurations', retroConfigs);
+    }, [retroConfigs]);
 
     // Initialize expanded config when first config is added
     useEffect(() => {
@@ -349,16 +459,46 @@ export default function UnderwritingAnalysisPage() {
 
     // Submit action: send all configs
     const handleSubmit = async (values: any) => {
+        // Validate form before submission
+        const validation = form.validate();
+
+        if (validation.hasErrors) {
+            const errorMessages = Object.values(validation.errors).filter(Boolean);
+            showNotification({
+                title: 'Validation Failed',
+                message: errorMessages.length > 0
+                    ? errorMessages.join(', ')
+                    : 'Please fix all form errors before submitting',
+                color: 'red',
+                autoClose: 5000,
+            });
+            return;
+        }
+
         try {
             const ok = await offerStore.submitForm(values);
 
             if (ok) {
-                showNotification({ title: 'Saved', message: 'Offer analysis saved successfully', color: 'green' });
+                showNotification({
+                    title: 'Success',
+                    message: 'Offer analysis saved successfully and submitted for approval',
+                    color: 'green'
+                });
                 form.reset();
                 offerStore.resetForm();
+            } else {
+                showNotification({
+                    title: 'Submission Failed',
+                    message: offerStore.error || 'Failed to save offer analysis',
+                    color: 'red'
+                });
             }
-        } catch {
-            showNotification({ title: 'Error', message: offerStore.error || 'Failed to save offer analysis', color: 'red' });
+        } catch (err) {
+            showNotification({
+                title: 'Error',
+                message: offerStore.error || 'Failed to save offer analysis',
+                color: 'red'
+            });
         }
     };
 
@@ -371,39 +511,211 @@ export default function UnderwritingAnalysisPage() {
 
     return (
         <Container size="xl" py="xl">
-            {/* Header and Analysis Type Selector */}
-            <Paper shadow="sm" p="lg" radius="md" mb="xl">
-                <Stack gap="md">
-                    <div>
-                        <Title order={1} mb="xs">Underwriting Analysis</Title>
-                        <Text c="dimmed">Select one or more analysis types for this offer</Text>
-                    </div>
+            <Group justify="space-between" mb="xl">
+                <Title order={1}>Underwriting Analysis</Title>
+                <Button
+                    leftSection={<IconRefresh size={16} />}
+                    variant="light"
+                    onClick={fetchOverviewData}
+                    loading={overviewLoading}
+                >
+                    Refresh
+                </Button>
+            </Group>
 
-                    <Group gap="xl">
-                        <Checkbox
-                            label="Facultative"
-                            checked={selectedTypes.includes('facultative')}
-                            onChange={() => toggleFormType('facultative')}
-                            size="md"
-                        />
-                        <Checkbox
-                            label="Policy Cession"
-                            checked={selectedTypes.includes('policy-cession')}
-                            onChange={() => toggleFormType('policy-cession')}
-                            size="md"
-                        />
-                        <Checkbox
-                            label="Treaty"
-                            checked={selectedTypes.includes('treaty')}
-                            onChange={() => toggleFormType('treaty')}
-                            size="md"
-                        />
-                    </Group>
-                </Stack>
-            </Paper>
+            <Tabs defaultValue="overview" variant="pills">
+                <Tabs.List mb="lg">
+                    <Tabs.Tab value="overview" leftSection={<IconFileAnalytics size={16} />}>
+                        Overview
+                    </Tabs.Tab>
+                    <Tabs.Tab value="new-analysis" leftSection={<IconPlus size={16} />}>
+                        New Analysis
+                    </Tabs.Tab>
+                </Tabs.List>
 
-            {/* Accordion for Multiple Analysis Types */}
-            <Accordion multiple defaultValue={selectedTypes}>
+                {/* Overview Tab */}
+                <Tabs.Panel value="overview">
+                    {/* Loading State */}
+                    {overviewLoading && (
+                        <Stack align="center" py="xl">
+                            <Loader size="lg" />
+                            <Text c="dimmed">Loading overview data...</Text>
+                        </Stack>
+                    )}
+
+                    {/* Error State */}
+                    {overviewError && !overviewData && (
+                        <Alert
+                            icon={<IconAlertCircle size={16} />}
+                            title="Error Loading Data"
+                            color="red"
+                            mb="md"
+                        >
+                            {overviewError}
+                            <Button
+                                size="xs"
+                                variant="light"
+                                onClick={fetchOverviewData}
+                                mt="sm"
+                            >
+                                Try Again
+                            </Button>
+                        </Alert>
+                    )}
+
+                    {/* Data Display */}
+                    {!overviewLoading && overviewData && (
+                        <Stack gap="xl">
+                            {/* Summary Metrics Cards */}
+                            <div>
+                                <Title order={3} mb="md">
+                                    Summary Metrics
+                                </Title>
+                                <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
+                                    {/* Total Submissions */}
+                                    <Card shadow="sm" padding="lg" radius="md" withBorder className="hover:shadow-md transition-shadow">
+                                        <Group gap="sm">
+                                            <ThemeIcon size={48} radius="md" color="blue" variant="light">
+                                                <IconFileAnalytics size={24} />
+                                            </ThemeIcon>
+                                            <div>
+                                                <Text size="xs" c="dimmed">Total Submissions</Text>
+                                                <Text size="xl" fw={700}>{overviewData.metrics.totalSubmissions}</Text>
+                                            </div>
+                                        </Group>
+                                    </Card>
+
+                                    {/* Pending Approvals */}
+                                    <Card shadow="sm" padding="lg" radius="md" withBorder className="hover:shadow-md transition-shadow">
+                                        <Group gap="sm">
+                                            <ThemeIcon size={48} radius="md" color="orange" variant="light">
+                                                <IconClock size={24} />
+                                            </ThemeIcon>
+                                            <div>
+                                                <Text size="xs" c="dimmed">Pending Approvals</Text>
+                                                <Text size="xl" fw={700}>{overviewData.metrics.pendingApprovals}</Text>
+                                            </div>
+                                        </Group>
+                                    </Card>
+
+                                    {/* Approved This Month */}
+                                    <Card shadow="sm" padding="lg" radius="md" withBorder className="hover:shadow-md transition-shadow">
+                                        <Group gap="sm">
+                                            <ThemeIcon size={48} radius="md" color="green" variant="light">
+                                                <IconChecks size={24} />
+                                            </ThemeIcon>
+                                            <div>
+                                                <Text size="xs" c="dimmed">Approved This Month</Text>
+                                                <Text size="xl" fw={700}>{overviewData.metrics.approvedThisMonth}</Text>
+                                            </div>
+                                        </Group>
+                                    </Card>
+
+                                    {/* Rejected This Month */}
+                                    <Card shadow="sm" padding="lg" radius="md" withBorder className="hover:shadow-md transition-shadow">
+                                        <Group gap="sm">
+                                            <ThemeIcon size={48} radius="md" color="red" variant="light">
+                                                <IconX size={24} />
+                                            </ThemeIcon>
+                                            <div>
+                                                <Text size="xs" c="dimmed">Rejected This Month</Text>
+                                                <Text size="xl" fw={700}>{overviewData.metrics.rejectedThisMonth}</Text>
+                                            </div>
+                                        </Group>
+                                    </Card>
+                                </SimpleGrid>
+                            </div>
+
+                            {/* Recent Submissions Table */}
+                            <Paper shadow="sm" p="lg" radius="md" withBorder>
+                                <Title order={4} mb="md">
+                                    Recent Submissions
+                                </Title>
+                                <Table striped highlightOnHover>
+                                    <Table.Thead>
+                                        <Table.Tr>
+                                            <Table.Th>Date</Table.Th>
+                                            <Table.Th>Cedant</Table.Th>
+                                            <Table.Th>Insured</Table.Th>
+                                            <Table.Th style={{ textAlign: 'right' }}>Sum Insured</Table.Th>
+                                            <Table.Th>Currency</Table.Th>
+                                            <Table.Th style={{ textAlign: 'right' }}>Share Offered</Table.Th>
+                                            <Table.Th style={{ textAlign: 'right' }}>Share Accepted</Table.Th>
+                                            <Table.Th>Status</Table.Th>
+                                        </Table.Tr>
+                                    </Table.Thead>
+                                    <Table.Tbody>
+                                        {overviewData.recentSubmissions.map((submission) => (
+                                            <Table.Tr
+                                                key={submission.offerId}
+                                                style={{ cursor: 'pointer' }}
+                                                onClick={() => console.log('View details:', submission.offerId)}
+                                            >
+                                                <Table.Td>{new Date(submission.submittedDate).toLocaleDateString()}</Table.Td>
+                                                <Table.Td>{submission.cedant}</Table.Td>
+                                                <Table.Td>{submission.insured}</Table.Td>
+                                                <Table.Td style={{ textAlign: 'right' }}>{submission.sumInsured.toLocaleString()}</Table.Td>
+                                                <Table.Td>{submission.currency}</Table.Td>
+                                                <Table.Td style={{ textAlign: 'right' }}>{(submission.shareOfferedPct * 100).toFixed(1)}%</Table.Td>
+                                                <Table.Td style={{ textAlign: 'right' }}>{(submission.shareAcceptedPct * 100).toFixed(1)}%</Table.Td>
+                                                <Table.Td>
+                                                    <Badge
+                                                        color={
+                                                            submission.status === 'Approved'
+                                                                ? 'green'
+                                                                : submission.status === 'In Progress'
+                                                                ? 'orange'
+                                                                : 'red'
+                                                        }
+                                                        variant="light"
+                                                    >
+                                                        {submission.status}
+                                                    </Badge>
+                                                </Table.Td>
+                                            </Table.Tr>
+                                        ))}
+                                    </Table.Tbody>
+                                </Table>
+                            </Paper>
+                        </Stack>
+                    )}
+                </Tabs.Panel>
+
+                {/* New Analysis Tab */}
+                <Tabs.Panel value="new-analysis">
+                    {/* Header for Analysis Type Selector */}
+                    <Paper shadow="sm" p="lg" radius="md" mb="xl">
+                        <Stack gap="md">
+                            <div>
+                                <Title order={2} mb="xs">Create New Analysis</Title>
+                                <Text c="dimmed">Select one or more analysis types for this offer</Text>
+                            </div>
+
+                            <Group gap="xl">
+                                <Checkbox
+                                    label="Facultative"
+                                    checked={selectedTypes.includes('facultative')}
+                                    onChange={() => toggleFormType('facultative')}
+                                    size="md"
+                                />
+                                <Checkbox
+                                    label="Policy Cession"
+                                    checked={selectedTypes.includes('policy-cession')}
+                                    onChange={() => toggleFormType('policy-cession')}
+                                    size="md"
+                                />
+                                <Checkbox
+                                    label="Treaty"
+                                    checked={selectedTypes.includes('treaty')}
+                                    onChange={() => toggleFormType('treaty')}
+                                    size="md"
+                                />
+                            </Group>
+                        </Stack>
+                    </Paper>
+
+                    {/* Accordion for Multiple Analysis Types */}
+                    <Accordion multiple defaultValue={selectedTypes}>
             {['facultative', 'policy-cession', 'treaty']
                 .filter(type => selectedTypes.includes(type))
                 .map(type => {
@@ -454,9 +766,11 @@ export default function UnderwritingAnalysisPage() {
                                             />
                                         </Grid.Col>
                                         <Grid.Col span={6}>
-                                            <TextInput
+                                            <Select
                                                 label="Country"
-                                                placeholder="e.g., Tanzania"
+                                                placeholder="Select country"
+                                                data={dropdownStore.getCountrySelectData()}
+                                                searchable
                                                 {...form.getInputProps('country')}
                                             />
                                         </Grid.Col>
@@ -465,6 +779,36 @@ export default function UnderwritingAnalysisPage() {
                                                 label="Offer Received Date"
                                                 placeholder="Select date"
                                                 {...form.getInputProps('offerReceivedDate')}
+                                            />
+                                        </Grid.Col>
+                                    </Grid>
+                                </Paper>
+                                {/* Currency & Exchange Rate (Offer-level) */}
+                                <Paper p="md" withBorder bg="green.0">
+                                    <Title order={5} mb="md">Currency & Exchange Rate</Title>
+                                    <Grid gutter="md">
+                                        <Grid.Col span={6}>
+                                            <Select
+                                                label="Currency"
+                                                placeholder="Select currency"
+                                                data={dropdownStore.getCurrencySelectData()}
+                                                value={form.values.currencyCode}
+                                                onChange={handleCurrencyChange}
+                                                searchable
+                                                required
+                                                withAsterisk
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={6}>
+                                            <NumberInput
+                                                label="Exchange Rate"
+                                                placeholder="Auto-filled"
+                                                decimalScale={6}
+                                                min={0}
+                                                value={form.values.exchangeRate}
+                                                onChange={(val) => form.setFieldValue('exchangeRate', Number(val) || 1)}
+                                                required
+                                                withAsterisk
                                             />
                                         </Grid.Col>
                                     </Grid>
@@ -588,37 +932,6 @@ export default function UnderwritingAnalysisPage() {
                                             </Table.Tbody>
                                         </Table>
                                     )}
-                                </Paper>
-
-                                {/* Currency & Exchange Rate (Offer-level) */}
-                                <Paper p="md" withBorder bg="green.0">
-                                    <Title order={5} mb="md">Currency & Exchange Rate</Title>
-                                    <Grid gutter="md">
-                                        <Grid.Col span={6}>
-                                            <Select
-                                                label="Currency"
-                                                placeholder="Select currency"
-                                                data={dropdownStore.getCurrencySelectData()}
-                                                value={form.values.currencyCode}
-                                                onChange={handleCurrencyChange}
-                                                searchable
-                                                required
-                                                withAsterisk
-                                            />
-                                        </Grid.Col>
-                                        <Grid.Col span={6}>
-                                            <NumberInput
-                                                label="Exchange Rate"
-                                                placeholder="Auto-filled"
-                                                decimalScale={6}
-                                                min={0}
-                                                value={form.values.exchangeRate}
-                                                onChange={(val) => form.setFieldValue('exchangeRate', Number(val) || 1)}
-                                                required
-                                                withAsterisk
-                                            />
-                                        </Grid.Col>
-                                    </Grid>
                                 </Paper>
 
                                 {/* Notes */}
@@ -889,6 +1202,8 @@ export default function UnderwritingAnalysisPage() {
                     })
                 }
             </Accordion>
+                </Tabs.Panel>
+            </Tabs>
 
             {/* Modal for adding/editing retro configurations */}
             <RetroConfigModal
