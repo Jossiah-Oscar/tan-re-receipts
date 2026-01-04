@@ -25,6 +25,7 @@ import {
     IconChartBar,
     IconMapPin,
     IconFileAnalytics,
+    IconCalendar,
 } from "@tabler/icons-react";
 import { StatCard } from "@/components/dashboard/gwpCard";
 import { ClaimStatCard } from "@/components/dashboard/claimCard";
@@ -47,6 +48,8 @@ const ModalFallback = () => (
 
 export default function Dashboard() {
     const {
+        selectedYear,
+        setSelectedYear,
         gwp,
         gwpYear,
         claims,
@@ -87,6 +90,15 @@ export default function Dashboard() {
             fetchSecondaryData();
         }
     }, [criticalLoading, fetchSecondaryData, gwpList.length, gwpTrends.length]);
+
+    // Refetch data when year changes
+    useEffect(() => {
+        fetchCriticalData(selectedYear);
+        fetchSecondaryData(selectedYear);
+        fetchCountryRisks(selectedYear);
+        fetchMonthlyPerformance(selectedYear);
+        fetchYearlyPerformance(selectedYear);
+    }, [selectedYear]);
 
     // Memoize expensive computations (must be before any conditional returns)
     const topCedantsData = useMemo(
@@ -269,6 +281,39 @@ export default function Dashboard() {
                     </Text>
                 </Card>
             </SimpleGrid>
+
+            {/* Year Filter Tabs */}
+            <Paper shadow="sm" p="md" radius="md" withBorder mb="lg">
+                <Group justify="space-between" align="center">
+                    <Group gap="xs">
+                        <IconCalendar size={18} />
+                        <Text size="sm" fw={500} c="dimmed">Please Select Data Year</Text>
+                    </Group>
+                    <Tabs
+                        value={String(selectedYear)}
+                        onChange={(year) => year && setSelectedYear(Number(year))}
+                        variant="pills"
+                    >
+                        <Tabs.List>
+                            <Tabs.Tab value="2026">
+                                <Group gap={5}>
+                                    2026
+                                    {selectedYear === 2026 && <Badge size="xs" variant="filled" color="blue">Live</Badge>}
+                                </Group>
+                            </Tabs.Tab>
+                            <Tabs.Tab value="2025">
+                                2025
+                            </Tabs.Tab>
+                            <Tabs.Tab value="2024">
+                                2024
+                            </Tabs.Tab>
+                            <Tabs.Tab value="2023">
+                                2023
+                            </Tabs.Tab>
+                        </Tabs.List>
+                    </Tabs>
+                </Group>
+            </Paper>
 
             {/* Tabs for different views */}
             <Tabs

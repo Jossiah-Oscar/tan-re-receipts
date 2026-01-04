@@ -33,6 +33,7 @@ export interface GwpPerformanceDTO {
 }
 
 interface DashboardState {
+    selectedYear: number
     gwp: number | null
     gwpYear: number | null
 
@@ -50,14 +51,16 @@ interface DashboardState {
     performanceLoading: boolean
     error: string | null
     performanceError: string | null
-    fetchCriticalData: () => Promise<void>
-    fetchSecondaryData: () => Promise<void>
-    fetchCountryRisks: () => Promise<void>
-    fetchMonthlyPerformance: () => Promise<void>
-    fetchYearlyPerformance: () => Promise<void>
+    setSelectedYear: (year: number) => void
+    fetchCriticalData: (year?: number) => Promise<void>
+    fetchSecondaryData: (year?: number) => Promise<void>
+    fetchCountryRisks: (year?: number) => Promise<void>
+    fetchMonthlyPerformance: (year?: number) => Promise<void>
+    fetchYearlyPerformance: (year?: number) => Promise<void>
 }
 
-const useDashboardStore = create<DashboardState>((set) => ({
+const useDashboardStore = create<DashboardState>((set, get) => ({
+    selectedYear: new Date().getFullYear(),
     gwp: null,
     gwpYear: null,
     claims: null,
@@ -74,7 +77,9 @@ const useDashboardStore = create<DashboardState>((set) => ({
     performanceLoading: false,
     error: null,
     performanceError: null,
-    fetchCriticalData: async () => {
+    setSelectedYear: (year: number) => set({ selectedYear: year }),
+    fetchCriticalData: async (year?: number) => {
+        const selectedYear = year ?? get().selectedYear;
         set({ criticalLoading: true, error: null })
         try {
             const [
@@ -83,10 +88,10 @@ const useDashboardStore = create<DashboardState>((set) => ({
                 claimsResponse,
                 claimYearResponse
             ] = await Promise.all([
-                fetch(`${API_BASE_URL}/api/dashboard/gwp`),
-                fetch(`${API_BASE_URL}/api/dashboard/year-gwp`),
-                fetch(`${API_BASE_URL}/api/dashboard/claims`),
-                fetch(`${API_BASE_URL}/api/dashboard/year-claim`),
+                fetch(`${API_BASE_URL}/api/dashboard/gwp?year=${selectedYear}`),
+                fetch(`${API_BASE_URL}/api/dashboard/year-gwp?year=${selectedYear}`),
+                fetch(`${API_BASE_URL}/api/dashboard/claims?year=${selectedYear}`),
+                fetch(`${API_BASE_URL}/api/dashboard/year-claim?year=${selectedYear}`),
             ])
 
             const [
@@ -112,7 +117,8 @@ const useDashboardStore = create<DashboardState>((set) => ({
             set({ error: (error as Error).message, criticalLoading: false })
         }
     },
-    fetchSecondaryData: async () => {
+    fetchSecondaryData: async (year?: number) => {
+        const selectedYear = year ?? get().selectedYear;
         set({ secondaryLoading: true })
         try {
             const [
@@ -120,9 +126,9 @@ const useDashboardStore = create<DashboardState>((set) => ({
                 gwpTrendsResponse,
                 cedantBalanceResponse
             ] = await Promise.all([
-                fetch(`${API_BASE_URL}/api/dashboard/gwp/top-cedants`),
-                fetch(`${API_BASE_URL}/api/dashboard/monthly-trend`),
-                fetch(`${API_BASE_URL}/api/dashboard/outstanding-balances`),
+                fetch(`${API_BASE_URL}/api/dashboard/gwp/top-cedants?year=${selectedYear}`),
+                fetch(`${API_BASE_URL}/api/dashboard/monthly-trend?year=${selectedYear}`),
+                fetch(`${API_BASE_URL}/api/dashboard/outstanding-balances?year=${selectedYear}`),
             ])
 
             const [
@@ -145,10 +151,11 @@ const useDashboardStore = create<DashboardState>((set) => ({
             set({ error: (error as Error).message, secondaryLoading: false })
         }
     },
-    fetchCountryRisks: async () => {
+    fetchCountryRisks: async (year?: number) => {
+        const selectedYear = year ?? get().selectedYear;
         set({ countryRisksLoading: true })
         try {
-            const response = await fetch(`${API_BASE_URL}/api/dashboard/country-risks`)
+            const response = await fetch(`${API_BASE_URL}/api/dashboard/country-risks?year=${selectedYear}`)
             const countryRisks = await response.json()
             set({
                 countryRisks: countryRisks || [],
@@ -218,10 +225,11 @@ const useDashboardStore = create<DashboardState>((set) => ({
             set({ error: (error as Error).message, criticalLoading: false })
         }
     },
-    fetchMonthlyPerformance: async () => {
+    fetchMonthlyPerformance: async (year?: number) => {
+        const selectedYear = year ?? get().selectedYear;
         set({ performanceLoading: true, performanceError: null })
         try {
-            const response = await fetch(`${API_BASE_URL}/api/dashboard/month/performance`)
+            const response = await fetch(`${API_BASE_URL}/api/dashboard/month/performance?year=${selectedYear}`)
             const data = await response.json()
             set({
                 monthlyPerformance: data || [],
@@ -231,10 +239,11 @@ const useDashboardStore = create<DashboardState>((set) => ({
             set({ performanceError: (error as Error).message, performanceLoading: false })
         }
     },
-    fetchYearlyPerformance: async () => {
+    fetchYearlyPerformance: async (year?: number) => {
+        const selectedYear = year ?? get().selectedYear;
         set({ performanceLoading: true, performanceError: null })
         try {
-            const response = await fetch(`${API_BASE_URL}/api/dashboard/year/performance`)
+            const response = await fetch(`${API_BASE_URL}/api/dashboard/year/performance?year=${selectedYear}`)
             const data = await response.json()
             set({
                 yearlyPerformance: data || [],

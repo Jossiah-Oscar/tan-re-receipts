@@ -52,6 +52,11 @@ export interface Country {
     COUNTRY_DESCRIPTION: string;
 }
 
+export interface UnitManager {
+    username: string;
+    displayName: string;
+}
+
 
 
 
@@ -67,6 +72,7 @@ interface DropdownStore {
     lineOfBusinesses: LineOfBusiness[];
     retroTypes: RetroType[];
     countries: Country[];
+    unitManagers: UnitManager[];
     loading: boolean;
     error: string | null;
 
@@ -77,6 +83,7 @@ interface DropdownStore {
     setLineOfBusinesses: (lobs: LineOfBusiness[]) => void;
     setRetroTypes: (types: RetroType[]) => void;
     setCountries: (countries: Country[]) => void;
+    setUnitManagers: (managers: UnitManager[]) => void;
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
 
@@ -89,6 +96,7 @@ interface DropdownStore {
     getLineOfBusinessSelectData: () => { value: string; label: string }[];
     getRetroTypeSelectData: (lobId?: number) => { value: string; label: string }[];
     getCountrySelectData: () => { value: string; label: string }[];
+    getUnitManagerSelectData: () => { value: string; label: string }[];
 }
 
 const useDropdownStore = create<DropdownStore>((set, get) => ({
@@ -113,6 +121,7 @@ const useDropdownStore = create<DropdownStore>((set, get) => ({
         { id: 4, name: 'Fire & Engineering - Non-Prop', description: 'Fire and Engineering Non Proportional Treaty', lobId: 1, businessTypeId: 2 },
     ],
     countries: [],
+    unitManagers: [],
     loading: false,
     error: null,
 
@@ -123,26 +132,29 @@ const useDropdownStore = create<DropdownStore>((set, get) => ({
     setLineOfBusinesses: (lobs) => set({ lineOfBusinesses: lobs }),
     setRetroTypes: (types) => set({ retroTypes: types }),
     setCountries: (countries) => set({ countries: countries }),
+    setUnitManagers: (managers) => set({ unitManagers: managers }),
     setLoading: (loading) => set({ loading }),
     setError: (error) => set({ error }),
 
     loadDropdownData: async () => {
-        const { setLoading, setError, setProgram, setCurrencies, setContractTypes, setUsers, setLineOfBusinesses, setRetroTypes, setCountries } = get();
+        const { setLoading, setError, setProgram, setCurrencies, setContractTypes, setUsers, setLineOfBusinesses, setRetroTypes, setCountries, setUnitManagers } = get();
         setLoading(true);
         setError(null);
         try {
             // Load all dropdown data concurrently
-            const [contractTypes, currencies, classes, users, lobs, retroTypes, countriesRes] = await Promise.all([
+            const [contractTypes, currencies, classes, users, lobs, retroTypes, countriesRes, unitManagersRes] = await Promise.all([
                 apiFetch<ContractType[]>(`/api/contract-types`).catch(() => []),
                 fetch(`${API_BASE_URL}/api/currency/exchange-rates`).then(r => r.json()).catch(() => get().currencies), // Fetch currencies from main API
                 apiFetch<Program[]>('/api/program').catch(() => []),
                 apiFetch<User[]>('/admin/users/list').catch(() => []),
                 apiFetch<LineOfBusiness[]>('/api/underwriting/line-of-business').catch(() => get().lineOfBusinesses), // Keep default LOBs if API fails
                 apiFetch<RetroType[]>('/api/underwriting/retro-types').catch(() => get().retroTypes), // Keep default retro types if API fails
-                fetch(`${API_BASE_URL}/api/country/list`).then(r => r.json()).catch(() => []) // Fetch countries from main API
+                fetch(`${API_BASE_URL}/api/country/list`).then(r => r.json()).catch(() => []), // Fetch countries from main API
+                apiFetch<UnitManager[]>('/api/underwriting/facultative/unit-managers').catch(() => []) // Fetch unit managers
             ]);
 
             const countries = countriesRes || [];
+            const unitManagers = unitManagersRes || [];
 
             setContractTypes(contractTypes || []);
             // Only update if API returned data, otherwise keep defaults
@@ -152,6 +164,7 @@ const useDropdownStore = create<DropdownStore>((set, get) => ({
             if (lobs && lobs.length > 0) setLineOfBusinesses(lobs);
             if (retroTypes && retroTypes.length > 0) setRetroTypes(retroTypes);
             setCountries(countries || []);
+            setUnitManagers(unitManagers || []);
 
         } catch (err: any) {
             setError(err?.message || 'Unknown error loading dropdowns');
@@ -196,6 +209,14 @@ const useDropdownStore = create<DropdownStore>((set, get) => ({
         return countries.map((country) => ({
             value: country.COUNTRY_DESCRIPTION,
             label: country.COUNTRY_DESCRIPTION
+        }));
+    },
+
+    getUnitManagerSelectData: () => {
+        const { unitManagers } = get();
+        return unitManagers.map((manager) => ({
+            value: manager.username,
+            label: manager.username
         }));
     }
 
@@ -309,6 +330,7 @@ export interface OfferFormData {
     country: string;
     currencyCode: string;
     exchangeRate: number;
+    unitManagerUsername: string;
     notes: string;
 
     // Array of retro configurations
@@ -396,6 +418,7 @@ const useOfferStore = create<OfferStore>((set, get) => ({
     country: '',
     currencyCode: '',
     exchangeRate: 1,
+    unitManagerUsername: '',
     notes: '',
 
     // Array of retro configurations
@@ -449,6 +472,7 @@ const useOfferStore = create<OfferStore>((set, get) => ({
         if (!v.insured) errors.insured = 'Insured is required';
         if (!v.currencyCode) errors.currencyCode = 'Currency is required';
         if (v.exchangeRate <= 0) errors.exchangeRate = 'Exchange rate must be greater than 0';
+        if (!v.unitManagerUsername) errors.unitManagerUsername = 'Unit Manager is required';
         if (v.retroConfigurations.length === 0) {
             errors.retroConfigurations = 'At least one retro configuration is required';
         }
@@ -582,6 +606,7 @@ const useOfferStore = create<OfferStore>((set, get) => ({
                     premiumOs: config.premiumOs,
                     shareOfferedPct: config.shareOfferedPct / 100, // Convert from 50.0 to 0.5
                     shareAcceptedPct: config.shareAcceptedPct / 100, // Convert from 50.0 to 0.5
+                    unitManagerUsername: v.unitManagerUsername,
                     notes: v.notes,
 
                     // Retro configuration specific
@@ -662,6 +687,7 @@ const useOfferStore = create<OfferStore>((set, get) => ({
             country: '',
             currencyCode: '',
             exchangeRate: 1,
+            unitManagerUsername: '',
             notes: '',
             retroConfigurations: [],
             loading: false,

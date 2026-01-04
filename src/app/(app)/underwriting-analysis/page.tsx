@@ -944,6 +944,29 @@ export default function UnderwritingAnalysisPage() {
                                     maxRows={4}
                                 />
 
+                                {/* Unit Manager */}
+                                <Select
+                                    label="Unit Manager"
+                                    placeholder="Select unit manager..."
+                                    description="Select the unit manager who will review this offer"
+                                    data={dropdownStore.getUnitManagerSelectData()}
+                                    {...form.getInputProps('unitManagerUsername')}
+                                    searchable
+                                    required
+                                    withAsterisk
+                                    disabled={dropdownStore.unitManagers.length === 0}
+                                />
+
+                                {dropdownStore.unitManagers.length === 0 && (
+                                    <Alert
+                                        icon={<IconAlertCircle size={16} />}
+                                        title="No Unit Managers Available"
+                                        color="yellow"
+                                    >
+                                        No unit managers available. Please contact administrator.
+                                    </Alert>
+                                )}
+
                                 {/* Actions */}
                                 <Group justify="space-between">
                                     <Text size="sm" c="dimmed">
@@ -958,7 +981,9 @@ export default function UnderwritingAnalysisPage() {
                                                 !form.values.insured ||
                                                 !form.values.currencyCode ||
                                                 form.values.exchangeRate <= 0 ||
+                                                !form.values.unitManagerUsername ||
                                                 retroConfigs.length === 0 ||
+                                                dropdownStore.unitManagers.length === 0 ||
                                                 offerStore.loading
                                             }
                                         >
