@@ -1,6 +1,7 @@
 
 import { create } from 'zustand'
-import { API_BASE_URL } from '@/config/api'
+import { API_BASE_URL, apiFetch } from '@/config/api'
+import type { YearlyTargetResponse } from '@/types/target'
 
 export interface CedantGwp {
     cedantName: string
@@ -51,12 +52,22 @@ interface DashboardState {
     performanceLoading: boolean
     error: string | null
     performanceError: string | null
+
+    // Yearly targets
+    yearlyTarget: number | null
+    monthlyTarget: number | null
+    targetLoading: boolean
+    targetError: string | null
+    targetIsFallback: boolean
+    targetFallbackYear: number | null
+
     setSelectedYear: (year: number) => void
     fetchCriticalData: (year?: number) => Promise<void>
     fetchSecondaryData: (year?: number) => Promise<void>
     fetchCountryRisks: (year?: number) => Promise<void>
     fetchMonthlyPerformance: (year?: number) => Promise<void>
     fetchYearlyPerformance: (year?: number) => Promise<void>
+    fetchYearlyTarget: (year?: number) => Promise<void>
 }
 
 const useDashboardStore = create<DashboardState>((set, get) => ({
@@ -77,6 +88,12 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
     performanceLoading: false,
     error: null,
     performanceError: null,
+    yearlyTarget: null,
+    monthlyTarget: null,
+    targetLoading: false,
+    targetError: null,
+    targetIsFallback: false,
+    targetFallbackYear: null,
     setSelectedYear: (year: number) => set({ selectedYear: year }),
     fetchCriticalData: async (year?: number) => {
         const selectedYear = year ?? get().selectedYear;
@@ -251,6 +268,34 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
             })
         } catch (error) {
             set({ performanceError: (error as Error).message, performanceLoading: false })
+        }
+    },
+    fetchYearlyTarget: async (year?: number) => {
+        const selectedYear = year ?? get().selectedYear;
+        set({ targetLoading: true, targetError: null });
+
+        try {
+            const response = await apiFetch<YearlyTargetResponse>(`/api/targets/${selectedYear}`);
+
+            set({
+                yearlyTarget: response.targetAmount,
+                monthlyTarget: response.targetAmount / 12,
+                targetIsFallback: response.isFallback || false,
+                targetFallbackYear: response.fallbackYear || null,
+                targetLoading: false
+            });
+        } catch (error) {
+            // Fallback to hardcoded value on error
+            console.error('Error fetching target, using fallback:', error);
+            const fallback = 336_903_845_564;
+            set({
+                yearlyTarget: fallback,
+                monthlyTarget: fallback / 12,
+                targetIsFallback: false,
+                targetFallbackYear: null,
+                targetError: (error as Error).message,
+                targetLoading: false
+            });
         }
     }
 }))

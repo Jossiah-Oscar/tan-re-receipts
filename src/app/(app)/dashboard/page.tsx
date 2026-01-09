@@ -17,6 +17,7 @@ import {
     Stack,
     Progress,
     Tabs,
+    Alert,
 } from "@mantine/core";
 import {
     IconTrendingUp,
@@ -65,24 +66,28 @@ export default function Dashboard() {
         countryRisksLoading,
         performanceLoading,
         performanceError,
+        yearlyTarget,
+        monthlyTarget,
+        targetLoading,
+        targetIsFallback,
+        targetFallbackYear,
         fetchCriticalData,
         fetchSecondaryData,
         fetchCountryRisks,
         fetchMonthlyPerformance,
         fetchYearlyPerformance,
+        fetchYearlyTarget,
     } = useDashboardStore();
 
     const [monthlyModalOpen, setMonthlyModalOpen] = useState(false);
     const [yearlyModalOpen, setYearlyModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<string | null>("overview");
 
-    const monthlyTarget = 336_903_845_564 / 12;
-    const yearlyTarget: number = 336_903_845_564;
-
     // Phase 1: Load critical data first
     useEffect(() => {
         fetchCriticalData();
-    }, [fetchCriticalData]);
+        fetchYearlyTarget();
+    }, [fetchCriticalData, fetchYearlyTarget]);
 
     // Phase 2: Load secondary data after critical data loads
     useEffect(() => {
@@ -98,6 +103,7 @@ export default function Dashboard() {
         fetchCountryRisks(selectedYear);
         fetchMonthlyPerformance(selectedYear);
         fetchYearlyPerformance(selectedYear);
+        fetchYearlyTarget(selectedYear);
     }, [selectedYear]);
 
     // Memoize expensive computations (must be before any conditional returns)
@@ -139,7 +145,7 @@ export default function Dashboard() {
         }
     };
 
-    if (criticalLoading || gwp === null || gwpYear === null) {
+    if (criticalLoading || gwp === null || gwpYear === null || monthlyTarget === null || yearlyTarget === null) {
         return (
             <Center h="80vh">
                 <Stack align="center" gap="md">
@@ -175,6 +181,20 @@ export default function Dashboard() {
                     </Group>
                 </Group>
             </Paper>
+
+            {/* Fallback Warning */}
+            {targetIsFallback && targetFallbackYear && (
+                <Alert
+                    icon={<IconAlertTriangle size={16} />}
+                    color="yellow"
+                    variant="light"
+                    mb="md"
+                >
+                    <Text size="sm">
+                        Using {targetFallbackYear} target for {selectedYear} (no target configured for this year)
+                    </Text>
+                </Alert>
+            )}
 
             {/* Key Metrics */}
             <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md" mb="xl">

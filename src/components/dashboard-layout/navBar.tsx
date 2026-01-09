@@ -10,7 +10,8 @@ import {
     IconDevicesExclamation,
     IconContract,
     IconSettings,
-    IconFileAnalytics
+    IconFileAnalytics,
+    IconCoin
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -175,15 +176,64 @@ export const SimpleNavbar = ({ isCEO, isAdmin, userName }: SimpleNavbarProps) =>
                         />
                     </NavLink>
 
+                    {/* Underwriting section */}
                     <NavLink
-                        component={Link}
-                        href="/underwriting-analysis"
-                        label="Underwriting Analysis"
+                        label="Underwriting"
                         leftSection={<IconFileAnalytics size={18} stroke={1.5} />}
-                        active={active === "Underwriting_Analysis"}
-                        onClick={() => setActive('Underwriting_Analysis')}
-                        styles={navLinkStyles}
-                    />
+                        childrenOffset={32}
+                        defaultOpened={pathname.startsWith('/underwriting')}
+                        styles={{
+                            ...navLinkStyles,
+                            root: {
+                                ...navLinkStyles.root,
+                                marginTop: rem(8),
+                                marginBottom: rem(8),
+                            }
+                        }}
+                    >
+                        <NavLink
+                            component={Link}
+                            href="/underwriting-analysis"
+                            label="Underwriting Analysis"
+                            leftSection={<IconFileAnalytics size={16} stroke={1.5} />}
+                            active={active === "Underwriting_Analysis"}
+                            onClick={() => setActive('Underwriting_Analysis')}
+                            styles={{
+                                root: {
+                                    borderRadius: rem(6),
+                                    marginBottom: rem(2),
+                                    '&[dataActive]': {
+                                        backgroundColor: 'var(--mantine-color-blue-0)',
+                                        color: 'var(--mantine-color-blue-7)',
+                                    },
+                                    '&:hover': {
+                                        backgroundColor: 'var(--mantine-color-gray-0)',
+                                    }
+                                }
+                            }}
+                        />
+                        <NavLink
+                            component={Link}
+                            href="/underwriting/capacity-upload"
+                            label="Capacity Upload"
+                            leftSection={<IconCoin size={16} stroke={1.5} />}
+                            active={active === "Capacity_Upload"}
+                            onClick={() => setActive('Capacity_Upload')}
+                            styles={{
+                                root: {
+                                    borderRadius: rem(6),
+                                    marginBottom: rem(2),
+                                    '&[dataActive]': {
+                                        backgroundColor: 'var(--mantine-color-blue-0)',
+                                        color: 'var(--mantine-color-blue-7)',
+                                    },
+                                    '&:hover': {
+                                        backgroundColor: 'var(--mantine-color-gray-0)',
+                                    }
+                                }
+                            }}
+                        />
+                    </NavLink>
 
                     <NavLink
                         component={Link}
