@@ -25,12 +25,11 @@ import { apiFetch } from '@/config/api';
 import CapacityModal from './CapacityModal';
 
 interface Capacity {
-    "retroType":{
-        "name": string;
-}
+    retroType: {
+        name: string;
+    };
     retroCapacityId: number;
     retroTypeId: number;
-    retroTypeName: string;
     year: number;
     currency: string;
     retention: number;
@@ -88,7 +87,7 @@ export default function CapacitiesTable() {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(
                 (c) =>
-                    c.retroTypeName.toLowerCase().includes(query) ||
+                    c.retroType.name.toLowerCase().includes(query) ||
                     c.currency.toLowerCase().includes(query) ||
                     (c.rmsId && c.rmsId.toLowerCase().includes(query)) ||
                     (c.note && c.note.toLowerCase().includes(query))
@@ -116,7 +115,7 @@ export default function CapacitiesTable() {
                 <Text size="sm">
                     Are you sure you want to delete capacity for{' '}
                     <strong>
-                        {capacity.retroTypeName} ({capacity.year} - {capacity.currency})
+                        {capacity.retroType.name} ({capacity.year} - {capacity.currency})
                     </strong>
                     ? This action cannot be undone.
                 </Text>

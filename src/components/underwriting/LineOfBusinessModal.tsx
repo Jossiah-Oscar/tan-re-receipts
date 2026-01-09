@@ -55,7 +55,7 @@ export default function LineOfBusinessModal({
             if (lineOfBusiness) {
                 await apiFetch(`/api/underwriting/line-of-business/${lineOfBusiness.id}`, {
                     method: 'PUT',
-                    body: JSON.stringify(payload),
+                    body: payload,
                 });
                 showNotification({
                     title: 'Success',
@@ -65,7 +65,7 @@ export default function LineOfBusinessModal({
             } else {
                 await apiFetch('/api/underwriting/line-of-business', {
                     method: 'POST',
-                    body: JSON.stringify(payload),
+                    body: payload,
                 });
                 showNotification({
                     title: 'Success',

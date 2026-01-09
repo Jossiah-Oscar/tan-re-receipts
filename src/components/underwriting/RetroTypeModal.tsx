@@ -105,7 +105,7 @@ export default function RetroTypeModal({
             if (retroType) {
                 await apiFetch(`/api/underwriting/retro-types/${retroType.id}`, {
                     method: 'PUT',
-                    body: JSON.stringify(payload),
+                    body: payload,
                 });
                 showNotification({
                     title: 'Success',
@@ -115,7 +115,7 @@ export default function RetroTypeModal({
             } else {
                 await apiFetch('/api/underwriting/retro-types', {
                     method: 'POST',
-                    body: JSON.stringify(payload),
+                    body: payload,
                 });
                 showNotification({
                     title: 'Success',

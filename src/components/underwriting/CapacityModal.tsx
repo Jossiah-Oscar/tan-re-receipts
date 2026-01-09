@@ -151,7 +151,7 @@ export default function CapacityModal({
             if (capacity) {
                 await apiFetch(`/api/underwriting/capacities/${capacity.retroCapacityId}`, {
                     method: 'PUT',
-                    body: JSON.stringify(payload),
+                    body: payload,
                 });
                 showNotification({
                     title: 'Success',
@@ -161,7 +161,7 @@ export default function CapacityModal({
             } else {
                 await apiFetch('/api/underwriting/capacities', {
                     method: 'POST',
-                    body: JSON.stringify(payload),
+                    body: payload,
                 });
                 showNotification({
                     title: 'Success',

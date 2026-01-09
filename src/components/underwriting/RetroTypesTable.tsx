@@ -27,9 +27,13 @@ interface RetroType {
     name: string;
     description?: string;
     lobId: number;
-    lobName: string;
+    lineOfBusiness: {
+        name: string;
+    };
     businessTypeId: number;
-    businessTypeName: string;
+    businessType: {
+        name: string;
+    };
     createdAt: string;
     updatedAt: string;
 }
@@ -69,8 +73,8 @@ export default function RetroTypesTable() {
             (rt) =>
                 rt.name.toLowerCase().includes(query) ||
                 (rt.description && rt.description.toLowerCase().includes(query)) ||
-                rt.lobName.toLowerCase().includes(query) ||
-                rt.businessTypeName.toLowerCase().includes(query)
+                rt.lineOfBusiness.name.toLowerCase().includes(query) ||
+                rt.businessType.name.toLowerCase().includes(query)
         );
     }, [retroTypes, searchQuery]);
 
@@ -189,12 +193,12 @@ export default function RetroTypesTable() {
                                         </Table.Td>
                                         <Table.Td>
                                             <Badge color="blue" variant="light">
-                                                {rt.lobName}
+                                                {rt.lineOfBusiness.name}
                                             </Badge>
                                         </Table.Td>
                                         <Table.Td>
                                             <Badge color="teal" variant="light">
-                                                {rt.businessTypeName}
+                                                {rt.businessType.name}
                                             </Badge>
                                         </Table.Td>
                                         <Table.Td>

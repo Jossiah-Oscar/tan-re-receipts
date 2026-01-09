@@ -59,7 +59,7 @@ export default function BusinessTypeModal({
             if (businessType) {
                 await apiFetch(`/api/underwriting/business-types/${businessType.id}`, {
                     method: 'PUT',
-                    body: JSON.stringify(payload),
+                    body: payload,
                 });
                 showNotification({
                     title: 'Success',
@@ -69,7 +69,7 @@ export default function BusinessTypeModal({
             } else {
                 await apiFetch('/api/underwriting/business-types', {
                     method: 'POST',
-                    body: JSON.stringify(payload),
+                    body: payload,
                 });
                 showNotification({
                     title: 'Success',
