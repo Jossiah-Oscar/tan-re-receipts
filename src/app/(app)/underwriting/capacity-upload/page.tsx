@@ -12,6 +12,7 @@ import BusinessTypesTable from '@/components/underwriting/BusinessTypesTable';
 import LineOfBusinessTable from '@/components/underwriting/LineOfBusinessTable';
 import RetroTypesTable from '@/components/underwriting/RetroTypesTable';
 import CapacitiesTable from '@/components/underwriting/CapacitiesTable';
+import PolicyCessionCapacitiesTable from '@/components/underwriting/PolicyCessionCapacitiesTable';
 
 export default function CapacityUploadPage() {
     const iconStyle = { width: rem(18), height: rem(18) };
@@ -49,7 +50,13 @@ export default function CapacityUploadPage() {
                         value="capacities"
                         leftSection={<IconCoin style={iconStyle} />}
                     >
-                        Capacities
+                        Facultative Capacities
+                    </Tabs.Tab>
+                    <Tabs.Tab
+                        value="policy-cession-capacities"
+                        leftSection={<IconCoin style={iconStyle} />}
+                    >
+                        Policy Cession Capacities
                     </Tabs.Tab>
                 </Tabs.List>
 
@@ -67,6 +74,10 @@ export default function CapacityUploadPage() {
 
                 <Tabs.Panel value="capacities" pt="md">
                     <CapacitiesTable />
+                </Tabs.Panel>
+
+                <Tabs.Panel value="policy-cession-capacities" pt="md">
+                    <PolicyCessionCapacitiesTable />
                 </Tabs.Panel>
             </Tabs>
         </Container>

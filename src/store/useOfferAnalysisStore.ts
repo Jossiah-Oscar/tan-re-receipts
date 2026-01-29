@@ -265,6 +265,43 @@ export interface FacultativeOfferCalcResponseDto {
 }
 
 /* ===========================
+ * Policy Cession Calc Response DTO (4-tier)
+ * =========================== */
+
+export interface PolicyCessionCalcResponseDto {
+    // Status & messaging
+    calculationStatus: 'SUCCESS' | 'WARNING' | 'ERROR';
+    message: string;
+
+    // Original amounts
+    sumInsuredOs: number;
+    premiumOs: number;
+
+    // Converted to TZS
+    premiumTzs: number;
+
+    // Exposures and premiums
+    exposureOffered: number;
+    premiumOffered: number;
+    exposureAccepted: number;
+    premiumAccepted: number;
+
+    // 4-tier breakdown
+    retentionExposure: number;
+    retentionPremium: number;
+    firstSurplusExposure: number;
+    firstSurplusPremium: number;
+    secondSurplusExposure: number;
+    secondSurplusPremium: number;
+    autoFacRetroExposure: number;
+    autoFacRetroPremium: number;
+
+    // Totals
+    totalExposure: number;
+    totalPremium: number;
+}
+
+/* ===========================
  * Offer form + store
  * =========================== */
 
@@ -275,6 +312,9 @@ export interface FacultativeOfferCalcResponseDto {
 export interface RetroConfiguration {
     // Unique identifier
     id: string; // generated client-side, UUID-like
+
+    // Type discriminator for facultative vs policy cession
+    type: 'facultative' | 'policy-cession';
 
     // Configuration details
     lineOfBusinessId: string;
@@ -297,20 +337,31 @@ export interface RetroConfiguration {
     saExposureTz: number;
     saPremiumTz: number;
 
-    // Retention breakdown
+    // Retention breakdown (common to both types)
     tanReRetentionPct: number;
     tanReRetExposureTz: number;
     tanReRetPremiumTz: number;
 
-    // Surplus breakdown
+    // Surplus breakdown (facultative 3-tier)
     suRetroPct: number;
     suRetroExposureTz: number;
     suRetroPremiumTz: number;
 
-    // Facultative retro
+    // Facultative retro (facultative 3-tier)
     facRetroPct: number;
     facRetroExposureTz: number;
     facRetroPremiumTz: number;
+
+    // Policy cession 4-tier fields (optional, used only for policy-cession type)
+    firstSurplusPct?: number;
+    firstSurplusExposureTz?: number;
+    firstSurplusPremiumTz?: number;
+    secondSurplusPct?: number;
+    secondSurplusExposureTz?: number;
+    secondSurplusPremiumTz?: number;
+    autoFacRetroPct?: number;
+    autoFacRetroExposureTz?: number;
+    autoFacRetroPremiumTz?: number;
 
     // Calculation state for this config
     calculationStatus: 'SUCCESS' | 'WARNING' | 'ERROR' | null;
@@ -341,11 +392,13 @@ interface OfferStore extends OfferFormData {
     loading: boolean;
     calculating: boolean;
     error: string | null;
+    selectedFiles: File[];
 
     setValues: (values: Partial<OfferFormData>) => void;
     setLoading: (loading: boolean) => void;
     setCalculating: (calculating: boolean) => void;
     setError: (error: string | null) => void;
+    setSelectedFiles: (files: File[]) => void;
 
     // Retro configuration management
     addRetroConfig: (config?: Partial<RetroConfiguration>) => string; // returns config ID
@@ -355,6 +408,7 @@ interface OfferStore extends OfferFormData {
 
     // Calculations per config
     calculateRetroConfig: (configId: string) => Promise<void>;
+    calculateValues: () => Promise<void>;
 
     resetForm: () => void;
     getInitialValues: () => OfferFormData;
@@ -376,6 +430,7 @@ const generateConfigId = (): string => {
 // Helper to create default retro config
 const createDefaultRetroConfig = (overrides?: Partial<RetroConfiguration>): RetroConfiguration => ({
     id: generateConfigId(),
+    type: 'facultative', // Default to facultative for backward compatibility
     lineOfBusinessId: '',
     retroTypeId: '',
     retroYear: new Date().getFullYear(),
@@ -400,6 +455,16 @@ const createDefaultRetroConfig = (overrides?: Partial<RetroConfiguration>): Retr
     facRetroPct: 0,
     facRetroExposureTz: 0,
     facRetroPremiumTz: 0,
+    // Policy cession 4-tier fields (initialized to 0)
+    firstSurplusPct: 0,
+    firstSurplusExposureTz: 0,
+    firstSurplusPremiumTz: 0,
+    secondSurplusPct: 0,
+    secondSurplusExposureTz: 0,
+    secondSurplusPremiumTz: 0,
+    autoFacRetroPct: 0,
+    autoFacRetroExposureTz: 0,
+    autoFacRetroPremiumTz: 0,
     calculationStatus: null,
     calculationMessage: null,
     isCalculating: false,
@@ -428,12 +493,14 @@ const useOfferStore = create<OfferStore>((set, get) => ({
     loading: false,
     calculating: false,
     error: null,
+    selectedFiles: [],
 
     // state setters
     setValues: (values) => set((s) => ({ ...s, ...values })),
     setLoading: (loading) => set({ loading }),
     setCalculating: (calculating) => set({ calculating }),
     setError: (error) => set({ error }),
+    setSelectedFiles: (files) => set({ selectedFiles: files }),
 
     // initial values for Mantine form
     getInitialValues: () => ({ ...get() }),
@@ -519,44 +586,88 @@ const useOfferStore = create<OfferStore>((set, get) => ({
         }));
 
         try {
-            const res = await apiFetch<FacultativeOfferCalcResponseDto>(
-                '/api/underwriting/facultative/analyze',
-                {
+            // Route to correct API based on config type
+            const endpoint = config.type === 'policy-cession'
+                ? '/api/underwriting/policy-cession/analyze'
+                : '/api/underwriting/facultative/analyze';
+
+            // Fetch response based on type
+            if (config.type === 'policy-cession') {
+                const res = await apiFetch<PolicyCessionCalcResponseDto>(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: payload,
-                }
-            );
+                });
 
-            console.log('Calculation result for config:', res);
+                console.log('Policy cession calculation result:', res);
 
-            // Update this specific config with calculation results
-            const updates: Partial<RetroConfiguration> = {
-                sumInsuredTz: res.exposureOffered,
-                premiumTz: res.premiumTzs,
-                soExposureTz: res.exposureOffered,
-                soPremiumTz: res.premiumOffered,
-                saExposureTz: res.exposureAccepted,
-                saPremiumTz: res.premiumAccepted,
-                tanReRetentionPct: res.totalExposure ? (res.retentionExposure / res.totalExposure) * 100 : 0,
-                tanReRetExposureTz: res.retentionExposure,
-                tanReRetPremiumTz: res.retentionPremium,
-                suRetroPct: res.totalExposure ? (res.surplusExposure / res.totalExposure) * 100 : 0,
-                suRetroExposureTz: res.surplusExposure,
-                suRetroPremiumTz: res.surplusPremium,
-                facRetroPct: res.totalExposure ? (res.facRetroExposure / res.totalExposure) * 100 : 0,
-                facRetroExposureTz: res.facRetroExposure,
-                facRetroPremiumTz: res.facRetroPremium,
-                calculationStatus: res.calculationStatus,
-                calculationMessage: res.message,
-                isCalculating: false,
-            };
+                // Map 4-tier response for policy cession
+                const updates: Partial<RetroConfiguration> = {
+                    sumInsuredTz: res.exposureOffered,
+                    premiumTz: res.premiumTzs,
+                    soExposureTz: res.exposureOffered,
+                    soPremiumTz: res.premiumOffered,
+                    saExposureTz: res.exposureAccepted,
+                    saPremiumTz: res.premiumAccepted,
+                    tanReRetentionPct: res.totalExposure ? (res.retentionExposure / res.totalExposure) * 100 : 0,
+                    tanReRetExposureTz: res.retentionExposure,
+                    tanReRetPremiumTz: res.retentionPremium,
+                    firstSurplusPct: res.totalExposure ? (res.firstSurplusExposure / res.totalExposure) * 100 : 0,
+                    firstSurplusExposureTz: res.firstSurplusExposure,
+                    firstSurplusPremiumTz: res.firstSurplusPremium,
+                    secondSurplusPct: res.totalExposure ? (res.secondSurplusExposure / res.totalExposure) * 100 : 0,
+                    secondSurplusExposureTz: res.secondSurplusExposure,
+                    secondSurplusPremiumTz: res.secondSurplusPremium,
+                    autoFacRetroPct: res.totalExposure ? (res.autoFacRetroExposure / res.totalExposure) * 100 : 0,
+                    autoFacRetroExposureTz: res.autoFacRetroExposure,
+                    autoFacRetroPremiumTz: res.autoFacRetroPremium,
+                    calculationStatus: res.calculationStatus,
+                    calculationMessage: res.message,
+                    isCalculating: false,
+                };
 
-            set((st) => ({
-                retroConfigurations: st.retroConfigurations.map((c) =>
-                    c.id === configId ? { ...c, ...updates } : c
-                ),
-            }));
+                set((st) => ({
+                    retroConfigurations: st.retroConfigurations.map((c) =>
+                        c.id === configId ? { ...c, ...updates } : c
+                    ),
+                }));
+            } else {
+                // Facultative 3-tier logic (existing)
+                const res = await apiFetch<FacultativeOfferCalcResponseDto>(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: payload,
+                });
+
+                console.log('Facultative calculation result:', res);
+
+                const updates: Partial<RetroConfiguration> = {
+                    sumInsuredTz: res.exposureOffered,
+                    premiumTz: res.premiumTzs,
+                    soExposureTz: res.exposureOffered,
+                    soPremiumTz: res.premiumOffered,
+                    saExposureTz: res.exposureAccepted,
+                    saPremiumTz: res.premiumAccepted,
+                    tanReRetentionPct: res.totalExposure ? (res.retentionExposure / res.totalExposure) * 100 : 0,
+                    tanReRetExposureTz: res.retentionExposure,
+                    tanReRetPremiumTz: res.retentionPremium,
+                    suRetroPct: res.totalExposure ? (res.surplusExposure / res.totalExposure) * 100 : 0,
+                    suRetroExposureTz: res.surplusExposure,
+                    suRetroPremiumTz: res.surplusPremium,
+                    facRetroPct: res.totalExposure ? (res.facRetroExposure / res.totalExposure) * 100 : 0,
+                    facRetroExposureTz: res.facRetroExposure,
+                    facRetroPremiumTz: res.facRetroPremium,
+                    calculationStatus: res.calculationStatus,
+                    calculationMessage: res.message,
+                    isCalculating: false,
+                };
+
+                set((st) => ({
+                    retroConfigurations: st.retroConfigurations.map((c) =>
+                        c.id === configId ? { ...c, ...updates } : c
+                    ),
+                }));
+            }
         } catch (e: any) {
             set((st) => ({
                 retroConfigurations: st.retroConfigurations.map((c) =>
@@ -586,10 +697,12 @@ const useOfferStore = create<OfferStore>((set, get) => ({
                 return false;
             }
 
+            const selectedFiles = get().selectedFiles;
+
             // Submit each retro configuration as a separate offer
-            const submissions = v.retroConfigurations.map((config) => {
-                const payload = {
-                    // Required by backend model
+            const submissions = v.retroConfigurations.map(async (config) => {
+                // Common payload fields
+                const commonPayload = {
                     programId: Number(v.programId) || 1,
                     contractTypeId: Number(v.contractTypeId) || 1,
                     retroYear: config.retroYear,
@@ -602,18 +715,15 @@ const useOfferStore = create<OfferStore>((set, get) => ({
                     broker: v.broker || '',
                     insured: v.insured,
                     country: v.country,
+                    occupation: v.occupation || '',
                     sumInsuredOs: config.sumInsuredOs,
                     premiumOs: config.premiumOs,
-                    shareOfferedPct: config.shareOfferedPct / 100, // Convert from 50.0 to 0.5
-                    shareAcceptedPct: config.shareAcceptedPct / 100, // Convert from 50.0 to 0.5
+                    shareOfferedPct: config.shareOfferedPct / 100,
+                    shareAcceptedPct: config.shareAcceptedPct / 100,
                     unitManagerUsername: v.unitManagerUsername,
                     notes: v.notes,
-
-                    // Retro configuration specific
                     retroTypeId: Number(config.retroTypeId),
-                    lineOfBusinessId: Number(config.lineOfBusinessId),
-
-                    // computed snapshot
+                    // Common calculated fields
                     sumInsuredTz: config.sumInsuredTz,
                     premiumTz: config.premiumTz,
                     soExposureTz: config.soExposureTz,
@@ -623,27 +733,76 @@ const useOfferStore = create<OfferStore>((set, get) => ({
                     tanReRetentionPct: config.tanReRetentionPct,
                     tanReRetExposureTz: config.tanReRetExposureTz,
                     tanReRetPremiumTz: config.tanReRetPremiumTz,
-                    suRetroPct: config.suRetroPct,
-                    suRetroExposureTz: config.suRetroExposureTz,
-                    suRetroPremiumTz: config.suRetroPremiumTz,
-                    facRetroPct: config.facRetroPct,
-                    facRetroExposureTz: config.facRetroExposureTz,
-                    facRetroPremiumTz: config.facRetroPremiumTz,
                 };
 
-                return apiFetch<{
-                    offerId: number;
-                    analysisId: number;
-                    processInstanceId: string;
-                    businessKey: string;
-                    status: string;
-                    message: string;
-                }>('/api/underwriting/facultative/submit', {
-                    method: 'POST',
-                    body: payload,
-                    headers: { 'Content-Type': 'application/json' },
-                    requiresAuth: true,
-                });
+                // Add type-specific fields
+                const payload = config.type === 'policy-cession'
+                    ? {
+                        ...commonPayload,
+                        // Policy cession 4-tier fields
+                        firstSurplusPct: config.firstSurplusPct,
+                        firstSurplusExposureTz: config.firstSurplusExposureTz,
+                        firstSurplusPremiumTz: config.firstSurplusPremiumTz,
+                        secondSurplusPct: config.secondSurplusPct,
+                        secondSurplusExposureTz: config.secondSurplusExposureTz,
+                        secondSurplusPremiumTz: config.secondSurplusPremiumTz,
+                        autoFacRetroPct: config.autoFacRetroPct,
+                        autoFacRetroExposureTz: config.autoFacRetroExposureTz,
+                        autoFacRetroPremiumTz: config.autoFacRetroPremiumTz,
+                    }
+                    : {
+                        ...commonPayload,
+                        // Facultative 3-tier fields
+                        suRetroPct: config.suRetroPct,
+                        suRetroExposureTz: config.suRetroExposureTz,
+                        suRetroPremiumTz: config.suRetroPremiumTz,
+                        facRetroPct: config.facRetroPct,
+                        facRetroExposureTz: config.facRetroExposureTz,
+                        facRetroPremiumTz: config.facRetroPremiumTz,
+                    };
+
+                // Route to correct endpoint based on config type
+                const endpoint = config.type === 'policy-cession'
+                    ? '/api/underwriting/policy-cession/submit'
+                    : '/api/underwriting/facultative/submit';
+
+                // Use FormData if files are present
+                if (selectedFiles && selectedFiles.length > 0) {
+                    const formData = new FormData();
+                    formData.append('request', new Blob([JSON.stringify(payload)], {
+                        type: 'application/json'
+                    }));
+                    selectedFiles.forEach(file => {
+                        formData.append('files', file);
+                    });
+
+                    return await apiFetch<{
+                        offerId: number;
+                        analysisId: number;
+                        processInstanceId: string;
+                        businessKey: string;
+                        status: string;
+                        message: string;
+                    }>(endpoint, {
+                        method: 'POST',
+                        body: formData,
+                        requiresAuth: true,
+                    });
+                } else {
+                    // Use apiFetch for JSON submission (no files)
+                    return await apiFetch<{
+                        offerId: number;
+                        analysisId: number;
+                        processInstanceId: string;
+                        businessKey: string;
+                        status: string;
+                        message: string;
+                    }>(endpoint, {
+                        method: 'POST',
+                        body: payload,
+                        requiresAuth: true,
+                    });
+                }
             });
 
             // Execute all submissions in parallel
@@ -690,6 +849,7 @@ const useOfferStore = create<OfferStore>((set, get) => ({
             unitManagerUsername: '',
             notes: '',
             retroConfigurations: [],
+            selectedFiles: [],
             loading: false,
             calculating: false,
             error: null,
