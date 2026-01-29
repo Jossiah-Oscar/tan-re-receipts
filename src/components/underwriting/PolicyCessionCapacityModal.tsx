@@ -3,30 +3,29 @@
 import { useEffect, useState } from 'react';
 import {
     Modal,
-    TextInput,
-    Textarea,
     Select,
     NumberInput,
     Button,
     Stack,
     Loader,
     Center,
-    Grid
+    Grid,
+    Group
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { apiFetch } from '@/config/api';
 
-interface Capacity {
-    retroCapacityId: number;
+interface PolicyCessionCapacity {
+    id: number;
     retroTypeId: number;
     year: number;
     currency: string;
     retention: number;
-    lines: number;
-    rmsId?: string;
-    note?: string;
+    firstSurplusLines: number;
+    secondSurplusLines: number;
+    autoFacRetroLimit: number;
 }
 
 interface RetroType {
@@ -40,11 +39,11 @@ interface BusinessType {
     name: string;
 }
 
-interface CapacityModalProps {
+interface PolicyCessionCapacityModalProps {
     opened: boolean;
     onClose: () => void;
     onSaved: () => void;
-    capacity: Capacity | null;
+    capacity: PolicyCessionCapacity | null;
 }
 
 const CURRENCY_OPTIONS = [
@@ -57,12 +56,12 @@ const CURRENCY_OPTIONS = [
     { value: 'ZAR', label: 'ZAR - South African Rand' },
 ];
 
-export default function CapacityModal({
+export default function PolicyCessionCapacityModal({
     opened,
     onClose,
     onSaved,
     capacity,
-}: CapacityModalProps) {
+}: PolicyCessionCapacityModalProps) {
     const [retroTypes, setRetroTypes] = useState<RetroType[]>([]);
     const [loadingOptions, setLoadingOptions] = useState(false);
 
@@ -70,11 +69,11 @@ export default function CapacityModal({
         initialValues: {
             retroTypeId: '',
             year: new Date().getFullYear(),
-            currency: 'USD',
+            currency: 'TZS',
             retention: 0,
-            lines: 0,
-            rmsId: '',
-            note: '',
+            firstSurplusLines: 0,
+            secondSurplusLines: 0,
+            autoFacRetroLimit: 0,
         },
         validate: {
             retroTypeId: (value) => (!value ? 'Retro type is required' : null),
@@ -93,14 +92,21 @@ export default function CapacityModal({
                 if (value < 0) return 'Retention must be non-negative';
                 return null;
             },
-            lines: (value) => {
-                if (value === undefined || value === null) return 'Lines is required';
-                if (value < 0) return 'Lines must be non-negative';
-                if (!Number.isInteger(value)) return 'Lines must be a whole number';
+            firstSurplusLines: (value) => {
+                if (value === undefined || value === null) return '1st Surplus Lines is required';
+                if (value < 0) return '1st Surplus Lines must be non-negative';
+                if (!Number.isInteger(value)) return '1st Surplus Lines must be a whole number';
                 return null;
             },
-            rmsId: (value) => {
-                if (value && value.length > 32) return 'RMS ID cannot exceed 32 characters';
+            secondSurplusLines: (value) => {
+                if (value === undefined || value === null) return '2nd Surplus Lines is required';
+                if (value < 0) return '2nd Surplus Lines must be non-negative';
+                if (!Number.isInteger(value)) return '2nd Surplus Lines must be a whole number';
+                return null;
+            },
+            autoFacRetroLimit: (value) => {
+                if (value === undefined || value === null) return 'Auto Fac Retro Limit is required';
+                if (value < 0) return 'Auto Fac Retro Limit must be non-negative';
                 return null;
             },
         },
@@ -115,9 +121,9 @@ export default function CapacityModal({
                     year: capacity.year,
                     currency: capacity.currency,
                     retention: capacity.retention,
-                    lines: capacity.lines,
-                    rmsId: capacity.rmsId || '',
-                    note: capacity.note || '',
+                    firstSurplusLines: capacity.firstSurplusLines,
+                    secondSurplusLines: capacity.secondSurplusLines,
+                    autoFacRetroLimit: capacity.autoFacRetroLimit,
                 });
             } else {
                 form.reset();
@@ -133,18 +139,18 @@ export default function CapacityModal({
                 apiFetch<BusinessType[]>('/api/underwriting/business-types'),
             ]);
 
-            // Find the Facultative business type
-            const facultativeBusinessType = businessTypes.find(
-                (bt) => bt.name.toLowerCase() === 'facultative'
+            // Find the Policy Cession business type
+            const policyCessionBusinessType = businessTypes.find(
+                (bt) => bt.name.toLowerCase() === 'policy cession'
             );
 
-            if (!facultativeBusinessType) {
-                throw new Error('Facultative business type not found');
+            if (!policyCessionBusinessType) {
+                throw new Error('Policy Cession business type not found');
             }
 
-            // Filter retro types to only show Facultative ones
+            // Filter retro types to only show Policy Cession ones
             const filteredRetroTypes = allRetroTypes.filter(
-                (rt) => rt.businessTypeId === facultativeBusinessType.id
+                (rt) => rt.businessTypeId === policyCessionBusinessType.id
             );
 
             setRetroTypes(filteredRetroTypes);
@@ -167,29 +173,29 @@ export default function CapacityModal({
                 year: values.year,
                 currency: values.currency.toUpperCase().trim(),
                 retention: values.retention,
-                lines: values.lines,
-                rmsId: values.rmsId.trim() || undefined,
-                note: values.note.trim() || undefined,
+                firstSurplusLines: values.firstSurplusLines,
+                secondSurplusLines: values.secondSurplusLines,
+                autoFacRetroLimit: values.autoFacRetroLimit,
             };
 
             if (capacity) {
-                await apiFetch(`/api/underwriting/capacities/${capacity.retroCapacityId}`, {
+                await apiFetch(`/api/underwriting/policy-cession-capacity/${capacity.id}`, {
                     method: 'PUT',
                     body: payload,
                 });
                 showNotification({
                     title: 'Success',
-                    message: 'Capacity updated successfully',
+                    message: 'Policy cession capacity updated successfully',
                     color: 'green',
                 });
             } else {
-                await apiFetch('/api/underwriting/capacities', {
+                await apiFetch('/api/underwriting/policy-cession-capacity', {
                     method: 'POST',
                     body: payload,
                 });
                 showNotification({
                     title: 'Success',
-                    message: 'Capacity created successfully',
+                    message: 'Policy cession capacity created successfully',
                     color: 'green',
                 });
             }
@@ -198,7 +204,7 @@ export default function CapacityModal({
         } catch (error: any) {
             showNotification({
                 title: 'Error',
-                message: error.message || 'Failed to save capacity',
+                message: error.message || 'Failed to save policy cession capacity',
                 color: 'red',
                 icon: <IconAlertCircle />,
             });
@@ -210,7 +216,7 @@ export default function CapacityModal({
             <Modal
                 opened={opened}
                 onClose={onClose}
-                title={capacity ? 'Edit Capacity' : 'Add Capacity'}
+                title={capacity ? 'Edit Policy Cession Capacity' : 'Add Policy Cession Capacity'}
                 centered
                 size="lg"
             >
@@ -225,88 +231,107 @@ export default function CapacityModal({
         <Modal
             opened={opened}
             onClose={onClose}
-            title={capacity ? 'Edit Capacity' : 'Add Capacity'}
+            title={capacity ? 'Edit Policy Cession Capacity' : 'Add Policy Cession Capacity'}
             centered
             size="lg"
         >
             <form onSubmit={form.onSubmit(handleSubmit)}>
                 <Stack gap="md">
-                    <Select
-                        label="Retro Type"
-                        placeholder="Select retro type"
-                        required
-                        data={retroTypes.map((rt) => ({
-                            value: rt.id.toString(),
-                            label: rt.name,
-                        }))}
-                        {...form.getInputProps('retroTypeId')}
-                        searchable
-                    />
-
-                    <Grid>
-                        <Grid.Col span={6}>
-                            <NumberInput
-                                label="Year"
-                                placeholder="Enter year"
-                                required
-                                min={2000}
-                                max={2100}
-                                {...form.getInputProps('year')}
-                            />
-                        </Grid.Col>
+                    <Grid gutter="md">
                         <Grid.Col span={6}>
                             <Select
-                                label="Currency"
-                                placeholder="Select currency"
+                                label="Retro Type"
+                                placeholder="Select retro type"
+                                data={retroTypes.map((rt) => ({
+                                    value: rt.id.toString(),
+                                    label: rt.name,
+                                }))}
+                                {...form.getInputProps('retroTypeId')}
                                 required
-                                data={CURRENCY_OPTIONS}
-                                {...form.getInputProps('currency')}
+                                withAsterisk
                                 searchable
                             />
                         </Grid.Col>
-                    </Grid>
-
-                    <Grid>
                         <Grid.Col span={6}>
                             <NumberInput
-                                label="Retention"
-                                placeholder="Enter retention amount"
+                                label="Year"
+                                placeholder="e.g., 2025"
+                                min={2000}
+                                max={2100}
+                                {...form.getInputProps('year')}
                                 required
-                                min={0}
-                                decimalScale={2}
-                                thousandSeparator=","
-                                {...form.getInputProps('retention')}
-                            />
-                        </Grid.Col>
-                        <Grid.Col span={6}>
-                            <NumberInput
-                                label="Lines"
-                                placeholder="Enter number of lines"
-                                required
-                                min={0}
-                                decimalScale={0}
-                                {...form.getInputProps('lines')}
+                                withAsterisk
                             />
                         </Grid.Col>
                     </Grid>
 
-                    <TextInput
-                        label="RMS ID"
-                        placeholder="Enter RMS ID (optional)"
-                        maxLength={32}
-                        {...form.getInputProps('rmsId')}
+                    <Select
+                        label="Currency"
+                        placeholder="Select currency"
+                        data={CURRENCY_OPTIONS}
+                        {...form.getInputProps('currency')}
+                        required
+                        withAsterisk
+                        searchable
                     />
 
-                    <Textarea
-                        label="Note"
-                        placeholder="Enter optional note"
-                        rows={3}
-                        {...form.getInputProps('note')}
+                    <NumberInput
+                        label="Retention"
+                        placeholder="e.g., 50000000"
+                        min={0}
+                        decimalScale={2}
+                        thousandSeparator=","
+                        {...form.getInputProps('retention')}
+                        required
+                        withAsterisk
+                        description="Retention amount"
                     />
 
-                    <Button type="submit" fullWidth>
-                        {capacity ? 'Update' : 'Create'}
-                    </Button>
+                    <Grid gutter="md">
+                        <Grid.Col span={6}>
+                            <NumberInput
+                                label="1st Surplus Lines"
+                                placeholder="e.g., 5"
+                                min={0}
+                                {...form.getInputProps('firstSurplusLines')}
+                                required
+                                withAsterisk
+                                description="Number of lines for first surplus"
+                            />
+                        </Grid.Col>
+                        <Grid.Col span={6}>
+                            <NumberInput
+                                label="2nd Surplus Lines"
+                                placeholder="e.g., 2"
+                                min={0}
+                                {...form.getInputProps('secondSurplusLines')}
+                                required
+                                withAsterisk
+                                description="Number of lines for second surplus"
+                            />
+                        </Grid.Col>
+                    </Grid>
+
+                    <NumberInput
+                        label="Auto Fac Retro Limit"
+                        placeholder="e.g., 50000000"
+                        min={0}
+                        decimalScale={2}
+                        thousandSeparator=","
+                        {...form.getInputProps('autoFacRetroLimit')}
+                        required
+                        withAsterisk
+                        description="Automatic facultative retro limit amount"
+                    />
+
+                    <Group justify="flex-end" gap="xs" mt="md">
+                        <Button variant="light" onClick={onClose}>
+                            Cancel
+                        </Button>
+                        <Button type="submit">
+                            {capacity ? 'Update' : 'Create'} Capacity
+                        </Button>
+                    </Group>
                 </Stack>
             </form>
         </Modal>

@@ -19,8 +19,6 @@ import {
     Textarea,
     Text,
     Container,
-    Checkbox,
-    Accordion,
     Modal,
     ActionIcon,
     Tooltip,
@@ -30,11 +28,13 @@ import {
     Card,
     SimpleGrid,
     ThemeIcon,
+    Accordion,
 } from '@mantine/core';
 import { DatePickerInput, DateTimePicker } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {useReportStore} from "@/store/useReportStore";
 import {
     IconTrash,
@@ -49,6 +49,7 @@ import {
     IconRefresh,
 } from '@tabler/icons-react';
 import { apiFetch } from '@/config/api';
+import OfferFileUpload from '@/components/underwriting/OfferFileUpload';
 
 // TypeScript interfaces for API response
 interface Metrics {
@@ -111,6 +112,7 @@ function RetroConfigModal({
 
     const modalForm = useForm({
         initialValues: config || {
+            type: 'facultative',
             lineOfBusinessId: '',
             retroTypeId: '',
             retroYear: new Date().getFullYear(),
@@ -122,6 +124,7 @@ function RetroConfigModal({
             shareAcceptedPct: 0,
         },
         validate: {
+            type: (value) => (!value ? 'Configuration type is required' : null),
             lineOfBusinessId: (value) => (!value ? 'Line of Business is required' : null),
             retroTypeId: (value) => (!value ? 'Retro Type is required' : null),
             periodFrom: (value, values) => {
@@ -184,6 +187,20 @@ function RetroConfigModal({
     return (
         <Modal opened={opened} onClose={onClose} title={config ? 'Edit Retro Configuration' : 'Add Retro Configuration'} centered>
             <Stack gap="md">
+                <Select
+                    label="Configuration Type"
+                    placeholder="Select type"
+                    data={[
+                        { value: 'facultative', label: 'Facultative' },
+                        { value: 'policy-cession', label: 'Policy Cession' }
+                    ]}
+                    {...modalForm.getInputProps('type')}
+                    required
+                    withAsterisk
+                    disabled={!!config}
+                    description={config ? 'Type cannot be changed for existing configs' : 'Select the type of configuration'}
+                />
+
                 <Select
                     label="Line of Business"
                     placeholder="Select LOB"
@@ -284,7 +301,7 @@ function RetroConfigModal({
 }
 
 export default function UnderwritingAnalysisPage() {
-    const [selectedTypes, setSelectedTypes] = useState<string[]>(['facultative']);
+    const router = useRouter();
     const [editingConfigId, setEditingConfigId] = useState<string | null>(null);
     const [modalOpened, setModalOpened] = useState(false);
     const [selectedLobId, setSelectedLobId] = useState<number | null>(null);
@@ -316,17 +333,6 @@ export default function UnderwritingAnalysisPage() {
         }
     };
 
-    const toggleFormType = (type: string) => {
-        setSelectedTypes(prev => {
-            if (prev.includes(type)) {
-                // Remove if already selected (but keep at least one)
-                return prev.length > 1 ? prev.filter(t => t !== type) : prev;
-            } else {
-                // Add if not selected
-                return [...prev, type];
-            }
-        });
-    };
 
     const form = useForm({
         initialValues: offerStore.getInitialValues(),
@@ -486,7 +492,8 @@ export default function UnderwritingAnalysisPage() {
                 });
                 form.reset();
                 offerStore.resetForm();
-            } else {
+            }
+            else {
                 showNotification({
                     title: 'Submission Failed',
                     message: offerStore.error || 'Failed to save offer analysis',
@@ -649,7 +656,7 @@ export default function UnderwritingAnalysisPage() {
                                             <Table.Tr
                                                 key={submission.offerId}
                                                 style={{ cursor: 'pointer' }}
-                                                onClick={() => console.log('View details:', submission.offerId)}
+                                                onClick={() => router.push(`/underwriting-analysis/${submission.offerId}`)}
                                             >
                                                 <Table.Td>{new Date(submission.submittedDate).toLocaleDateString()}</Table.Td>
                                                 <Table.Td>{submission.cedant}</Table.Td>
@@ -683,53 +690,7 @@ export default function UnderwritingAnalysisPage() {
 
                 {/* New Analysis Tab */}
                 <Tabs.Panel value="new-analysis">
-                    {/* Header for Analysis Type Selector */}
-                    <Paper shadow="sm" p="lg" radius="md" mb="xl">
-                        <Stack gap="md">
-                            <div>
-                                <Title order={2} mb="xs">Create New Analysis</Title>
-                                <Text c="dimmed">Select one or more analysis types for this offer</Text>
-                            </div>
-
-                            <Group gap="xl">
-                                <Checkbox
-                                    label="Facultative"
-                                    checked={selectedTypes.includes('facultative')}
-                                    onChange={() => toggleFormType('facultative')}
-                                    size="md"
-                                />
-                                <Checkbox
-                                    label="Policy Cession"
-                                    checked={selectedTypes.includes('policy-cession')}
-                                    onChange={() => toggleFormType('policy-cession')}
-                                    size="md"
-                                />
-                                <Checkbox
-                                    label="Treaty"
-                                    checked={selectedTypes.includes('treaty')}
-                                    onChange={() => toggleFormType('treaty')}
-                                    size="md"
-                                />
-                            </Group>
-                        </Stack>
-                    </Paper>
-
-                    {/* Accordion for Multiple Analysis Types */}
-                    <Accordion multiple defaultValue={selectedTypes}>
-            {['facultative', 'policy-cession', 'treaty']
-                .filter(type => selectedTypes.includes(type))
-                .map(type => {
-                    if (type === 'facultative') {
-                        return (
-                            <Accordion.Item key="facultative" value="facultative">
-                                <Accordion.Control>
-                                    <Group>
-                                        <Title order={3}>Facultative Analysis</Title>
-                                        <Badge color="blue">Active</Badge>
-                                    </Group>
-                                </Accordion.Control>
-                                <Accordion.Panel>
-            <Box maw={1400} mx="auto" mt="md">
+                    <Box maw={1400} mx="auto" mt="md">
             <Grid gutter="lg">
                 <Grid.Col span={{ base: 12, md: 7 }}>
                     <Paper shadow="sm" p="lg" pos="relative">
@@ -754,6 +715,17 @@ export default function UnderwritingAnalysisPage() {
                                                 searchable
                                                 required
                                                 withAsterisk
+                                            />
+                                        </Grid.Col>
+                                        <Grid.Col span={6}>
+                                            <Select
+                                                label="Broker"
+                                                placeholder="Select broker (optional)"
+                                                data={brokerOptions}
+                                                value={form.values.broker}
+                                                onChange={handleBrokerChange}
+                                                searchable
+                                                clearable
                                             />
                                         </Grid.Col>
                                         <Grid.Col span={6}>
@@ -802,6 +774,7 @@ export default function UnderwritingAnalysisPage() {
                                         <Grid.Col span={6}>
                                             <NumberInput
                                                 label="Exchange Rate"
+                                                disabled
                                                 placeholder="Auto-filled"
                                                 decimalScale={6}
                                                 min={0}
@@ -836,6 +809,7 @@ export default function UnderwritingAnalysisPage() {
                                         <Table striped highlightOnHover>
                                             <Table.Thead>
                                                 <Table.Tr>
+                                                    <Table.Th>Type</Table.Th>
                                                     <Table.Th>LOB</Table.Th>
                                                     <Table.Th>Retro Type</Table.Th>
                                                     <Table.Th>Year</Table.Th>
@@ -857,6 +831,14 @@ export default function UnderwritingAnalysisPage() {
 
                                                     return (
                                                         <Table.Tr key={config.id}>
+                                                            <Table.Td>
+                                                                <Badge
+                                                                    color={config.type === 'policy-cession' ? 'orange' : 'blue'}
+                                                                    variant="light"
+                                                                >
+                                                                    {config.type === 'policy-cession' ? 'Policy Cession' : 'Facultative'}
+                                                                </Badge>
+                                                            </Table.Td>
                                                             <Table.Td>{lob?.name || '-'}</Table.Td>
                                                             <Table.Td>{retroType?.name || '-'}</Table.Td>
                                                             <Table.Td>{config.retroYear}</Table.Td>
@@ -966,6 +948,13 @@ export default function UnderwritingAnalysisPage() {
                                         No unit managers available. Please contact administrator.
                                     </Alert>
                                 )}
+
+                                {/* File Upload */}
+                                <OfferFileUpload
+                                    files={offerStore.selectedFiles}
+                                    onChange={offerStore.setSelectedFiles}
+                                    maxFiles={10}
+                                />
 
                                 {/* Actions */}
                                 <Group justify="space-between">
@@ -1093,59 +1082,135 @@ export default function UnderwritingAnalysisPage() {
                                                             </Stack>
                                                         </Paper>
 
-                                                        <Paper withBorder p="sm">
-                                                            <Title order={6} mb="xs">Retention Breakdown</Title>
-                                                            <Stack gap="xs">
-                                                                <div>
-                                                                    <Group justify="space-between" mb={4}>
-                                                                        <Text size="sm" fw={600}>TAN-RE Retention</Text>
-                                                                        <Badge size="sm" variant="light">{number(config.tanReRetentionPct)}%</Badge>
-                                                                    </Group>
-                                                                    <Group justify="space-between">
-                                                                        <Text size="xs" c="dimmed">Exposure:</Text>
-                                                                        <Text size="xs" fw={500}>{number(config.tanReRetExposureTz)}</Text>
-                                                                    </Group>
-                                                                    <Group justify="space-between">
-                                                                        <Text size="xs" c="dimmed">Premium:</Text>
-                                                                        <Text size="xs" fw={500}>{number(config.tanReRetPremiumTz)}</Text>
-                                                                    </Group>
-                                                                </div>
+                                                        {/* Conditional breakdown display based on config type */}
+                                                        {config.type === 'policy-cession' ? (
+                                                            // 4-Tier breakdown for Policy Cession
+                                                            <Paper withBorder p="sm">
+                                                                <Title order={6} mb="xs">Policy Cession Breakdown (4-Tier)</Title>
+                                                                <Stack gap="xs">
+                                                                    <div>
+                                                                        <Group justify="space-between" mb={4}>
+                                                                            <Text size="sm" fw={600}>TAN-RE Retention</Text>
+                                                                            <Badge size="sm" variant="light">{number(config.tanReRetentionPct)}%</Badge>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Exposure:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.tanReRetExposureTz)}</Text>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Premium:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.tanReRetPremiumTz)}</Text>
+                                                                        </Group>
+                                                                    </div>
 
-                                                                <Divider size="xs" />
+                                                                    <Divider size="xs" />
 
-                                                                <div>
-                                                                    <Group justify="space-between" mb={4}>
-                                                                        <Text size="sm" fw={600}>Surplus Retro</Text>
-                                                                        <Badge size="sm" variant="light" color="orange">{number(config.suRetroPct)}%</Badge>
-                                                                    </Group>
-                                                                    <Group justify="space-between">
-                                                                        <Text size="xs" c="dimmed">Exposure:</Text>
-                                                                        <Text size="xs" fw={500}>{number(config.suRetroExposureTz)}</Text>
-                                                                    </Group>
-                                                                    <Group justify="space-between">
-                                                                        <Text size="xs" c="dimmed">Premium:</Text>
-                                                                        <Text size="xs" fw={500}>{number(config.suRetroPremiumTz)}</Text>
-                                                                    </Group>
-                                                                </div>
+                                                                    <div>
+                                                                        <Group justify="space-between" mb={4}>
+                                                                            <Text size="sm" fw={600}>1st Surplus</Text>
+                                                                            <Badge size="sm" variant="light" color="cyan">{number(config.firstSurplusPct)}%</Badge>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Exposure:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.firstSurplusExposureTz)}</Text>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Premium:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.firstSurplusPremiumTz)}</Text>
+                                                                        </Group>
+                                                                    </div>
 
-                                                                <Divider size="xs" />
+                                                                    <Divider size="xs" />
 
-                                                                <div>
-                                                                    <Group justify="space-between" mb={4}>
-                                                                        <Text size="sm" fw={600}>Fac Retro</Text>
-                                                                        <Badge size="sm" variant="light" color="grape">{number(config.facRetroPct)}%</Badge>
-                                                                    </Group>
-                                                                    <Group justify="space-between">
-                                                                        <Text size="xs" c="dimmed">Exposure:</Text>
-                                                                        <Text size="xs" fw={500}>{number(config.facRetroExposureTz)}</Text>
-                                                                    </Group>
-                                                                    <Group justify="space-between">
-                                                                        <Text size="xs" c="dimmed">Premium:</Text>
-                                                                        <Text size="xs" fw={500}>{number(config.facRetroPremiumTz)}</Text>
-                                                                    </Group>
-                                                                </div>
-                                                            </Stack>
-                                                        </Paper>
+                                                                    <div>
+                                                                        <Group justify="space-between" mb={4}>
+                                                                            <Text size="sm" fw={600}>2nd Surplus</Text>
+                                                                            <Badge size="sm" variant="light" color="orange">{number(config.secondSurplusPct)}%</Badge>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Exposure:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.secondSurplusExposureTz)}</Text>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Premium:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.secondSurplusPremiumTz)}</Text>
+                                                                        </Group>
+                                                                    </div>
+
+                                                                    <Divider size="xs" />
+
+                                                                    <div>
+                                                                        <Group justify="space-between" mb={4}>
+                                                                            <Text size="sm" fw={600}>Auto Fac Retro</Text>
+                                                                            <Badge size="sm" variant="light" color="grape">{number(config.autoFacRetroPct)}%</Badge>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Exposure:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.autoFacRetroExposureTz)}</Text>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Premium:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.autoFacRetroPremiumTz)}</Text>
+                                                                        </Group>
+                                                                    </div>
+                                                                </Stack>
+                                                            </Paper>
+                                                        ) : (
+                                                            // 3-Tier breakdown for Facultative
+                                                            <Paper withBorder p="sm">
+                                                                <Title order={6} mb="xs">Retention Breakdown</Title>
+                                                                <Stack gap="xs">
+                                                                    <div>
+                                                                        <Group justify="space-between" mb={4}>
+                                                                            <Text size="sm" fw={600}>TAN-RE Retention</Text>
+                                                                            <Badge size="sm" variant="light">{number(config.tanReRetentionPct)}%</Badge>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Exposure:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.tanReRetExposureTz)}</Text>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Premium:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.tanReRetPremiumTz)}</Text>
+                                                                        </Group>
+                                                                    </div>
+
+                                                                    <Divider size="xs" />
+
+                                                                    <div>
+                                                                        <Group justify="space-between" mb={4}>
+                                                                            <Text size="sm" fw={600}>Surplus Retro</Text>
+                                                                            <Badge size="sm" variant="light" color="orange">{number(config.suRetroPct)}%</Badge>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Exposure:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.suRetroExposureTz)}</Text>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Premium:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.suRetroPremiumTz)}</Text>
+                                                                        </Group>
+                                                                    </div>
+
+                                                                    <Divider size="xs" />
+
+                                                                    <div>
+                                                                        <Group justify="space-between" mb={4}>
+                                                                            <Text size="sm" fw={600}>Fac Retro</Text>
+                                                                            <Badge size="sm" variant="light" color="grape">{number(config.facRetroPct)}%</Badge>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Exposure:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.facRetroExposureTz)}</Text>
+                                                                        </Group>
+                                                                        <Group justify="space-between">
+                                                                            <Text size="xs" c="dimmed">Premium:</Text>
+                                                                            <Text size="xs" fw={500}>{number(config.facRetroPremiumTz)}</Text>
+                                                                        </Group>
+                                                                    </div>
+                                                                </Stack>
+                                                            </Paper>
+                                                        )}
                                                     </div>
                                                 ) : (
                                                     <div>
@@ -1173,60 +1238,6 @@ export default function UnderwritingAnalysisPage() {
                 </Grid.Col>
             </Grid>
             </Box>
-            </Accordion.Panel>
-                                </Accordion.Item>
-                            );
-                        } else if (type === 'policy-cession') {
-                            return (
-                                <Accordion.Item key="policy-cession" value="policy-cession">
-                                    <Accordion.Control>
-                                        <Group>
-                                            <Title order={3}>Policy Cession Analysis</Title>
-                                            <Badge color="orange">Coming Soon</Badge>
-                                        </Group>
-                                    </Accordion.Control>
-                                    <Accordion.Panel>
-                                        <Paper p="xl" withBorder>
-                                            <Stack align="center" gap="md">
-                                                <Text size="lg" c="dimmed">
-                                                    Policy Cession analysis form is under development
-                                                </Text>
-                                                <Text size="sm" c="dimmed">
-                                                    This will allow you to analyze policy cession offers with specific calculations
-                                                </Text>
-                                            </Stack>
-                                        </Paper>
-                                    </Accordion.Panel>
-                                </Accordion.Item>
-                            );
-                        } else if (type === 'treaty') {
-                            return (
-                                <Accordion.Item key="treaty" value="treaty">
-                                    <Accordion.Control>
-                                        <Group>
-                                            <Title order={3}>Treaty Analysis</Title>
-                                            <Badge color="grape">Coming Soon</Badge>
-                                        </Group>
-                                    </Accordion.Control>
-                                    <Accordion.Panel>
-                                        <Paper p="xl" withBorder>
-                                            <Stack align="center" gap="md">
-                                                <Text size="lg" c="dimmed">
-                                                    Treaty analysis form is under development
-                                                </Text>
-                                                <Text size="sm" c="dimmed">
-                                                    This will allow you to analyze treaty offers with specific calculations
-                                                </Text>
-                                            </Stack>
-                                        </Paper>
-                                    </Accordion.Panel>
-                                </Accordion.Item>
-                            );
-                        }
-                        return null;
-                    })
-                }
-            </Accordion>
                 </Tabs.Panel>
             </Tabs>
 

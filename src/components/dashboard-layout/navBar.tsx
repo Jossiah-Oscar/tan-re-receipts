@@ -11,7 +11,7 @@ import {
     IconContract,
     IconSettings,
     IconFileAnalytics,
-    IconCoin
+    IconCoin, IconListNumbers
 } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -117,6 +117,16 @@ export const SimpleNavbar = ({ isCEO, isAdmin, userName }: SimpleNavbarProps) =>
                         styles={navLinkStyles}
                     />
 
+                    <NavLink
+                        component={Link}
+                        href="/travel/processes-overview"
+                        label="My Tasks"
+                        leftSection={<IconListNumbers size={18} stroke={1.5} />}
+                        active={active === "My_Tasks"}
+                        onClick={() => setActive('My_Tasks')}
+                        styles={navLinkStyles}
+                    />
+
                     {/* Claims section */}
                     <NavLink
                         label="Claims"
@@ -179,7 +189,7 @@ export const SimpleNavbar = ({ isCEO, isAdmin, userName }: SimpleNavbarProps) =>
                     {/* Underwriting section */}
                     <NavLink
                         label="Underwriting"
-                        leftSection={<IconFileAnalytics size={18} stroke={1.5} />}
+                        leftSection={<IconContract size={18} stroke={1.5} />}
                         childrenOffset={32}
                         defaultOpened={pathname.startsWith('/underwriting')}
                         styles={{

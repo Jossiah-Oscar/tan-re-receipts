@@ -2,6 +2,7 @@ import { Modal, TextInput, Select, Button, Group, Stack } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useEffect } from 'react';
 import type { Case } from '@/store/useDocumentTrackerStore';
+import { CedantDropdown, ReinsurerDropdown } from './ClientDropdowns';
 
 interface CaseFormModalProps {
     opened: boolean;
@@ -84,16 +85,14 @@ export function CaseFormModal({ opened, onClose, onSubmit, editCase }: CaseFormM
                         {...form.getInputProps('caseName')}
                     />
 
-                    <TextInput
-                        label="Cedant (Primary Insurer)"
-                        placeholder="e.g., ABC Insurance Company Ltd"
-                        {...form.getInputProps('cedant')}
+                    <CedantDropdown
+                        value={form.values.cedant}
+                        onChange={(val) => form.setFieldValue('cedant', val || '')}
                     />
 
-                    <TextInput
-                        label="Reinsurer"
-                        placeholder="e.g., Tan Re, Africa Re"
-                        {...form.getInputProps('reinsurer')}
+                    <ReinsurerDropdown
+                        value={form.values.reinsurer}
+                        onChange={(val) => form.setFieldValue('reinsurer', val || '')}
                     />
 
                     <Select
