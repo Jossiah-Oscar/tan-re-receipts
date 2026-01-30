@@ -124,17 +124,17 @@ function RetroConfigModal({
             shareAcceptedPct: 0,
         },
         validate: {
-            type: (value) => (!value ? 'Configuration type is required' : null),
-            lineOfBusinessId: (value) => (!value ? 'Line of Business is required' : null),
-            retroTypeId: (value) => (!value ? 'Retro Type is required' : null),
-            periodFrom: (value, values) => {
+            type: (value: string) => (!value ? 'Configuration type is required' : null),
+            lineOfBusinessId: (value: string) => (!value ? 'Line of Business is required' : null),
+            retroTypeId: (value: string) => (!value ? 'Retro Type is required' : null),
+            periodFrom: (value: Date, values: any) => {
                 if (!value) return 'Period From is required';
                 if (values.periodTo && value >= values.periodTo) {
                     return 'Period From must be before Period To';
                 }
                 return null;
             },
-            periodTo: (value, values) => {
+            periodTo: (value: Date, values: any) => {
                 if (!value) return 'Period To is required';
                 if (values.periodFrom && value <= values.periodFrom) {
                     return 'Period To must be after Period From';
