@@ -66,7 +66,7 @@ export default function DocumentTrackerPage() {
                     <div>
                         <Title order={2}>Document Tracker</Title>
                         <p style={{ color: 'var(--mantine-color-dimmed)', marginTop: '0.25rem' }}>
-                            Track and manage document checklists for cases
+                            Track and manage document checklists for Facultative Retrocession
                         </p>
                     </div>
                     <Button leftSection={<IconPlus size={16} />} onClick={handleCreateCase}>

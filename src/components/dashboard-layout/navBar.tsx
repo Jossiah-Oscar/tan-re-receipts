@@ -87,15 +87,74 @@ export const SimpleNavbar = ({ isCEO, isAdmin, userName }: SimpleNavbarProps) =>
             {/* Only show these if NOT CEO */}
             {!isCEO && (
                 <>
+                    {/* Document Management Section */}
                     <NavLink
-                        component={Link}
-                        href="/debit-upload"
-                        label="Document Upload"
+                        label="Document Management"
                         leftSection={<IconUpload size={18} stroke={1.5} />}
-                        active={active === "Document_Upload"}
-                        onClick={() => setActive('Document_Upload')}
-                        styles={navLinkStyles}
-                    />
+                        childrenOffset={32}
+                        defaultOpened={currentPath.startsWith('/Document Management')}
+                        styles={{
+                            ...navLinkStyles,
+                            root: {
+                                ...navLinkStyles.root,
+                                marginTop: rem(8),
+                                marginBottom: rem(8),
+                            }
+                        }}
+                    >
+                        <NavLink
+                            component={Link}
+                            href="/debit-upload"
+                            label="Document Upload"
+                            leftSection={<IconDevicesExclamation size={16} stroke={1.5} />}
+                            active={active === "Document_Upload"}
+                            onClick={() => setActive('Document_Upload')}
+                            styles={{
+                                root: {
+                                    borderRadius: rem(6),
+                                    marginBottom: rem(2),
+                                    '&[dataActive]': {
+                                        backgroundColor: 'var(--mantine-color-blue-0)',
+                                        color: 'var(--mantine-color-blue-7)',
+                                    },
+                                    '&:hover': {
+                                        backgroundColor: 'var(--mantine-color-gray-0)',
+                                    }
+                                }
+                            }}
+                        />
+                        <NavLink
+                            component={Link}
+                            href="/debit-upload/tracker"
+                            label="Facultative Retro"
+                            leftSection={<IconContract size={16} stroke={1.5} />}
+                            active={active === "Facultative_Retro"}
+                            onClick={() => setActive('Facultative_Retro')}
+                            styles={{
+                                root: {
+                                    borderRadius: rem(6),
+                                    marginBottom: rem(2),
+                                    '&[dataActive]': {
+                                        backgroundColor: 'var(--mantine-color-blue-0)',
+                                        color: 'var(--mantine-color-blue-7)',
+                                    },
+                                    '&:hover': {
+                                        backgroundColor: 'var(--mantine-color-gray-0)',
+                                    }
+                                }
+                            }}
+                        />
+                    </NavLink>
+
+                    {/*<NavLink*/}
+                    {/*    component={Link}*/}
+                    {/*    href="/debit-upload"*/}
+                    {/*    label="Document Upload"*/}
+                    {/*    leftSection={<IconUpload size={18} stroke={1.5} />}*/}
+                    {/*    active={active === "Document_Upload"}*/}
+                    {/*    onClick={() => setActive('Document_Upload')}*/}
+                    {/*    styles={navLinkStyles}*/}
+                    {/*/>*/}
 
                     <NavLink
                         component={Link}

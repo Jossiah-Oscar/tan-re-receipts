@@ -135,7 +135,9 @@ export default function CaseDetailPage() {
                 </Card>
 
                 {/* Operations Approval Panel */}
-                <OperationsApprovalPanel caseData={currentCase} />
+                {/*<OperationsApprovalPanel caseData={currentCase} />*/}
+
+
 
                 {/* Checklist */}
                 <Card shadow="sm" p="lg" radius="md" withBorder>

@@ -43,6 +43,10 @@ import React, { useEffect, useState } from "react";
 import { apiFetch } from "@/config/api";
 import { useDisclosure } from "@mantine/hooks";
 import { useParams, useRouter } from "next/navigation";
+import { OfferAnalysisDetail } from '@/components/workflow/details/OfferAnalysisDetail';
+import { TravelApprovalDetail } from '@/components/workflow/details/TravelApprovalDetail';
+import { DebitUploadDetail } from '@/components/workflow/details/DebitUploadDetail';
+import { GenericProcessDetail } from '@/components/workflow/details/GenericProcessDetail';
 
 type FlowableTask = {
     id: string;
@@ -121,6 +125,30 @@ type OfferAnalysisData = {
     };
 };
 
+type DebitUploadCaseData = {
+    id: number;
+    caseName: string;
+    cedant: string;
+    reinsurer: string;
+    lineOfBusiness: string;
+    status: 'PENDING' | 'READY';
+    checklist: Array<{
+        id: number;
+        documentName: string;
+        section: 'OPERATIONS' | 'FINANCE';
+        files: Array<{
+            id: number;
+            fileName: string;
+            originalFileName: string;
+            contentType: string;
+            fileSize: number;
+            uploadedBy: string;
+            uploadedAt: string;
+        }>;
+    }>;
+    operationsApprovalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+};
+
 export default function FlowableTasksCenter() {
     const [loading, setLoading] = useState(false);
     const [tasks, setTasks] = useState<FlowableTask[]>([]);
@@ -141,6 +169,9 @@ export default function FlowableTasksCenter() {
     // Offer analysis data
     const [offerAnalysisData, setOfferAnalysisData] = useState<OfferAnalysisData | null>(null);
     const [offerDataLoading, setOfferDataLoading] = useState(false);
+
+    // Debit upload case data
+    const [debitUploadCaseData, setDebitUploadCaseData] = useState<DebitUploadCaseData | null>(null);
 
     useEffect(() => {
         fetchTasks();
@@ -314,18 +345,58 @@ export default function FlowableTasksCenter() {
         }
     }
 
+    async function fetchDebitUploadData(caseId: number) {
+        setOfferDataLoading(true);
+        try {
+            const response = await apiFetch<DebitUploadCaseData>(
+                `/api/document-tracker/cases/${caseId}`,
+                {
+                    requiresAuth: true,
+                    cache: "no-store"
+                }
+            );
+            setDebitUploadCaseData(response);
+        } catch (error) {
+            console.error('Error fetching debit upload case data:', error);
+            setDebitUploadCaseData(null);
+        } finally {
+            setOfferDataLoading(false);
+        }
+    }
+
     function openTaskDetails(task: FlowableTask) {
         setSelectedTask(task);
         setTaskComment("");
         setActionType(null);
         setOfferAnalysisData(null);
+        setDebitUploadCaseData(null);
 
-        // If this is an offer analysis task, fetch the offer data
-        if (processID === 'OFFER_ANALYSIS_APPROVAL' && task.variables?.offerId) {
-            // Check if task variables include offer type (offerType, type, or analysisType)
-            const offerType = task.variables?.offerType || task.variables?.type || task.variables?.analysisType;
-            fetchOfferAnalysisData(task.variables.offerId, offerType);
-            fetchTaskComments(task.variables.offerId, offerType);
+        // Switch statement for process-specific data fetching
+        switch (processID) {
+            case 'OFFER_ANALYSIS_APPROVAL':
+                if (task.variables?.offerId) {
+                    const offerType = task.variables?.offerType || task.variables?.type || task.variables?.analysisType;
+                    fetchOfferAnalysisData(task.variables.offerId, offerType);
+                    fetchTaskComments(task.variables.offerId, offerType);
+                }
+                break;
+
+            case 'TRAVEL_APPROVAL':
+                // TODO: Fetch travel-specific data when implemented
+                // if (task.variables?.travelId) {
+                //   fetchTravelData(task.variables.travelId);
+                // }
+                break;
+
+            case 'DOCUMENT_TRACKER_APPROVAL':
+                if (task.variables?.caseId) {
+                    fetchDebitUploadData(task.variables.caseId);
+                }
+                break;
+
+            default:
+                // No specific data to fetch for unknown processes
+                break;
         }
 
         openModal();
@@ -361,6 +432,31 @@ export default function FlowableTasksCenter() {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         }).format(value) + '%';
+    }
+
+    function getModalTitle(): string {
+        switch (processID) {
+            case 'OFFER_ANALYSIS_APPROVAL':
+                return 'Offer Analysis Approval';
+            case 'TRAVEL_APPROVAL':
+                return 'Travel Request Approval';
+            case 'DOCUMENT_TRACKER_APPROVAL':
+                return 'Document Tracker Approval';
+            default:
+                return 'Task Details';
+        }
+    }
+
+    function getModalSize(): 'sm' | 'md' | 'lg' | 'xl' {
+        switch (processID) {
+            case 'OFFER_ANALYSIS_APPROVAL':
+                return 'xl';
+            case 'TRAVEL_APPROVAL':
+            case 'DOCUMENT_TRACKER_APPROVAL':
+                return 'lg';
+            default:
+                return 'lg';
+        }
     }
 
     function getPriorityColor(priority: string): string {
@@ -554,6 +650,7 @@ export default function FlowableTasksCenter() {
                     setActionType(null);
                     setTaskComment("");
                     setOfferAnalysisData(null);
+                    setDebitUploadCaseData(null);
                     setTaskCommentHistory([]);
                 }}
                 title={
@@ -562,11 +659,11 @@ export default function FlowableTasksCenter() {
                             <IconInfoCircle size={20} />
                         </ThemeIcon>
                         <Text fw={600} size="lg">
-                            {processID === 'OFFER_ANALYSIS_APPROVAL' ? 'Offer Analysis Approval' : 'Task Details'}
+                            {getModalTitle()}
                         </Text>
                     </Group>
                 }
-                size={processID === 'OFFER_ANALYSIS_APPROVAL' ? 'xl' : 'lg'}
+                size={getModalSize()}
             >
                 {selectedTask && (
                     <Stack gap="md">
@@ -638,330 +735,47 @@ export default function FlowableTasksCenter() {
                             </Stack>
                         </Paper>
 
-                        {/* Offer Analysis Details - Only for OFFER_ANALYSIS_APPROVAL */}
-                        {processID === 'OFFER_ANALYSIS_APPROVAL' && (
-                            <>
-                                {offerDataLoading ? (
-                                    <Paper p="md" withBorder>
-                                        <Center>
-                                            <Stack align="center" gap="sm">
-                                                <Loader size="sm" />
-                                                <Text size="sm" c="dimmed">Loading offer details...</Text>
-                                            </Stack>
-                                        </Center>
-                                    </Paper>
-                                ) : offerAnalysisData ? (
-                                    <Stack gap="md">
-                                        {/* Offer Type Indicator */}
-                                        {offerAnalysisData.analysis && (
-                                            <Paper p="md" withBorder radius="md" bg={offerAnalysisData.analysis.type === 'policy-cession' ? 'orange.0' : 'grape.0'}>
-                                                <Group justify="space-between" align="center">
-                                                    <Group gap="xs">
-                                                        <ThemeIcon
-                                                            size="lg"
-                                                            variant="filled"
-                                                            color={offerAnalysisData.analysis.type === 'policy-cession' ? 'orange' : 'grape'}
-                                                        >
-                                                            <IconFileCheck size={20} />
-                                                        </ThemeIcon>
-                                                        <div>
-                                                            <Text size="xs" c="dimmed" tt="uppercase">Analysis Type</Text>
-                                                            <Text fw={700} size="lg">
-                                                                {offerAnalysisData.analysis.type === 'policy-cession' ? 'Policy Cession' : 'Facultative'}
-                                                            </Text>
-                                                        </div>
-                                                    </Group>
-                                                    {/*<Badge*/}
-                                                    {/*    size="xl"*/}
-                                                    {/*    variant="filled"*/}
-                                                    {/*    color={offerAnalysisData.analysis.type === 'policy-cession' ? 'orange' : 'grape'}*/}
-                                                    {/*>*/}
-                                                    {/*    {offerAnalysisData.analysis.type === 'policy-cession' ? '4-Tier Analysis' : '3-Tier Analysis'}*/}
-                                                    {/*</Badge>*/}
-                                                </Group>
-                                            </Paper>
-                                        )}
+                        {/* Process-specific Details */}
+                        {(() => {
+                            switch (processID) {
+                                case 'OFFER_ANALYSIS_APPROVAL':
+                                    return (
+                                        <OfferAnalysisDetail
+                                            data={offerAnalysisData}
+                                            task={selectedTask}
+                                            loading={offerDataLoading}
+                                        />
+                                    );
 
-                                        {/* Offer Information */}
-                                        {offerAnalysisData.offer && (
-                                            <Paper p="md" withBorder radius="md" bg="blue.0">
-                                                <Stack gap="sm">
-                                                    <Group justify="space-between">
-                                                    <Text size="md" fw={500} mb="xs">Underwriter's Comments</Text>
-                                                    </Group>
-                                                    <Divider />
-                                                    <ScrollArea h={150}>
-                                                    <Text size="sm" fw={600} mb="xs">{offerAnalysisData.offer.notes}</Text>
-                                                    </ScrollArea>
-                                                    <Group justify="space-between">
-                                                        <Group gap="xs">
-                                                            <ThemeIcon variant="light" color="blue">
-                                                                <IconBuildingBank size={18} />
-                                                            </ThemeIcon>
-                                                            <Text fw={500} size="md">Offer Information</Text>
-                                                        </Group>
-                                                        <Badge size="lg" variant="filled">
-                                                            {offerAnalysisData.offer.currencyCode}
-                                                        </Badge>
-                                                    </Group>
+                                case 'TRAVEL_APPROVAL':
+                                    return (
+                                        <TravelApprovalDetail
+                                            data={offerAnalysisData}
+                                            task={selectedTask}
+                                            loading={offerDataLoading}
+                                        />
+                                    );
 
-                                                    <Divider />
+                                case 'DOCUMENT_TRACKER_APPROVAL':
+                                    return (
+                                        <DebitUploadDetail
+                                            data={debitUploadCaseData}
+                                            task={selectedTask}
+                                            loading={offerDataLoading}
+                                        />
+                                    );
 
-                                                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                                                        <div>
-                                                            <Text size="xs" c="dimmed" tt="uppercase">Cedant</Text>
-                                                            <Text fw={600}>{offerAnalysisData.offer.cedant}</Text>
-                                                        </div>
-                                                        <div>
-                                                            <Text size="xs" c="dimmed" tt="uppercase">Insured</Text>
-                                                            <Text fw={600}>{offerAnalysisData.offer.insured}</Text>
-                                                        </div>
-                                                        <div>
-                                                            <Text size="xs" c="dimmed" tt="uppercase">Country</Text>
-                                                            <Text fw={600}>{offerAnalysisData.offer.country}</Text>
-                                                        </div>
-                                                        <div>
-                                                            <Text size="xs" c="dimmed" tt="uppercase">Broker</Text>
-                                                            <Text fw={600}>{offerAnalysisData.offer.broker || 'N/A'}</Text>
-                                                        </div>
-                                                        <div>
-                                                            <Text size="xs" c="dimmed" tt="uppercase">Sum Insured</Text>
-                                                            <Text fw={600}>{formatCurrency(offerAnalysisData.offer.sumInsured, offerAnalysisData.offer.currencyCode)}</Text>
-                                                        </div>
-                                                        <div>
-                                                            <Text size="xs" c="dimmed" tt="uppercase">Premium</Text>
-                                                            <Text fw={600}>{formatCurrency(offerAnalysisData.offer.premium, offerAnalysisData.offer.currencyCode)}</Text>
-                                                        </div>
-                                                        <div>
-                                                            <Text size="xs" c="dimmed" tt="uppercase">Period</Text>
-                                                            <Text fw={600}>
-                                                                {new Date(offerAnalysisData.offer.periodFrom).toLocaleDateString()} - {new Date(offerAnalysisData.offer.periodTo).toLocaleDateString()}
-                                                            </Text>
-                                                        </div>
-                                                        <div>
-                                                            <Text size="xs" c="dimmed" tt="uppercase">Exchange Rate</Text>
-                                                            <Text fw={600}>{offerAnalysisData.offer.exchangeRate.toFixed(6)}</Text>
-                                                        </div>
-                                                    </SimpleGrid>
-                                                </Stack>
-                                            </Paper>
-                                        )}
+                                default:
+                                    return (
+                                        <GenericProcessDetail
+                                            data={offerAnalysisData}
+                                            task={selectedTask}
+                                            loading={offerDataLoading}
+                                        />
+                                    );
+                            }
+                        })()}
 
-                                        {/* Analysis Breakdown */}
-                                        {offerAnalysisData.analysis && (
-                                            <Paper p="md" withBorder radius="md" bg="green.0">
-                                                <Stack gap="sm">
-                                                    <Group gap="xs">
-                                                        <ThemeIcon variant="light" color="green">
-                                                            <IconCoin size={18} />
-                                                        </ThemeIcon>
-                                                        <Text fw={500} size="md">Analysis Breakdown</Text>
-                                                    </Group>
-
-                                                    <Divider />
-
-                                                    {/* TAN-RE Share */}
-                                                    <Paper p="sm" withBorder bg="white">
-                                                        <Stack gap="xs">
-                                                            <Text fw={700} size="sm" c="blue">TAN-RE Share Offered</Text>
-                                                            <SimpleGrid cols={3} spacing="xs">
-                                                                <div>
-                                                                    <Text size="xs" c="dimmed">Share %</Text>
-                                                                    <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.tanreSharePercent)}</Text>
-                                                                </div>
-                                                                <div>
-                                                                    <Text size="xs" c="dimmed">Exposure</Text>
-                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.tanreExposure, 'TZS')}</Text>
-                                                                </div>
-                                                                <div>
-                                                                    <Text size="xs" c="dimmed">Premium</Text>
-                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.tanrePremium, 'TZS')}</Text>
-                                                                </div>
-                                                            </SimpleGrid>
-                                                        </Stack>
-                                                    </Paper>
-
-                                                    {/* Accepted Share */}
-                                                    <Paper p="sm" withBorder bg="white">
-                                                        <Stack gap="xs">
-                                                            <Text fw={700} size="sm" c="teal">Share Accepted by TAN-RE</Text>
-                                                            <SimpleGrid cols={3} spacing="xs">
-                                                                <div>
-                                                                    <Text size="xs" c="dimmed">Share %</Text>
-                                                                    <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.acceptedSharePercent)}</Text>
-                                                                </div>
-                                                                <div>
-                                                                    <Text size="xs" c="dimmed">Exposure</Text>
-                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.acceptedExposure, 'TZS')}</Text>
-                                                                </div>
-                                                                <div>
-                                                                    <Text size="xs" c="dimmed">Premium</Text>
-                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.acceptedPremium, 'TZS')}</Text>
-                                                                </div>
-                                                            </SimpleGrid>
-                                                        </Stack>
-                                                    </Paper>
-
-                                                    <Divider label="Breakdown of Accepted Share" labelPosition="center" />
-
-                                                    {/* Retention */}
-                                                    <Paper p="sm" withBorder bg="white">
-                                                        <Stack gap="xs">
-                                                            <Text fw={700} size="sm" c="violet">TAN-RE Retention</Text>
-                                                            <SimpleGrid cols={3} spacing="xs">
-                                                                <div>
-                                                                    <Text size="xs" c="dimmed">Share %</Text>
-                                                                    <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.retentionSharePercent)}</Text>
-                                                                </div>
-                                                                <div>
-                                                                    <Text size="xs" c="dimmed">Exposure</Text>
-                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.retentionExposure, 'TZS')}</Text>
-                                                                </div>
-                                                                <div>
-                                                                    <Text size="xs" c="dimmed">Premium</Text>
-                                                                    <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.retentionPremium, 'TZS')}</Text>
-                                                                </div>
-                                                            </SimpleGrid>
-                                                        </Stack>
-                                                    </Paper>
-
-                                                    {/* Conditional rendering based on type */}
-                                                    {offerAnalysisData.analysis.type === 'policy-cession' ? (
-                                                        <>
-                                                            {/* 1st Surplus */}
-                                                            <Paper p="sm" withBorder bg="white">
-                                                                <Stack gap="xs">
-                                                                    <Text fw={700} size="sm" c="cyan">1st Surplus</Text>
-                                                                    <SimpleGrid cols={3} spacing="xs">
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Share %</Text>
-                                                                            <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.firstSurplusPercent || 0)}</Text>
-                                                                        </div>
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Exposure</Text>
-                                                                            <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.firstSurplusExposure || 0, 'TZS')}</Text>
-                                                                        </div>
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Premium</Text>
-                                                                            <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.firstSurplusPremium || 0, 'TZS')}</Text>
-                                                                        </div>
-                                                                    </SimpleGrid>
-                                                                </Stack>
-                                                            </Paper>
-
-                                                            {/* 2nd Surplus */}
-                                                            <Paper p="sm" withBorder bg="white">
-                                                                <Stack gap="xs">
-                                                                    <Text fw={700} size="sm" c="indigo">2nd Surplus</Text>
-                                                                    <SimpleGrid cols={3} spacing="xs">
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Share %</Text>
-                                                                            <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.secondSurplusPercent || 0)}</Text>
-                                                                        </div>
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Exposure</Text>
-                                                                            <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.secondSurplusExposure || 0, 'TZS')}</Text>
-                                                                        </div>
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Premium</Text>
-                                                                            <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.secondSurplusPremium || 0, 'TZS')}</Text>
-                                                                        </div>
-                                                                    </SimpleGrid>
-                                                                </Stack>
-                                                            </Paper>
-
-                                                            {/* Auto Fac Retro */}
-                                                            <Paper p="sm" withBorder bg="white">
-                                                                <Stack gap="xs">
-                                                                    <Text fw={700} size="sm" c="red">Auto Fac Retro</Text>
-                                                                    <SimpleGrid cols={3} spacing="xs">
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Share %</Text>
-                                                                            <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.autoFacRetroPercent || 0)}</Text>
-                                                                        </div>
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Exposure</Text>
-                                                                            <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.autoFacRetroExposure || 0, 'TZS')}</Text>
-                                                                        </div>
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Premium</Text>
-                                                                            <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.autoFacRetroPremium || 0, 'TZS')}</Text>
-                                                                        </div>
-                                                                    </SimpleGrid>
-                                                                </Stack>
-                                                            </Paper>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            {/* Surplus */}
-                                                            <Paper p="sm" withBorder bg="white">
-                                                                <Stack gap="xs">
-                                                                    <Text fw={700} size="sm" c="orange">Surplus Retro</Text>
-                                                                    <SimpleGrid cols={3} spacing="xs">
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Share %</Text>
-                                                                            <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.surplusSharePercent || 0)}</Text>
-                                                                        </div>
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Exposure</Text>
-                                                                            <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.surplusExposure || 0, 'TZS')}</Text>
-                                                                        </div>
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Premium</Text>
-                                                                            <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.surplusPremium || 0, 'TZS')}</Text>
-                                                                        </div>
-                                                                    </SimpleGrid>
-                                                                </Stack>
-                                                            </Paper>
-
-                                                            {/* Fac Retro */}
-                                                            <Paper p="sm" withBorder bg="white">
-                                                                <Stack gap="xs">
-                                                                    <Text fw={700} size="sm" c="red">Facultative Retro</Text>
-                                                                    <SimpleGrid cols={3} spacing="xs">
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Share %</Text>
-                                                                            <Text fw={600}>{formatPercentage(offerAnalysisData.analysis.facRetroPercent || 0)}</Text>
-                                                                        </div>
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Exposure</Text>
-                                                                            <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.facRetroExposure || 0, 'TZS')}</Text>
-                                                                        </div>
-                                                                        <div>
-                                                                            <Text size="xs" c="dimmed">Premium</Text>
-                                                                            <Text fw={600}>{formatCurrency(offerAnalysisData.analysis.facRetroPremium || 0, 'TZS')}</Text>
-                                                                        </div>
-                                                                    </SimpleGrid>
-                                                                </Stack>
-                                                            </Paper>
-                                                        </>
-                                                    )}
-
-                                                    <Divider />
-
-                                                    {/* Total */}
-                                                    <Paper p="sm" withBorder bg="gray.1">
-                                                        <Group justify="space-between">
-                                                            <Text fw={700} size="md">Total</Text>
-                                                            <Group gap="xl">
-                                                                <div>
-                                                                    <Text size="xs" c="dimmed" ta="right">Total Exposure</Text>
-                                                                    <Text fw={700} size="lg">{formatCurrency(offerAnalysisData.analysis.totalExposure, 'TZS')}</Text>
-                                                                </div>
-                                                                <div>
-                                                                    <Text size="xs" c="dimmed" ta="right">Total Premium</Text>
-                                                                    <Text fw={700} size="lg">{formatCurrency(offerAnalysisData.analysis.totalPremium, 'TZS')}</Text>
-                                                                </div>
-                                                            </Group>
-                                                        </Group>
-                                                    </Paper>
-                                                </Stack>
-                                            </Paper>
-                                        )}
-                                    </Stack>
-                                ) : null}
-                            </>
-                        )}
 
                         {/* Comment History Section */}
                         {taskCommentHistory && taskCommentHistory.length > 0 && (

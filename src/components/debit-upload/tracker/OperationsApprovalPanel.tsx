@@ -6,6 +6,7 @@ import { showNotification } from '@mantine/notifications';
 import { useAuth } from '@/context/AuthContext';
 import type { Case, ChecklistFile } from '@/store/useDocumentTrackerStore';
 import useDocumentTrackerStore from '@/store/useDocumentTrackerStore';
+import {apiFetch} from "@/config/api";
 
 interface OperationsApprovalPanelProps {
     caseData: Case;
@@ -72,7 +73,7 @@ export function OperationsApprovalPanel({ caseData }: OperationsApprovalPanelPro
             const token = localStorage.getItem('jwt');
             const apiBaseUrl = process.env.NEXT_PUBLIC_API_DOC_URL || 'http://localhost:3003';
 
-            const response = await fetch(`${apiBaseUrl}/api/document-tracker/files/${file.id}/download`, {
+            const response = await apiFetch(`/api/document-tracker/files/${file.id}/download`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 },
@@ -134,14 +135,14 @@ export function OperationsApprovalPanel({ caseData }: OperationsApprovalPanelPro
 
                 {/*<Divider />*/}
 
-                {/* Debug Info - Remove this after testing */}
+                {/* /!*Debug Info - Remove this after testing*!/*/}
                 {/*<Stack gap="xs" style={{ backgroundColor: 'rgba(255, 200, 0, 0.1)', padding: '8px', borderRadius: '4px' }}>*/}
-                {/*    <Text size="xs" c="dimmed">Debug Info:</Text>*/}
-                {/*    <Text size="xs">Your username: {username}</Text>*/}
-                {/*    <Text size="xs">Your roles: {roles.join(', ')}</Text>*/}
-                {/*    <Text size="xs">Has SENIOR_UNDERWRITER role: {isSeniorUnderwriter ? 'YES' : 'NO'}</Text>*/}
-                {/*    <Text size="xs">Approval Status: {caseData.operationsApprovalStatus}</Text>*/}
-                {/*    <Text size="xs">Should show Approve button: {isSeniorUnderwriter && isPending ? 'YES' : 'NO'}</Text>*/}
+                {/*    /!*<Text size="xs" c="dimmed">Debug Info:</Text>*!/*/}
+                {/*    /!*<Text size="xs">Your username: {username}</Text>*!/*/}
+                {/*    /!*<Text size="xs">Your roles: {roles.join(', ')}</Text>*!/*/}
+                {/*    /!*<Text size="xs">Has SENIOR_UNDERWRITER role: {isSeniorUnderwriter ? 'YES' : 'NO'}</Text>*!/*/}
+                {/*    /!*<Text size="xs">Approval Status: {caseData.operationsApprovalStatus}</Text>*!/*/}
+                {/*    /!*<Text size="xs">Should show Approve button: {isSeniorUnderwriter && isPending ? 'YES' : 'NO'}</Text>*!/*/}
                 {/*</Stack>*/}
 
                 {/*<Divider />*/}

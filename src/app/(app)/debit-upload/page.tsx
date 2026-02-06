@@ -298,13 +298,13 @@ export default function DocumentUploadPage() {
             <Stack gap="xs">
                 <Group justify="space-between" mt="md">
                     <Title order={3}>Document Management</Title>
-                    <Button
-                        variant="light"
-                        leftSection={<IconClipboardList size={16}/>}
-                        onClick={() => router.push('/debit-upload/tracker')}
-                    >
-                        Document Tracker
-                    </Button>
+                    {/*<Button*/}
+                    {/*    variant="light"*/}
+                    {/*    leftSection={<IconClipboardList size={16}/>}*/}
+                    {/*    onClick={() => router.push('/debit-upload/tracker')}*/}
+                    {/*>*/}
+                    {/*    Document Tracker*/}
+                    {/*</Button>*/}
                 </Group>
                 {/*<Title order={3}>Document Management</Title>*/}
                 <Card>

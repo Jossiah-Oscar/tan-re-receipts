@@ -1,8 +1,10 @@
-import { Table, FileInput, Button, ActionIcon, Group, Text, Stack, Title, Divider, Alert } from '@mantine/core';
+import {Table, FileInput, Button, ActionIcon, Group, Text, Stack, Title, Divider, Alert, Card} from '@mantine/core';
 import { IconPaperclip, IconDownload, IconX, IconCheck, IconCircle, IconLock } from '@tabler/icons-react';
 import { modals } from '@mantine/modals';
+import { notifications } from '@mantine/notifications';
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { apiFetch } from '@/config/api';
 import type { ChecklistItem } from '@/store/useDocumentTrackerStore';
 
 interface ChecklistViewProps {
@@ -24,6 +26,7 @@ export function ChecklistView({
 }: ChecklistViewProps) {
     const { username } = useAuth();
     const [uploadingItems, setUploadingItems] = useState<Set<number>>(new Set());
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const isFinanceLocked = operationsApprovalStatus !== 'APPROVED';
 
@@ -53,6 +56,40 @@ export function ChecklistView({
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    };
+
+    const handleSubmitForReview = async () => {
+        modals.openConfirmModal({
+            title: 'Submit for Review',
+            children: 'Are you sure you want to submit these documents for review? Once submitted, you will not be able to make changes until the review is complete.',
+            labels: { confirm: 'Submit', cancel: 'Cancel' },
+            confirmProps: { color: 'green' },
+            onConfirm: async () => {
+                setIsSubmitting(true);
+                try {
+                    await apiFetch(`/api/document-tracker/cases/${caseId}/submit-for-review`, {
+                        method: 'POST',
+                    });
+
+                    console.log(`Case ID: ${caseId}`)
+                    notifications.show({
+                        title: 'Success',
+                        message: 'Documents submitted for review successfully',
+                        color: 'green',
+                    });
+                    // Optionally refresh the page or update the state
+                    // window.location.reload();
+                } catch (error) {
+                    notifications.show({
+                        title: 'Error',
+                        message: error instanceof Error ? error.message : 'Failed to submit documents for review',
+                        color: 'red',
+                    });
+                } finally {
+                    setIsSubmitting(false);
+                }
+            },
+        });
     };
 
     // Group checklist items by section
@@ -211,6 +248,22 @@ export function ChecklistView({
                 </Group>
                 {renderChecklistTable(operationsDocs, 'OPERATIONS')}
             </div>
+
+            <Card shadow="sm" p="lg" radius="md" withBorder>
+                <Group justify="flex-end">
+                    {operationsDocs.length > 0 && operationsDocs.every(d => d.isCompleted) && (
+                        <Button
+                            leftSection={<IconCheck size={16} />}
+                            color="green"
+                            onClick={handleSubmitForReview}
+                            loading={isSubmitting}
+                            disabled={isSubmitting}
+                        >
+                            Submit for review
+                        </Button>
+                    )}
+                </Group>
+            </Card>
 
             <Divider />
 
